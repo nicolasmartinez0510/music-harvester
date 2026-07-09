@@ -30,6 +30,7 @@ RUN apt-get update \
         ca-certificates \
         curl \
         libsqlite3-dev \
+        unzip \
     && docker-php-ext-install -j"$(nproc)" pdo_sqlite pcntl \
     && apt-get purge -y --auto-remove libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -55,6 +56,8 @@ RUN set -eux; \
     yt-dlp --version
 
 COPY docker/yt-dlp/yt-dlp.conf /etc/yt-dlp.conf
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 

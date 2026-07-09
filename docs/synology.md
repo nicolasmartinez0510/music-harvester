@@ -213,21 +213,33 @@ Colocá `cookies/cookies.txt` antes de levantar el worker.
 
 ### 4.3 Override de volúmenes para Synology
 
-Usá el `docker-compose.synology.yml` del repo (no el `docker-compose.override.yml` de dev). Ese archivo:
+Usá el `docker-compose.synology.yml` del repo (no `docker-compose.dev.yml`, que es solo para desarrollo local). Ese archivo:
 
 - Instala `vendor/` y el frontend **dentro de la imagen** al hacer `build`
 - Monta solo `/music`, cookies, `database/` y `storage/` — **no** el proyecto entero
 
-**No** uses `docker-compose.override.yml` del repo en el NAS: ese archivo es para desarrollo local (`./storage/music`).
+**No** uses `docker-compose.dev.yml` en el NAS: monta el código fuente del host y requiere `composer install` local.
 
 ### 4.4 Primer arranque (SSH)
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.synology.yml build
+# Importante: bajar contenedores viejos si existían con el compose anterior
+docker compose -f docker-compose.yml -f docker-compose.synology.yml down
+
+docker compose -f docker-compose.yml -f docker-compose.synology.yml build --no-cache
 docker compose -f docker-compose.yml -f docker-compose.synology.yml run --rm app php artisan key:generate
 docker compose -f docker-compose.yml -f docker-compose.synology.yml run --rm app php artisan migrate --force
 docker compose -f docker-compose.yml -f docker-compose.synology.yml up -d
 ```
+
+Verificá que `vendor/` existe **dentro** del contenedor (no en el host):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.synology.yml exec worker ls -la vendor/autoload.php
+docker compose -f docker-compose.yml -f docker-compose.synology.yml exec worker php artisan --version
+```
+
+Si `vendor/autoload.php` no existe, el entrypoint intenta `composer install` al arrancar; el build con `--no-cache` debería incluirlo de todas formas.
 
 Comprobaciones:
 
@@ -294,7 +306,7 @@ docker compose exec worker pip3 install --break-system-packages -U "yt-dlp[defau
 | `Sign in to confirm you're not a bot` | Sin cookies o cookies vencidas | Re-exportar `cookies.txt`, reiniciar worker |
 | `cookies_configured: false` | Mount incorrecto o archivo ausente | Verificar `./cookies/cookies.txt` y `COOKIES_PATH` |
 | Archivos no aparecen en Audio Station | Carpeta no indexada | Agregar `/volume1/music` en Indexación multimedia |
-| `vendor/autoload.php` no encontrado | Montaje `.:/var/www/html` tapa la imagen sin `vendor` en el host | Usar `docker-compose.synology.yml` y rebuild: `docker compose -f docker-compose.yml -f docker-compose.synology.yml build` |
+| `vendor/autoload.php` no encontrado | Compose viejo montaba `.:/var/www/html` y tapaba la imagen | `git pull`, `down`, `build --no-cache`, levantar con `docker-compose.synology.yml` (sin `docker-compose.dev.yml`) |
 | UI carga pero API falla | `APP_KEY` vacío o SQLite sin migrar | `key:generate` + `migrate --force` |
 | Descargas muy lentas | Concurrencia alta en NAS débil | `MUSIC_MAX_CONCURRENCY=1` en Settings |
 

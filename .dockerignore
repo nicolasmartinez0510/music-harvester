@@ -13,4 +13,4 @@ storage/framework/views/*
 bootstrap/cache/*
 .phpunit.result.cache
 tests
-docker-compose.override.yml
+docker-compose.dev.yml

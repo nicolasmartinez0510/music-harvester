@@ -9,17 +9,19 @@ Laravel API + queue worker for downloading music from YouTube Music to a local l
 - **Frontend:** Angular 19 SPA (same origin via nginx)
 - **Proxy:** nginx (Angular UI + `/api` → Laravel)
 
-## Quick start (Docker)
+## Quick start (Docker, local)
 
 ```bash
 cp .env.example .env
-# Generate APP_KEY locally or after first build:
-docker compose run --rm app php artisan key:generate
+composer install   # only needed for local dev bind-mount
 
-docker compose up -d --build
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm app php artisan key:generate
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
 
 Open http://localhost:8085 — Angular UI at `/`, API at `/api`, health at `/up`.
+
+> **Synology / servidor:** no uses `docker-compose.dev.yml`. Ver [docs/synology.md](docs/synology.md).
 
 ## Frontend (Angular)
 
@@ -45,7 +47,7 @@ nvm use && npm install && npm run build
 Local dev with hot reload and API proxy to Docker:
 
 ```bash
-docker compose up -d app worker scheduler nginx
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d app worker scheduler nginx
 cd frontend && nvm use && npm start
 # UI: http://localhost:4200  (proxies /api → :8085)
 ```
@@ -80,17 +82,10 @@ cp .env.example .env
 docker compose -f docker-compose.yml -f docker-compose.synology.yml up -d --build
 ```
 
-For local dev with a host path:
+For local dev (bind-mounts source code; requires `composer install` on the host):
 
-```yaml
-# docker-compose.override.yml
-services:
-  app:
-    volumes:
-      - ./storage/music:/music
-  worker:
-    volumes:
-      - ./storage/music:/music
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
 
 ## DDD layout

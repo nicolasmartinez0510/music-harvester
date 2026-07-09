@@ -1,0 +1,26 @@
+# Local development: bind-mount source code (uses host vendor/ after composer install).
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+
+services:
+  app:
+    volumes: !override
+      - .:/var/www/html
+      - ./storage/music:/music
+      - ./cookies:/cookies:ro
+
+  worker:
+    volumes: !override
+      - .:/var/www/html
+      - ./storage/music:/music
+      - ./cookies:/cookies:ro
+
+  scheduler:
+    volumes: !override
+      - .:/var/www/html
+
+  nginx:
+    image: nginx:1.27-alpine
+    build: !reset null
+    volumes: !override
+      - .:/var/www/html:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro

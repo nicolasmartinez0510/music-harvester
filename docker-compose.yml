@@ -1,3 +1,7 @@
+# Production-safe defaults: app code (vendor, frontend) lives in the image.
+# Local dev: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# Synology:  docker compose -f docker-compose.yml -f docker-compose.synology.yml up -d --build
+
 services:
   app:
     build:
@@ -6,9 +10,10 @@ services:
     image: music-harvester-app
     restart: unless-stopped
     volumes:
-      - .:/var/www/html
       - music_data:/music
       - ./cookies:/cookies:ro
+      - app_database:/var/www/html/database
+      - app_storage:/var/www/html/storage
     environment: &app_env
       APP_ENV: ${APP_ENV:-production}
       APP_DEBUG: ${APP_DEBUG:-false}
@@ -24,9 +29,10 @@ services:
     restart: unless-stopped
     command: php artisan queue:work --sleep=3 --tries=3 --timeout=3600
     volumes:
-      - .:/var/www/html
       - music_data:/music
       - ./cookies:/cookies:ro
+      - app_database:/var/www/html/database
+      - app_storage:/var/www/html/storage
     environment: *app_env
     depends_on:
       - app
@@ -36,23 +42,26 @@ services:
     restart: unless-stopped
     command: php artisan schedule:work
     volumes:
-      - .:/var/www/html
-      - music_data:/music
-      - ./cookies:/cookies:ro
+      - app_database:/var/www/html/database
+      - app_storage:/var/www/html/storage
     environment: *app_env
     depends_on:
       - app
 
   nginx:
-    image: nginx:1.27-alpine
+    build:
+      context: .
+      target: nginx
+    image: music-harvester-nginx
     restart: unless-stopped
     ports:
       - "${APP_PORT:-8085}:80"
     volumes:
-      - .:/var/www/html:ro
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - app
 
 volumes:
   music_data:
+  app_database:
+  app_storage:
