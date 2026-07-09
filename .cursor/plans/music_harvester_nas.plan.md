@@ -16,7 +16,7 @@ todos:
     status: completed
   - id: synology-docs
     content: Documentar volumen /music, cookies YTM, Media Indexing y deploy Container Manager
-    status: pending
+    status: completed
 isProject: false
 ---
 

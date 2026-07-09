@@ -1,0 +1,21 @@
+# Synology NAS: bind mounts for music library and cookies.
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.synology.yml up -d --build
+#
+# Adjust host paths if your shared folder or project directory differs.
+
+services:
+  app:
+    volumes:
+      - /volume1/music:/music
+      - ./cookies:/cookies:ro
+
+  worker:
+    volumes:
+      - /volume1/music:/music
+      - ./cookies:/cookies:ro
+
+  scheduler:
+    volumes:
+      - /volume1/music:/music
+      - ./cookies:/cookies:ro

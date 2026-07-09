@@ -66,6 +66,20 @@ Production images build the frontend automatically in the Docker multi-stage `Do
 - `music_data` → `/music` inside containers (map to `/volume1/music` on Synology)
 - `./cookies` → `/cookies` read-only (`cookies/cookies.txt` for YouTube Music)
 
+## Synology NAS
+
+Full deploy guide (Container Manager, `/volume1/music`, YouTube Music cookies, Media Indexing, Audio Station):
+
+**[docs/synology.md](docs/synology.md)**
+
+Quick start on the NAS:
+
+```bash
+cp .env.example .env
+# place cookies at cookies/cookies.txt
+docker compose -f docker-compose.yml -f docker-compose.synology.yml up -d --build
+```
+
 For local dev with a host path:
 
 ```yaml
@@ -98,6 +112,8 @@ docker compose exec worker ffmpeg -version
 After changing `Dockerfile` or `docker/yt-dlp/yt-dlp.conf`, rebuild the image:
 
 ```bash
-docker build -t music-harvester-app .
+DOCKER_BUILDKIT=1 docker compose build
 docker compose up -d --force-recreate app worker scheduler
 ```
+
+The image uses static `ffmpeg`, the `yt-dlp` release binary, and Deno copied from official images — no `apt install ffmpeg/python3-pip`, so rebuilds are much faster after the first pull.
