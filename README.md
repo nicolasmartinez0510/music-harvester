@@ -1,0 +1,103 @@
+# Music Harvester
+
+Laravel API + queue worker for downloading music from YouTube Music to a local library (Synology NAS).
+
+## Stack
+
+- **Backend:** Laravel 12 (PHP 8.4) + SQLite + database queue
+- **Worker:** `yt-dlp` + `ffmpeg` (same Docker image as app)
+- **Frontend:** Angular 19 SPA (same origin via nginx)
+- **Proxy:** nginx (Angular UI + `/api` → Laravel)
+
+## Quick start (Docker)
+
+```bash
+cp .env.example .env
+# Generate APP_KEY locally or after first build:
+docker compose run --rm app php artisan key:generate
+
+docker compose up -d --build
+```
+
+Open http://localhost:8085 — Angular UI at `/`, API at `/api`, health at `/up`.
+
+## Frontend (Angular)
+
+Requires **Node.js ≥ 18.19** (Angular 19). If you use [nvm](https://github.com/nvm-sh/nvm):
+
+```bash
+cd frontend
+nvm use          # reads .nvmrc → Node 22
+node -v          # should show v18+ (not v10)
+npm install
+npm run build
+```
+
+If `nvm use` says the version is missing: `nvm install 22`.
+
+Build the SPA (output in `frontend/dist/`):
+
+```bash
+cd frontend
+nvm use && npm install && npm run build
+```
+
+Local dev with hot reload and API proxy to Docker:
+
+```bash
+docker compose up -d app worker scheduler nginx
+cd frontend && nvm use && npm start
+# UI: http://localhost:4200  (proxies /api → :8085)
+```
+
+Production images build the frontend automatically in the Docker multi-stage `Dockerfile`.
+
+## Services
+
+| Service   | Role                                      |
+|-----------|-------------------------------------------|
+| `app`     | PHP-FPM + Laravel                         |
+| `worker`  | `php artisan queue:work`                    |
+| `scheduler` | `php artisan schedule:work`             |
+| `nginx`   | Reverse proxy, port `8085`                |
+
+## Volumes
+
+- `music_data` → `/music` inside containers (map to `/volume1/music` on Synology)
+- `./cookies` → `/cookies` read-only (`cookies/cookies.txt` for YouTube Music)
+
+For local dev with a host path:
+
+```yaml
+# docker-compose.override.yml
+services:
+  app:
+    volumes:
+      - ./storage/music:/music
+  worker:
+    volumes:
+      - ./storage/music:/music
+```
+
+## DDD layout
+
+```
+app/Domain/Music/          # entities, value objects, contracts
+app/Application/           # use cases (handlers)
+app/Infrastructure/        # yt-dlp, providers, persistence
+```
+
+## Verify worker tools
+
+```bash
+docker compose exec worker yt-dlp --version
+docker compose exec worker deno --version
+docker compose exec worker ffmpeg -version
+```
+
+After changing `Dockerfile` or `docker/yt-dlp/yt-dlp.conf`, rebuild the image:
+
+```bash
+docker build -t music-harvester-app .
+docker compose up -d --force-recreate app worker scheduler
+```

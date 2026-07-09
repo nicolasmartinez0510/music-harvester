@@ -1,0 +1,16 @@
+<div class="layout">
+  <header class="topbar">
+    <a routerLink="/" class="brand">Music Harvester</a>
+    <nav class="nav">
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+        Nueva descarga
+      </a>
+      <a routerLink="/downloads" routerLinkActive="active">Cola</a>
+      <a routerLink="/settings" routerLinkActive="active">Configuración</a>
+    </nav>
+  </header>
+
+  <main class="content">
+    <router-outlet />
+  </main>
+</div>

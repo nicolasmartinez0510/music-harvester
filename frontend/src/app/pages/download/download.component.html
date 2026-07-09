@@ -1,0 +1,41 @@
+<section class="page">
+  <header class="page-header">
+    <h1>Nueva descarga</h1>
+    <p>Pegá una URL de YouTube Music (track, álbum o playlist).</p>
+  </header>
+
+  <form class="card form" [formGroup]="form" (ngSubmit)="submit()">
+    <label class="field">
+      <span>URL</span>
+      <input
+        type="url"
+        formControlName="url"
+        placeholder="https://music.youtube.com/watch?v=..."
+        autocomplete="off"
+      />
+      @if (form.controls.url.touched && form.controls.url.hasError('required')) {
+        <small class="field-error">La URL es obligatoria.</small>
+      }
+    </label>
+
+    <label class="field">
+      <span>Formato</span>
+      <select formControlName="format">
+        @for (format of formats; track format.value) {
+          <option [value]="format.value">{{ format.label }}</option>
+        }
+      </select>
+    </label>
+
+    @if (errorMessage) {
+      <p class="alert alert-error" role="alert">{{ errorMessage }}</p>
+    }
+
+    <div class="actions">
+      <button type="submit" class="btn btn-primary" [disabled]="submitting">
+        {{ submitting ? 'Encolando…' : 'Descargar' }}
+      </button>
+      <a routerLink="/downloads" class="btn btn-secondary">Ver cola</a>
+    </div>
+  </form>
+</section>

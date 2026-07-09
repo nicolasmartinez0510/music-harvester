@@ -1,0 +1,64 @@
+<section class="page">
+  <header class="page-header">
+    <h1>Configuración</h1>
+    <p>Ruta de la biblioteca, formato por defecto y cookies de YouTube Music.</p>
+  </header>
+
+  @if (loading) {
+    <p class="muted">Cargando…</p>
+  } @else {
+    <form class="card form" [formGroup]="form" (ngSubmit)="submit()">
+      <label class="field">
+        <span>Ruta de música</span>
+        <input type="text" formControlName="music_path" />
+        <small class="field-hint">En Synology suele ser <code>/volume1/music</code>.</small>
+      </label>
+
+      <label class="field">
+        <span>Formato por defecto</span>
+        <select formControlName="default_format">
+          @for (format of formats; track format.value) {
+            <option [value]="format.value">{{ format.label }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="field">
+        <span>Concurrencia máxima</span>
+        <input type="number" min="1" max="10" formControlName="max_concurrency" />
+        <small class="field-hint">Recomendado: 1 en NAS doméstico.</small>
+      </label>
+
+      <label class="field">
+        <span>Ruta de cookies (opcional)</span>
+        <input type="text" formControlName="cookies_path" placeholder="/cookies/cookies.txt" />
+        <small class="field-hint">
+          Archivo Netscape exportado desde el navegador con sesión en music.youtube.com.
+        </small>
+      </label>
+
+      <div class="cookies-status" [class.ok]="cookiesConfigured" [class.missing]="!cookiesConfigured">
+        Cookies:
+        @if (cookiesConfigured) {
+          <strong>configuradas</strong>
+        } @else {
+          <strong>no detectadas</strong> — muchas playlists pueden fallar sin cookies.
+        }
+      </div>
+
+      @if (errorMessage) {
+        <p class="alert alert-error" role="alert">{{ errorMessage }}</p>
+      }
+
+      @if (successMessage) {
+        <p class="alert alert-success" role="status">{{ successMessage }}</p>
+      }
+
+      <div class="actions">
+        <button type="submit" class="btn btn-primary" [disabled]="saving">
+          {{ saving ? 'Guardando…' : 'Guardar' }}
+        </button>
+      </div>
+    </form>
+  }
+</section>

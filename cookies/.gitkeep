@@ -1,0 +1,3 @@
+# Place exported YouTube cookies here as cookies.txt for authenticated downloads.
+# Export from browser (e.g. "Get cookies.txt LOCALLY" extension) and mount this
+# directory read-only in Docker: ./cookies:/cookies:ro

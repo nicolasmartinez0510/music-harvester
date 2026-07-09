@@ -1,0 +1,69 @@
+<section class="page">
+  <header class="page-header">
+    <h1>Cola e historial</h1>
+    <p>Estado de descargas recientes. Se actualiza cada 5 segundos.</p>
+  </header>
+
+  @if (loading) {
+    <p class="muted">Cargando…</p>
+  } @else if (errorMessage) {
+    <p class="alert alert-error" role="alert">{{ errorMessage }}</p>
+  } @else if (jobs.length === 0) {
+    <div class="card empty-state">
+      <p>No hay descargas todavía.</p>
+      <a routerLink="/" class="btn btn-primary">Agregar URL</a>
+    </div>
+  } @else {
+    <div class="card table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Estado</th>
+            <th>Tipo</th>
+            <th>Progreso</th>
+            <th>URL</th>
+            <th>Creado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (job of jobs; track job.id) {
+            <tr>
+              <td>#{{ job.id }}</td>
+              <td>
+                <span [class]="statusClass(job.status)">{{ statusLabels[job.status] }}</span>
+                @if (job.error) {
+                  <small class="job-error">{{ job.error }}</small>
+                }
+              </td>
+              <td>{{ job.kind }}</td>
+              <td>
+                <div class="progress">
+                  <div class="progress-bar" [style.width.%]="job.progress"></div>
+                </div>
+                <small>{{ job.progress }}%</small>
+              </td>
+              <td class="url-cell">
+                <a [href]="job.url" target="_blank" rel="noopener">{{ job.url }}</a>
+              </td>
+              <td>{{ job.created_at | date: 'short' }}</td>
+              <td>
+                @if (job.status === 'failed') {
+                  <button
+                    type="button"
+                    class="btn btn-small"
+                    [disabled]="retryingId === job.id"
+                    (click)="retry(job)"
+                  >
+                    {{ retryingId === job.id ? 'Reintentando…' : 'Reintentar' }}
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
