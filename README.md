@@ -112,8 +112,15 @@ docker compose exec worker ffmpeg -version
 After changing `Dockerfile` or `docker/yt-dlp/yt-dlp.conf`, rebuild the image:
 
 ```bash
-DOCKER_BUILDKIT=1 docker compose build
+docker compose build app
 docker compose up -d --force-recreate app worker scheduler
 ```
 
 The image uses static `ffmpeg`, the `yt-dlp` release binary, and Deno copied from official images — no `apt install ffmpeg/python3-pip`, so rebuilds are much faster after the first pull.
+
+**Build fails with `docker-credential-desktop` not found?** Your Docker config points to a missing credential helper. Either open Docker Desktop, or build with a minimal config:
+
+```bash
+mkdir -p /tmp/docker-nocreds && printf '{"auths":{}}\n' > /tmp/docker-nocreds/config.json
+DOCKER_CONFIG=/tmp/docker-nocreds docker compose build app
+```

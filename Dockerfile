@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 FROM node:22-alpine AS frontend
 
 WORKDIR /build
@@ -12,9 +10,7 @@ RUN cd frontend && npm run build
 FROM php:8.4-fpm-bookworm
 
 # Only packages needed to compile PHP extensions (no ffmpeg/python/git).
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
-    apt-get update \
+RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
@@ -31,11 +27,12 @@ COPY --from=denoland/deno:bin /deno /usr/local/bin/deno
 ARG YTDLP_VERSION=2025.06.30
 ARG TARGETARCH
 RUN set -eux; \
-    case "${TARGETARCH}" in \
-        amd64) ytdlp_bin=yt-dlp_linux ;; \
-        arm64) ytdlp_bin=yt-dlp_linux_aarch64 ;; \
-        arm)   ytdlp_bin=yt-dlp_linux_armv7l ;; \
-        *) echo "unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    arch="${TARGETARCH:-$(dpkg --print-architecture)}"; \
+    case "${arch}" in \
+        amd64|x86_64) ytdlp_bin=yt-dlp_linux ;; \
+        arm64|aarch64) ytdlp_bin=yt-dlp_linux_aarch64 ;; \
+        arm|armv7l) ytdlp_bin=yt-dlp_linux_armv7l ;; \
+        *) echo "unsupported architecture: ${arch}" >&2; exit 1 ;; \
     esac; \
     curl -fsSL "https://github.com/yt-dlp/yt-dlp/releases/download/${YTDLP_VERSION}/${ytdlp_bin}" \
         -o /usr/local/bin/yt-dlp; \
