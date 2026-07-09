@@ -1,6 +1,8 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      target: app
     image: music-harvester-app
     restart: unless-stopped
     volumes:

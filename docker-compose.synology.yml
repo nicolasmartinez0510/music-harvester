@@ -1,4 +1,6 @@
-# Synology NAS: bind mounts for music library and cookies.
+# Synology / production: use image code (vendor + frontend baked in).
+# Do not bind-mount the whole project — that hides vendor/ from the image.
+#
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.synology.yml up -d --build
 #
@@ -6,16 +8,31 @@
 
 services:
   app:
-    volumes:
+    build:
+      context: .
+      target: app
+    volumes: !override
       - /volume1/music:/music
       - ./cookies:/cookies:ro
+      - ./database:/var/www/html/database
+      - ./storage:/var/www/html/storage
 
   worker:
-    volumes:
+    volumes: !override
       - /volume1/music:/music
       - ./cookies:/cookies:ro
+      - ./database:/var/www/html/database
+      - ./storage:/var/www/html/storage
 
   scheduler:
-    volumes:
-      - /volume1/music:/music
-      - ./cookies:/cookies:ro
+    volumes: !override
+      - ./database:/var/www/html/database
+      - ./storage:/var/www/html/storage
+
+  nginx:
+    build:
+      context: .
+      target: nginx
+    image: music-harvester-nginx
+    volumes: !override
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro

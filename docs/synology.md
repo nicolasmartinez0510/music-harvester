@@ -37,22 +37,18 @@ Music Harvester escribe la biblioteca en el filesystem. SQLite solo guarda jobs 
 
 ### Montaje en Docker
 
-En Synology, reemplazá el volumen nombrado `music_data` del `docker-compose.yml` por un bind mount al path del host:
+En Synology **no** montes el código fuente sobre `/var/www/html`: eso tapa el `vendor/` que viene dentro de la imagen. El archivo `docker-compose.synology.yml` del repo ya resetea los volúmenes y solo persiste datos:
 
 ```yaml
-# docker-compose.synology.yml (crear junto al proyecto en el NAS)
+# docker-compose.synology.yml (incluido en el repo)
 services:
   app:
-    volumes:
+    volumes: !override
       - /volume1/music:/music
-
-  worker:
-    volumes:
-      - /volume1/music:/music
-
-  scheduler:
-    volumes:
-      - /volume1/music:/music
+      - ./cookies:/cookies:ro
+      - ./database:/var/www/html/database
+      - ./storage:/var/www/html/storage
+  # worker, scheduler, nginx: ver archivo completo
 ```
 
 Levantá el stack con ambos archivos:
@@ -217,7 +213,10 @@ Colocá `cookies/cookies.txt` antes de levantar el worker.
 
 ### 4.3 Override de volúmenes para Synology
 
-Creá `docker-compose.synology.yml` en la raíz del proyecto con el contenido de la sección [Volumen de música](#1-volumen-de-música-music). Asegurate de que `./cookies` exista y contenga `cookies.txt`.
+Usá el `docker-compose.synology.yml` del repo (no el `docker-compose.override.yml` de dev). Ese archivo:
+
+- Instala `vendor/` y el frontend **dentro de la imagen** al hacer `build`
+- Monta solo `/music`, cookies, `database/` y `storage/` — **no** el proyecto entero
 
 **No** uses `docker-compose.override.yml` del repo en el NAS: ese archivo es para desarrollo local (`./storage/music`).
 
@@ -295,7 +294,7 @@ docker compose exec worker pip3 install --break-system-packages -U "yt-dlp[defau
 | `Sign in to confirm you're not a bot` | Sin cookies o cookies vencidas | Re-exportar `cookies.txt`, reiniciar worker |
 | `cookies_configured: false` | Mount incorrecto o archivo ausente | Verificar `./cookies/cookies.txt` y `COOKIES_PATH` |
 | Archivos no aparecen en Audio Station | Carpeta no indexada | Agregar `/volume1/music` en Indexación multimedia |
-| Permiso denegado en `/music` | Usuario Docker sin write | Ajustar permisos ACL de la carpeta compartida |
+| `vendor/autoload.php` no encontrado | Montaje `.:/var/www/html` tapa la imagen sin `vendor` en el host | Usar `docker-compose.synology.yml` y rebuild: `docker compose -f docker-compose.yml -f docker-compose.synology.yml build` |
 | UI carga pero API falla | `APP_KEY` vacío o SQLite sin migrar | `key:generate` + `migrate --force` |
 | Descargas muy lentas | Concurrencia alta en NAS débil | `MUSIC_MAX_CONCURRENCY=1` en Settings |
 

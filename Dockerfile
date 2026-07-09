@@ -7,7 +7,22 @@ RUN cd frontend && npm ci
 COPY frontend/ frontend/
 RUN cd frontend && npm run build
 
-FROM php:8.4-fpm-bookworm
+FROM composer:2 AS vendor
+
+WORKDIR /app
+
+COPY composer.json composer.lock ./
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --prefer-dist \
+    --no-scripts \
+    --no-autoloader
+
+COPY . .
+RUN composer dump-autoload --optimize --classmap-authoritative --no-dev
+
+FROM php:8.4-fpm-bookworm AS app
 
 # Only packages needed to compile PHP extensions (no ffmpeg/python/git).
 RUN apt-get update \
@@ -41,10 +56,9 @@ RUN set -eux; \
 
 COPY docker/yt-dlp/yt-dlp.conf /etc/yt-dlp.conf
 
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
 WORKDIR /var/www/html
 
+COPY --from=vendor /app/vendor ./vendor
 COPY . .
 COPY --from=frontend /build/frontend/dist/frontend/browser/ /var/www/html/frontend/dist/frontend/browser/
 
@@ -53,3 +67,9 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 
 ENTRYPOINT ["entrypoint.sh"]
 CMD ["php-fpm"]
+
+FROM nginx:1.27-alpine AS nginx
+
+COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY --from=app /var/www/html/public /var/www/html/public
+COPY --from=app /var/www/html/frontend/dist /var/www/html/frontend/dist
