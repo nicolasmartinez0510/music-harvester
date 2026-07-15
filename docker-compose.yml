@@ -23,6 +23,13 @@ services:
       QUEUE_CONNECTION: database
       MUSIC_PATH: /music
       COOKIES_PATH: /cookies/cookies.txt
+    healthcheck:
+      # Becomes healthy once the migrations table exists (app entrypoint migrated).
+      test: ["CMD", "php", "artisan", "migrate:status"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
 
   worker:
     image: music-harvester-app
@@ -35,7 +42,8 @@ services:
       - app_storage:/var/www/html/storage
     environment: *app_env
     depends_on:
-      - app
+      app:
+        condition: service_healthy
 
   scheduler:
     image: music-harvester-app
@@ -46,7 +54,8 @@ services:
       - app_storage:/var/www/html/storage
     environment: *app_env
     depends_on:
-      - app
+      app:
+        condition: service_healthy
 
   nginx:
     build:

@@ -228,9 +228,10 @@ docker compose -f docker-compose.yml -f docker-compose.synology.yml down
 
 docker compose -f docker-compose.yml -f docker-compose.synology.yml build --no-cache
 docker compose -f docker-compose.yml -f docker-compose.synology.yml run --rm app php artisan key:generate
-docker compose -f docker-compose.yml -f docker-compose.synology.yml run --rm app php artisan migrate --force
 docker compose -f docker-compose.yml -f docker-compose.synology.yml up -d
 ```
+
+Las **migraciones se corren solas** al arrancar el servicio `app` (crea las tablas `cache`, `jobs`, `sessions`, `download_jobs`, `settings`). El `worker` y el `scheduler` esperan a que `app` esté *healthy* antes de arrancar, así que no verás el error `no such table: cache`.
 
 Verificá que `vendor/` existe **dentro** del contenedor (no en el host):
 
@@ -307,7 +308,8 @@ docker compose exec worker pip3 install --break-system-packages -U "yt-dlp[defau
 | `cookies_configured: false` | Mount incorrecto o archivo ausente | Verificar `./cookies/cookies.txt` y `COOKIES_PATH` |
 | Archivos no aparecen en Audio Station | Carpeta no indexada | Agregar `/volume1/music` en Indexación multimedia |
 | `vendor/autoload.php` no encontrado | Compose viejo montaba `.:/var/www/html` y tapaba la imagen | `git pull`, `down`, `build --no-cache`, levantar con `docker-compose.synology.yml` (sin `docker-compose.dev.yml`) |
-| UI carga pero API falla | `APP_KEY` vacío o SQLite sin migrar | `key:generate` + `migrate --force` |
+| `no such table: cache` / `jobs` / `sessions` | Base SQLite vacía, migraciones sin correr | `exec app php artisan migrate --force` (o recrear `app`: el entrypoint migra al arrancar) |
+| UI carga pero API falla | `APP_KEY` vacío o SQLite sin migrar | `key:generate` + recrear `app` (migra solo) |
 | Descargas muy lentas | Concurrencia alta en NAS débil | `MUSIC_MAX_CONCURRENCY=1` en Settings |
 
 Logs del worker:

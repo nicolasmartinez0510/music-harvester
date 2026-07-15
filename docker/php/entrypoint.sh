@@ -19,4 +19,12 @@ fi
 
 chown -R www-data:www-data storage bootstrap/cache database vendor 2>/dev/null || true
 
+# Run migrations only from the web/app service (php-fpm) to avoid several
+# containers writing to the same SQLite file at once. worker/scheduler wait
+# for the app healthcheck before starting.
+if [ "$1" = "php-fpm" ]; then
+    echo "Running database migrations..."
+    php artisan migrate --force
+fi
+
 exec "$@"
