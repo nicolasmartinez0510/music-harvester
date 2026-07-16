@@ -1,4 +1,9 @@
-# Synology NAS: host paths for music library and persistent data.
+# Synology NAS: bind-mount only the music library + cookies.
+# database/ and storage/ stay on NAMED volumes (app_database, app_storage) from
+# the base compose so the container's www-data user can actually write to them
+# (bind-mounted host folders on Synology are owned by the DSM user, not uid 33,
+# and chown often fails on them -> "readonly database" / log permission errors).
+#
 # Usage: docker compose -f docker-compose.yml -f docker-compose.synology.yml up -d --build
 #
 # Do NOT use docker-compose.dev.yml on the NAS.
@@ -8,17 +13,17 @@ services:
     volumes: !override
       - /volume1/music:/music
       - ./cookies:/cookies:ro
-      - ./database:/var/www/html/database
-      - ./storage:/var/www/html/storage
+      - app_database:/var/www/html/database
+      - app_storage:/var/www/html/storage
 
   worker:
     volumes: !override
       - /volume1/music:/music
       - ./cookies:/cookies:ro
-      - ./database:/var/www/html/database
-      - ./storage:/var/www/html/storage
+      - app_database:/var/www/html/database
+      - app_storage:/var/www/html/storage
 
   scheduler:
     volumes: !override
-      - ./database:/var/www/html/database
-      - ./storage:/var/www/html/storage
+      - app_database:/var/www/html/database
+      - app_storage:/var/www/html/storage

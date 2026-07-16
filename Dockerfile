@@ -40,7 +40,9 @@ COPY --from=mwader/static-ffmpeg:8.1 /ffmpeg /usr/local/bin/ffmpeg
 COPY --from=mwader/static-ffmpeg:8.1 /ffprobe /usr/local/bin/ffprobe
 COPY --from=denoland/deno:bin /deno /usr/local/bin/deno
 
-ARG YTDLP_VERSION=2025.06.30
+# yt-dlp >= 2025.11.12 is required for --js-runtimes (Deno JS runtime for YouTube).
+# Older releases fail with: "no such option: --js-runtimes".
+ARG YTDLP_VERSION=2026.07.04
 ARG TARGETARCH
 RUN set -eux; \
     arch="${TARGETARCH:-$(dpkg --print-architecture)}"; \

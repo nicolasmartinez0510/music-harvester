@@ -37,7 +37,7 @@ Music Harvester escribe la biblioteca en el filesystem. SQLite solo guarda jobs 
 
 ### Montaje en Docker
 
-En Synology **no** montes el código fuente sobre `/var/www/html`: eso tapa el `vendor/` que viene dentro de la imagen. El archivo `docker-compose.synology.yml` del repo ya resetea los volúmenes y solo persiste datos:
+En Synology **no** montes el código fuente sobre `/var/www/html`: eso tapa el `vendor/` que viene dentro de la imagen. El archivo `docker-compose.synology.yml` del repo solo bind-montea la biblioteca de música y las cookies; `database/` y `storage/` van en **volúmenes nombrados** (`app_database`, `app_storage`):
 
 ```yaml
 # docker-compose.synology.yml (incluido en el repo)
@@ -46,10 +46,12 @@ services:
     volumes: !override
       - /volume1/music:/music
       - ./cookies:/cookies:ro
-      - ./database:/var/www/html/database
-      - ./storage:/var/www/html/storage
-  # worker, scheduler, nginx: ver archivo completo
+      - app_database:/var/www/html/database
+      - app_storage:/var/www/html/storage
+  # worker, scheduler: ver archivo completo
 ```
+
+> **¿Por qué volúmenes nombrados y no `./database` / `./storage`?** En Synology las carpetas del host pertenecen al usuario de DSM, no a `www-data` (uid 33) del contenedor, y el `chown` suele fallar sobre bind mounts. Eso produce errores de *permission denied* en el log y `attempt to write a readonly database`. Con volúmenes nombrados, Docker los inicializa y el entrypoint puede darles permiso a `www-data`.
 
 Levantá el stack con ambos archivos:
 
@@ -216,7 +218,8 @@ Colocá `cookies/cookies.txt` antes de levantar el worker.
 Usá el `docker-compose.synology.yml` del repo (no `docker-compose.dev.yml`, que es solo para desarrollo local). Ese archivo:
 
 - Instala `vendor/` y el frontend **dentro de la imagen** al hacer `build`
-- Monta solo `/music`, cookies, `database/` y `storage/` — **no** el proyecto entero
+- Bind-montea solo `/volume1/music` y `./cookies`
+- Deja `database/` y `storage/` en **volúmenes nombrados** (permisos correctos para `www-data`)
 
 **No** uses `docker-compose.dev.yml` en el NAS: monta el código fuente del host y requiere `composer install` local.
 
@@ -309,14 +312,15 @@ docker compose exec worker pip3 install --break-system-packages -U "yt-dlp[defau
 | Archivos no aparecen en Audio Station | Carpeta no indexada | Agregar `/volume1/music` en Indexación multimedia |
 | `vendor/autoload.php` no encontrado | Compose viejo montaba `.:/var/www/html` y tapaba la imagen | `git pull`, `down`, `build --no-cache`, levantar con `docker-compose.synology.yml` (sin `docker-compose.dev.yml`) |
 | `no such table: cache` / `jobs` / `sessions` | Base SQLite vacía, migraciones sin correr | `exec app php artisan migrate --force` (o recrear `app`: el entrypoint migra al arrancar) |
+| `attempt to write a readonly database` / `laravel.log … Permission denied` | `database/` o `storage/` bind-mounteados desde el host con dueño ≠ `www-data` | Usar volúmenes nombrados (compose actualizado): `down -v` → `up -d --build` |
 | UI carga pero API falla | `APP_KEY` vacío o SQLite sin migrar | `key:generate` + recrear `app` (migra solo) |
 | Descargas muy lentas | Concurrencia alta en NAS débil | `MUSIC_MAX_CONCURRENCY=1` en Settings |
 
-Logs del worker:
+Logs del worker y de la app (con `storage/` en volumen nombrado, leelos vía `docker compose`):
 
 ```bash
 docker compose logs -f worker
-tail -f storage/logs/laravel.log
+docker compose exec app tail -f storage/logs/laravel.log
 ```
 
 ---
