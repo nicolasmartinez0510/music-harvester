@@ -13,7 +13,7 @@ Notas vivas del proyecto. Se actualizan a medida que avanzamos.
 - Docker Compose: `app`, `worker`, `scheduler`, `nginx`
 - Puerto local: **8085** (8080 estaba ocupado)
 - API base: `http://localhost:8085/api`
-- **yt-dlp:** instalado vía `pip install yt-dlp[default]` + Deno 2.x + `/etc/yt-dlp.conf` (requerido desde 2025+ para YouTube)
+- **yt-dlp:** binario release pineado en Dockerfile (`YTDLP_VERSION`, actualmente 2026.07.04) + Deno 2.x en la imagen + `/etc/yt-dlp.conf`. Deno es el runtime JS por defecto desde yt-dlp 2025.11.12 (no se pasa `--js-runtimes`)
 
 ## Problema resuelto: cookies de YouTube
 
@@ -66,9 +66,9 @@ curl -X POST http://localhost:8085/api/downloads/{id}/retry
 **Causa:** el binario standalone de yt-dlp no incluye runtime JS (Deno) ni scripts EJS para resolver desafíos de YouTube.
 
 **Fix en Dockerfile:**
-- `pip install yt-dlp[default]`
-- Deno 2.x instalado
-- `docker/yt-dlp/yt-dlp.conf` → `/etc/yt-dlp.conf` con `--js-runtimes deno` y `player_client=web_safari,web,mweb,android`
+- binario release de yt-dlp pineado (`ARG YTDLP_VERSION`, >= 2025.11.12 para soporte JS runtime)
+- Deno 2.x en la imagen (auto-detectado como runtime JS por defecto)
+- `docker/yt-dlp/yt-dlp.conf` → `/etc/yt-dlp.conf` con `player_client=web_safari,web,mweb,android` (sin `--js-runtimes`, rompe binarios viejos)
 
 **Rebuild necesario tras cambiar Dockerfile:**
 ```bash

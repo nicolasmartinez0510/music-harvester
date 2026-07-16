@@ -59,6 +59,11 @@ final class YtDlpDownloader implements MusicDownloader
             '1',
             '--max-sleep-interval',
             '5',
+            // Music videos often bake a non-music intro/outro (dialogue, scenes)
+            // into the audio. SponsorBlock's "music_offtopic" segments mark those
+            // non-music parts so we cut them out; a song's musical intro is kept.
+            '--sponsorblock-remove',
+            'music_offtopic',
             '--output',
             $outputTemplate,
         ];
