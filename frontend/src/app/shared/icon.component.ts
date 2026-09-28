@@ -14,6 +14,10 @@ export type IconName =
   | 'sun'
   | 'moon'
   | 'menu'
+  | 'panel-left'
+  | 'panel-right'
+  | 'chevrons-left'
+  | 'chevrons-right'
   | 'star'
   | 'star-filled'
   | 'check';
@@ -135,6 +139,54 @@ export type IconName =
       @case ('menu') {
         <svg [attr.width]="size" [attr.height]="size" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+      }
+      @case ('panel-left') {
+        <svg [attr.width]="size" [attr.height]="size" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2" />
+          <path d="M9 4v16" stroke="currentColor" stroke-width="2" />
+          <path
+            d="M14.5 9.5 12 12l2.5 2.5"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      }
+      @case ('panel-right') {
+        <svg [attr.width]="size" [attr.height]="size" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2" />
+          <path d="M9 4v16" stroke="currentColor" stroke-width="2" />
+          <path
+            d="M12 9.5 14.5 12 12 14.5"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      }
+      @case ('chevrons-left') {
+        <svg [attr.width]="size" [attr.height]="size" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="m11 7-5 5 5 5M18 7l-5 5 5 5"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      }
+      @case ('chevrons-right') {
+        <svg [attr.width]="size" [attr.height]="size" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="m13 7 5 5-5 5M6 7l5 5-5 5"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
         </svg>
       }
       @case ('star') {

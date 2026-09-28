@@ -1,7 +1,11 @@
-<div class="layout" [class.sidebar-open]="sidebarOpen">
+<div
+  class="layout"
+  [class.sidebar-open]="sidebarOpen"
+  [class.sidebar-collapsed]="sidebarCollapsed"
+>
   <aside class="sidebar" aria-label="Navegación principal">
     <div class="sidebar-top">
-      <a routerLink="/downloads" class="brand" (click)="closeSidebar()">
+      <a routerLink="/downloads" class="brand" (click)="closeSidebar()" title="Music Harvester">
         <img src="logo.png?v=4" alt="" class="brand-logo" width="36" height="36" />
         <span class="brand-text">Music Harvester</span>
       </a>
@@ -21,6 +25,7 @@
         routerLink="/downloads"
         routerLinkActive="active"
         class="nav-item"
+        title="Descargas"
         (click)="closeSidebar()"
       >
         <app-icon name="download" [size]="18" />
@@ -31,6 +36,7 @@
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }"
         class="nav-item"
+        title="Explorar"
         (click)="closeSidebar()"
       >
         <app-icon name="compass" [size]="18" />
@@ -48,6 +54,7 @@
               [queryParams]="{ from: 'favorites' }"
               routerLinkActive="active"
               class="nav-item nav-favorite"
+              [title]="fav.name"
               (click)="closeSidebar()"
             >
               @if (fav.cover_url) {
@@ -65,6 +72,7 @@
         routerLink="/playlists"
         routerLinkActive="active"
         class="nav-item"
+        title="Playlists"
         (click)="closeSidebar()"
       >
         <app-icon name="list" [size]="18" />
@@ -74,6 +82,7 @@
         routerLink="/settings"
         routerLinkActive="active"
         class="nav-item"
+        title="Configuración"
         (click)="closeSidebar()"
       >
         <app-icon name="gear" [size]="18" />
@@ -87,12 +96,24 @@
         class="theme-toggle"
         (click)="toggleTheme()"
         [attr.aria-label]="theme.theme() === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+        [attr.title]="theme.theme() === 'dark' ? 'Modo claro' : 'Modo oscuro'"
       >
         <app-icon [name]="theme.theme() === 'dark' ? 'sun' : 'moon'" [size]="18" />
         <span>{{ theme.theme() === 'dark' ? 'Modo claro' : 'Modo oscuro' }}</span>
       </button>
     </div>
   </aside>
+
+  <button
+    type="button"
+    class="sidebar-collapse"
+    (click)="toggleSidebarCollapsed()"
+    [attr.aria-label]="sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'"
+    [attr.title]="sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'"
+    [attr.aria-expanded]="!sidebarCollapsed"
+  >
+    <app-icon [name]="sidebarCollapsed ? 'chevrons-right' : 'chevrons-left'" [size]="14" />
+  </button>
 
   @if (sidebarOpen) {
     <div class="sidebar-backdrop" (click)="closeSidebar()" aria-hidden="true"></div>
