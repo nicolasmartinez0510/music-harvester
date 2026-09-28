@@ -1,0 +1,234 @@
+<section class="page">
+  <header class="page-header row-between">
+    <div>
+      <h1>Playlists guardadas</h1>
+      <p>Sincronizá playlists y descargá solo los tracks nuevos.</p>
+    </div>
+    <button type="button" class="btn btn-primary btn-with-icon" (click)="openForm()">
+      <app-icon name="plus" class="btn-leading-icon" />
+      Agregar playlist
+    </button>
+  </header>
+
+  @if (errorMessage) {
+    <p class="alert alert-error" role="alert">{{ errorMessage }}</p>
+  }
+
+  @if (loading) {
+    <p class="muted">Cargando…</p>
+  } @else if (playlists.length === 0) {
+    <div class="card empty-state">
+      <p>No hay playlists guardadas todavía.</p>
+      <button type="button" class="btn btn-primary btn-with-icon" (click)="openForm()">
+        <app-icon name="plus" class="btn-leading-icon" />
+        Agregar la primera
+      </button>
+    </div>
+  } @else {
+    <div class="card table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Playlist</th>
+            <th>Provider</th>
+            <th>Sync</th>
+            <th>Tracks</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (playlist of pagedPlaylists; track playlist.id) {
+            <tr>
+              <td>
+                <a [routerLink]="['/playlists', playlist.id]" class="playlist-title">
+                  {{ playlist.title || 'Sin título' }}
+                </a>
+                <small class="muted last-sync">
+                  @if (playlist.last_synced_at) {
+                    Último sync: {{ playlist.last_synced_at | date: 'short' }}
+                  } @else {
+                    Sin sync aún
+                  }
+                </small>
+              </td>
+              <td>
+                <span class="provider-badge">{{ providerLabel(playlist.provider) }}</span>
+              </td>
+              <td>
+                <span [class]="syncClass(playlist.last_sync_status)">
+                  {{ syncLabels[playlist.last_sync_status] }}
+                </span>
+                @if (!playlist.sync_enabled) {
+                  <small class="muted sync-auto-off">auto off</small>
+                }
+              </td>
+              <td>
+                {{ playlist.counts.downloaded }}/{{ playlist.counts.total }}
+                @if (playlist.counts.pending > 0) {
+                  <small class="muted"> ({{ playlist.counts.pending }} pend.)</small>
+                }
+              </td>
+              <td class="actions-cell">
+                <div class="row-actions">
+                  <button
+                    type="button"
+                    class="btn-icon"
+                    [disabled]="syncingId === playlist.id || playlist.last_sync_status === 'running'"
+                    (click)="sync(playlist)"
+                    [attr.aria-label]="syncingId === playlist.id ? 'Encolando sync' : 'Sincronizar'"
+                    [attr.title]="syncingId === playlist.id ? 'Encolando…' : 'Sincronizar'"
+                  >
+                    <app-icon [name]="syncingId === playlist.id || playlist.last_sync_status === 'running' ? 'spinner' : 'refresh'" />
+                  </button>
+                  <a
+                    [routerLink]="['/playlists', playlist.id]"
+                    class="btn-icon"
+                    aria-label="Detalle"
+                    title="Detalle"
+                  >
+                    <app-icon name="eye" />
+                  </a>
+                  <button
+                    type="button"
+                    class="btn-icon btn-icon-danger"
+                    [disabled]="deletingId === playlist.id"
+                    (click)="remove(playlist)"
+                    aria-label="Eliminar"
+                    title="Eliminar"
+                  >
+                    <app-icon [name]="deletingId === playlist.id ? 'spinner' : 'trash'" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <app-pagination
+        [total]="playlists.length"
+        [page]="page"
+        [pageSize]="pageSize"
+        (pageChange)="onPageChange($event)"
+        (pageSizeChange)="onPageSizeChange($event)"
+      />
+    </div>
+  }
+
+  @if (showForm) {
+    <div class="modal-backdrop" (click)="cancelForm()">
+      <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-playlist-title"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="modal-header">
+          <h2 id="add-playlist-title">Agregar playlist</h2>
+          <button
+            type="button"
+            class="btn-icon"
+            (click)="cancelForm()"
+            aria-label="Cerrar"
+            title="Cerrar"
+            [disabled]="submitting"
+          >
+            <app-icon name="x" />
+          </button>
+        </div>
+
+        <form class="modal-body form" [formGroup]="form" (ngSubmit)="submit()">
+          <label class="field">
+            <span>URL de playlist</span>
+            <input
+              type="url"
+              formControlName="url"
+              placeholder="https://music.youtube.com/playlist?list=..."
+              autocomplete="off"
+            />
+            @if (detectedHint()) {
+              <small class="field-hint">Detectado: {{ detectedHint() }}</small>
+            }
+          </label>
+
+          <label class="checkbox">
+            <input type="checkbox" formControlName="sync_now" />
+            <span>Sincronizar ahora</span>
+          </label>
+
+          @if (formError) {
+            <p class="alert alert-error" role="alert">{{ formError }}</p>
+          }
+
+          <div class="modal-actions">
+            <button type="submit" class="btn btn-primary" [disabled]="submitting">
+              {{ submitting ? 'Guardando…' : 'Guardar' }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              (click)="cancelForm()"
+              [disabled]="submitting"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  @if (showDeleteConfirm && playlistPendingDelete) {
+    <div class="modal-backdrop" (click)="cancelDelete()">
+      <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-playlist-title"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="modal-header">
+          <h2 id="delete-playlist-title">Eliminar playlist</h2>
+          <button
+            type="button"
+            class="btn-icon"
+            (click)="cancelDelete()"
+            aria-label="Cerrar"
+            title="Cerrar"
+            [disabled]="deletingId !== null"
+          >
+            <app-icon name="x" />
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p>
+            ¿Eliminar
+            <strong>{{ playlistPendingDelete.title || 'Sin título' }}</strong>?
+          </p>
+          <p class="muted">Los archivos locales no se borran.</p>
+
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="btn btn-danger"
+              [disabled]="deletingId !== null"
+              (click)="confirmDelete()"
+            >
+              {{ deletingId !== null ? 'Eliminando…' : 'Eliminar' }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              (click)="cancelDelete()"
+              [disabled]="deletingId !== null"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</section>

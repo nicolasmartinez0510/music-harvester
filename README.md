@@ -82,6 +82,39 @@ Production images build the frontend automatically in the Docker multi-stage `Do
 
 See [docs/providers.md](docs/providers.md) for ARL setup, streamrip choice, and how to add a new provider.
 
+## Saved playlists (re-sync)
+
+Guardá una URL de playlist (YouTube Music o cualquier provider del registry) y sincronizala manual o periódicamente. Solo se descargan tracks **nuevos**.
+
+Archivos de playlists sincronizadas:
+
+```text
+{MUSIC_PATH}/playlists/{id}-{slug}/
+  01 - artist - title.mp3
+  …
+  {id}-{slug}.m3u
+```
+
+El `.m3u` (extended, rutas relativas) se regenera en cada sync y tras cada track descargado — útil para Navidrome u otros gestores. Descargas one-shot (track/álbum) siguen en `{artista}/{album}/`.
+
+| Acción | API / UI |
+|--------|----------|
+| Guardar | `POST /api/playlists` · UI **Playlists** |
+| Listar / detalle | `GET /api/playlists`, `GET /api/playlists/{id}` |
+| Sync manual | `POST /api/playlists/{id}/sync` |
+| Sync automático | scheduler cada 5 min → `php artisan playlists:sync` |
+
+El sync usa **solo** `MusicProviderRegistry::resolveForUrl` (no importa providers concretos). Tracks que desaparecen de la playlist remota se marcan `skipped` (no se borran archivos).
+
+Deezer y YouTube Music **no** ofrecen webhooks/WebSocket públicos para cambios remotos. La detección de tracks nuevos es por **polling** (intervalo por playlist, default 5 min).
+
+```bash
+# Forzar sync de playlists due
+docker compose exec app php artisan playlists:sync
+```
+
+Intervalo por playlist: `sync_interval_minutes` (default 5). Toggle `sync_enabled` en el detalle.
+
 ## Synology NAS
 
 Full deploy guide (Container Manager, `/volume1/music`, YouTube Music cookies, Media Indexing, Audio Station):

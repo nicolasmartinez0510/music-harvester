@@ -1,0 +1,234 @@
+<section class="page">
+  <p>
+    <a routerLink="/playlists" class="back-link">← Playlists</a>
+  </p>
+
+  @if (loading) {
+    <p class="muted">Cargando…</p>
+  } @else if (!detail) {
+    <p class="alert alert-error">Playlist no encontrada.</p>
+  } @else {
+    <header class="page-header row-between">
+      <div class="header-copy">
+        <div class="title-row">
+          <h1>{{ detail.title || 'Sin título' }}</h1>
+          <span [class]="syncClass(detail.last_sync_status)">
+            {{ syncLabels[detail.last_sync_status] }}
+          </span>
+        </div>
+        <p class="header-meta">
+          <span class="provider-badge">{{ providerLabel(detail.provider) }}</span>
+          <span>· {{ detail.counts.downloaded }}/{{ detail.counts.total }} descargados</span>
+          @if (detail.last_synced_at) {
+            <span>· Último: {{ detail.last_synced_at | date: 'short' }}</span>
+          } @else {
+            <span>· Sin sync aún</span>
+          }
+          @if (!detail.sync_enabled) {
+            <span>· auto off</span>
+          }
+        </p>
+      </div>
+      <div class="actions header-actions">
+        <button
+          type="button"
+          class="btn btn-primary btn-with-icon"
+          [disabled]="syncing || detail.last_sync_status === 'running'"
+          (click)="syncNow()"
+        >
+          <app-icon
+            [name]="syncing || detail.last_sync_status === 'running' ? 'spinner' : 'refresh'"
+            class="btn-leading-icon"
+          />
+          {{ syncing ? 'Encolando…' : 'Sincronizar ahora' }}
+        </button>
+        <button
+          type="button"
+          class="btn-icon"
+          (click)="openConfigModal()"
+          aria-label="Configuración"
+          title="Configuración"
+        >
+          <app-icon name="gear" />
+        </button>
+        <button
+          type="button"
+          class="btn-icon btn-icon-danger"
+          (click)="remove()"
+          [disabled]="deleting"
+          aria-label="Eliminar"
+          title="Eliminar"
+        >
+          <app-icon [name]="deleting ? 'spinner' : 'trash'" />
+        </button>
+      </div>
+    </header>
+
+    @if (errorMessage) {
+      <p class="alert alert-error" role="alert">{{ errorMessage }}</p>
+    }
+
+    @if (detail.last_sync_error) {
+      <p class="alert alert-error">Último error: {{ detail.last_sync_error }}</p>
+    }
+
+    <div class="card table-wrap">
+      <h2>Tracks</h2>
+      @if (detail.tracks.length === 0) {
+        <p class="muted">Todavía no hay tracks. Ejecutá un sync.</p>
+      } @else {
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Título</th>
+              <th>Artista</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (track of pagedTracks; track track.id) {
+              <tr>
+                <td>{{ track.position }}</td>
+                <td>
+                  {{ track.title }}
+                  @if (track.last_error) {
+                    <small class="track-error">{{ track.last_error }}</small>
+                  }
+                </td>
+                <td>{{ track.artist || '—' }}</td>
+                <td>
+                  <span [class]="trackStatusClass(track.status)">
+                    {{ trackLabels[track.status] }}
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+
+        <app-pagination
+          [total]="detail.tracks.length"
+          [page]="page"
+          [pageSize]="pageSize"
+          (pageChange)="onPageChange($event)"
+          (pageSizeChange)="onPageSizeChange($event)"
+        />
+      }
+    </div>
+
+    @if (showConfigModal) {
+      <div class="modal-backdrop" (click)="closeConfigModal()">
+        <div
+          class="modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="playlist-config-title"
+          (click)="$event.stopPropagation()"
+        >
+          <div class="modal-header">
+            <h2 id="playlist-config-title">Configuración</h2>
+            <button
+              type="button"
+              class="btn-icon"
+              (click)="closeConfigModal()"
+              aria-label="Cerrar"
+              title="Cerrar"
+            >
+              <app-icon name="x" />
+            </button>
+          </div>
+
+          <form class="modal-body form" [formGroup]="form" (ngSubmit)="saveSettings()">
+            <label class="field">
+              <span>URL de playlist</span>
+              <input type="url" [value]="detail.url" readonly />
+            </label>
+
+            <label class="checkbox">
+              <input type="checkbox" formControlName="sync_enabled" />
+              <span>Sync automático (cada {{ form.controls.sync_interval_minutes.value }} min)</span>
+            </label>
+
+            <label class="field">
+              <span>Intervalo (minutos)</span>
+              <input type="number" min="1" max="10080" formControlName="sync_interval_minutes" />
+            </label>
+
+            <label class="field">
+              <span>Formato por defecto</span>
+              <select formControlName="default_format">
+                <option value="">Usar default global</option>
+                @for (format of formats; track format.value) {
+                  <option [value]="format.value">{{ format.label }}</option>
+                }
+              </select>
+            </label>
+
+            <div class="modal-actions">
+              <button type="submit" class="btn btn-primary" [disabled]="saving">
+                {{ saving ? 'Guardando…' : 'Guardar' }}
+              </button>
+              <button type="button" class="btn btn-secondary" (click)="closeConfigModal()">
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    }
+
+    @if (showDeleteConfirm) {
+      <div class="modal-backdrop" (click)="cancelDelete()">
+        <div
+          class="modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-playlist-title"
+          (click)="$event.stopPropagation()"
+        >
+          <div class="modal-header">
+            <h2 id="delete-playlist-title">Eliminar playlist</h2>
+            <button
+              type="button"
+              class="btn-icon"
+              (click)="cancelDelete()"
+              aria-label="Cerrar"
+              title="Cerrar"
+              [disabled]="deleting"
+            >
+              <app-icon name="x" />
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <p>
+              ¿Eliminar
+              <strong>{{ detail.title || 'Sin título' }}</strong>?
+            </p>
+            <p class="muted">Los archivos locales no se borran.</p>
+
+            <div class="modal-actions">
+              <button
+                type="button"
+                class="btn btn-danger"
+                [disabled]="deleting"
+                (click)="confirmDelete()"
+              >
+                {{ deleting ? 'Eliminando…' : 'Eliminar' }}
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary"
+                (click)="cancelDelete()"
+                [disabled]="deleting"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+  }
+</section>

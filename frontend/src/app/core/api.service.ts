@@ -9,6 +9,8 @@ import {
   DownloadJob,
   ProviderInfo,
   ProviderName,
+  SavedPlaylist,
+  SavedPlaylistDetail,
   Settings,
 } from './models';
 
@@ -27,6 +29,19 @@ export interface UpdateSettingsPayload {
   provider_deezer_arl?: string | null;
   provider_deezer_mode?: DeezerMode;
   cookies_path?: string | null;
+}
+
+export interface CreatePlaylistPayload {
+  url: string;
+  sync_now?: boolean;
+  sync_enabled?: boolean;
+  sync_interval_minutes?: number;
+}
+
+export interface UpdatePlaylistPayload {
+  sync_enabled?: boolean;
+  sync_interval_minutes?: number;
+  default_format?: AudioFormat | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -51,6 +66,40 @@ export class ApiService {
   retryDownload(id: number): Observable<DownloadJob> {
     return this.http
       .post<ApiResource<DownloadJob>>(`${this.baseUrl}/downloads/${id}/retry`, {})
+      .pipe(map((response) => response.data));
+  }
+
+  listPlaylists(): Observable<SavedPlaylist[]> {
+    return this.http
+      .get<ApiResource<SavedPlaylist[]>>(`${this.baseUrl}/playlists`)
+      .pipe(map((response) => response.data));
+  }
+
+  getPlaylist(id: number): Observable<SavedPlaylistDetail> {
+    return this.http
+      .get<ApiResource<SavedPlaylistDetail>>(`${this.baseUrl}/playlists/${id}`)
+      .pipe(map((response) => response.data));
+  }
+
+  createPlaylist(payload: CreatePlaylistPayload): Observable<SavedPlaylist> {
+    return this.http
+      .post<ApiResource<SavedPlaylist>>(`${this.baseUrl}/playlists`, payload)
+      .pipe(map((response) => response.data));
+  }
+
+  updatePlaylist(id: number, payload: UpdatePlaylistPayload): Observable<SavedPlaylist> {
+    return this.http
+      .put<ApiResource<SavedPlaylist>>(`${this.baseUrl}/playlists/${id}`, payload)
+      .pipe(map((response) => response.data));
+  }
+
+  deletePlaylist(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/playlists/${id}`);
+  }
+
+  syncPlaylist(id: number): Observable<SavedPlaylist> {
+    return this.http
+      .post<ApiResource<SavedPlaylist>>(`${this.baseUrl}/playlists/${id}/sync`, {})
       .pipe(map((response) => response.data));
   }
 

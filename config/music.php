@@ -11,5 +11,6 @@ return [
     'enabled_providers' => env('ENABLED_PROVIDERS', 'youtube_music,deezer'),
     'default_format' => env('MUSIC_DEFAULT_FORMAT', 'mp3_320'),
     'max_concurrency' => (int) env('MUSIC_MAX_CONCURRENCY', 1),
+    'default_sync_interval_minutes' => (int) env('MUSIC_DEFAULT_SYNC_INTERVAL_MINUTES', 5),
     'streamrip_bin' => env('STREAMRIP_BIN', 'rip'),
 ];

@@ -5,20 +5,28 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Application\CreateDownload\CreateDownloadHandler;
+use App\Application\DeleteSavedPlaylist\DeleteSavedPlaylistHandler;
 use App\Application\DownloadPlaylist\DownloadPlaylistHandler;
 use App\Application\DownloadTrack\DownloadTrackHandler;
+use App\Application\GetSavedPlaylist\GetSavedPlaylistHandler;
 use App\Application\GetSettings\GetSettingsHandler;
 use App\Application\ListDownloads\ListDownloadsHandler;
 use App\Application\ListProviders\ListProvidersHandler;
+use App\Application\ListSavedPlaylists\ListSavedPlaylistsHandler;
 use App\Application\RetryDownload\RetryDownloadHandler;
+use App\Application\SavePlaylist\SavePlaylistHandler;
 use App\Application\Settings\ProviderSettingsResolver;
+use App\Application\SyncSavedPlaylist\SyncSavedPlaylistHandler;
+use App\Application\UpdateSavedPlaylist\UpdateSavedPlaylistHandler;
 use App\Application\UpdateSettings\UpdateSettingsHandler;
 use App\Domain\Music\Contracts\DownloadJobRepository;
 use App\Domain\Music\Contracts\MusicDownloader;
 use App\Domain\Music\Contracts\MusicProvider;
+use App\Domain\Music\Contracts\SavedPlaylistRepository;
 use App\Domain\Music\Contracts\SettingsRepository;
 use App\Infrastructure\Downloader\YtDlpDownloader;
 use App\Infrastructure\Persistence\EloquentDownloadRepository;
+use App\Infrastructure\Persistence\EloquentSavedPlaylistRepository;
 use App\Infrastructure\Persistence\EloquentSettingsRepository;
 use App\Infrastructure\Providers\CatalogSourceRegistry;
 use App\Infrastructure\Providers\Deezer\DeezerApiClient;
@@ -35,6 +43,7 @@ class MusicHarvesterServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(DownloadJobRepository::class, EloquentDownloadRepository::class);
+        $this->app->singleton(SavedPlaylistRepository::class, EloquentSavedPlaylistRepository::class);
         $this->app->singleton(SettingsRepository::class, EloquentSettingsRepository::class);
         $this->app->singleton(ProviderSettingsResolver::class);
 
@@ -91,6 +100,12 @@ class MusicHarvesterServiceProvider extends ServiceProvider
         $this->app->singleton(ListProvidersHandler::class);
         $this->app->singleton(GetSettingsHandler::class);
         $this->app->singleton(UpdateSettingsHandler::class);
+        $this->app->singleton(SavePlaylistHandler::class);
+        $this->app->singleton(ListSavedPlaylistsHandler::class);
+        $this->app->singleton(GetSavedPlaylistHandler::class);
+        $this->app->singleton(UpdateSavedPlaylistHandler::class);
+        $this->app->singleton(DeleteSavedPlaylistHandler::class);
+        $this->app->singleton(SyncSavedPlaylistHandler::class);
 
         $this->app->bind(MusicProvider::class, YoutubeMusicProvider::class);
     }

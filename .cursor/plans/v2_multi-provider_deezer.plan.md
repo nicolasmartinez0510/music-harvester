@@ -1,54 +1,34 @@
 ---
 name: v2 Multi-Provider Deezer
-overview: "Extiende el plan v2 con playlists guardadas, multi-proveedor (YTM + Deezer), credenciales por proveedor, e imagen Docker optimizada para Synology (build rápido o pull pre-built)."
+overview: REEMPLAZADO. Este índice apilaba playlists + Deezer + Docker. Usar las tres épicas separadas; Docker slim fuera de alcance.
 todos:
-  - id: v2-docker-slim
-    content: "Imagen Docker liviana: split app/worker, frontend pre-built, base cacheable, deploy Synology sin build local"
-    status: pending
-  - id: v2-1a-playlists
-    content: "v2.1a: Playlists guardadas YTM (schema, sync job, API, UI, scheduler) — plan original"
-    status: pending
-  - id: v2-1b-multi-provider
-    content: "v2.1b: Refactor settings a credenciales por proveedor; cookies/youtube + cookies/deezer; GET /api/providers; UI settings por tabs"
-    status: pending
-  - id: v2-2-deezer-hybrid
-    content: "v2.2: DeezerHybridProvider — resolve Deezer, YoutubeMusicMatcher, download vía yt-dlp; playlists guardadas Deezer"
-    status: pending
-  - id: v2-3-deezer-native
-    content: "v2.3: DeezerNativeProvider — deezer-py + ARL, FLAC/320 Premium, toggle provider_deezer_mode=native"
-    status: pending
-  - id: v2-docs-providers
-    content: "Docs: exportar cookies YTM, ARL Deezer, volúmenes Synology por proveedor"
-    status: pending
+  - id: superseded
+    content: No implementar este plan — ver v2_providers, v2_playlists_sync y v2_content_manager
+    status: cancelled
 isProject: false
 ---
 
-# Music Harvester v2 — Playlists + Multi-proveedor (YTM + Deezer)
+# REEMPLAZADO — no implementar
 
-Plan consolidado. Ver sección **Imagen Docker liviana (Synology)** para optimización de build en NAS.
+Este archivo era un índice corto que apilaba:
 
-Extiende [`.cursor/plans/v2_playlists_sync_a9010a47.plan.md`](v2_playlists_sync_a9010a47.plan.md) con soporte Deezer, configuración por proveedor, e imagen Docker optimizada.
+1. Imagen Docker liviana (Synology)
+2. Playlists guardadas YTM
+3. Multi-proveedor settings
+4. Deezer híbrido
+5. Deezer nativo (ARL + FLAC)
 
-## Orden de implementación
+sin separar épicas y sin administrador de contenido.
 
-0. **v2.0-docker** — Split app/worker, frontend off-NAS, base cacheable, compose Synology pull-only *(beneficio inmediato en Synology)*
-1. **v2.1a** — Playlists guardadas YTM
-2. **v2.1b** — Multi-proveedor settings + cookies por carpeta
-3. **v2.2** — Deezer híbrido (match YT)
-4. **v2.3** — Deezer nativo (ARL + deezer-py)
-5. **Docs Synology** — pull vs build, cookies, `/music`
+## Usar en su lugar
 
-## Imagen Docker liviana (Synology) — resumen
+| Épica | Plan |
+|-------|------|
+| 1 — Proveedores + Deezer FLAC | [`v2_providers.plan.md`](v2_providers.plan.md) |
+| 2 — Sync de playlists | [`v2_playlists_sync_a9010a47.plan.md`](v2_playlists_sync_a9010a47.plan.md) |
+| 3 — Administrador de contenido | [`v2_content_manager.plan.md`](v2_content_manager.plan.md) |
 
-**Problema:** el [`Dockerfile`](../../Dockerfile) actual buildea Node + npm + Deno + pip + compila PHP en una sola imagen (~20–40 min en NAS).
+- **Docker slim:** fuera de las tres épicas (ya tratado / no forma parte de este recorte).
+- **FLAC nativo:** ahora es el camino principal de la épica 1, no un “v2.3” al final de un stack híbrido.
 
-**Solución:**
-
-1. **Dos imágenes:** `app` (PHP-FPM slim) vs `worker` (yt-dlp + ffmpeg + Deno)
-2. **Frontend pre-built** en laptop/CI — el NAS no corre `npm`
-3. **Base image cacheable** publicada en registry (GHCR/Docker Hub)
-4. **Synology solo hace `docker pull`** — `docker-compose.synology.yml` sin `build:`
-
-**Objetivo:** deploy en NAS en ~3–5 min (pull) vs ~30–40 min (build local).
-
-Detalle completo en el plan maestro (mismas secciones: Deezer, credenciales, API, etc.).
+Contexto de la separación: plan maestro *Tres epicas v2*.
