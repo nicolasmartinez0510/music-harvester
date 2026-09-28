@@ -35,6 +35,7 @@ class MusicHarvesterScaffoldTest extends TestCase
     {
         $this->assertSame('mp3', AudioFormat::Mp3_320->extension());
         $this->assertSame('m4a', AudioFormat::M4a->extension());
+        $this->assertSame('flac', AudioFormat::Flac->extension());
     }
 
     public function test_download_status_terminal_states(): void

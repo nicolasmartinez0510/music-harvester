@@ -23,6 +23,7 @@ final class StoreDownloadRequest extends FormRequest
         return [
             'url' => ['required', 'string', 'url', 'max:2048'],
             'format' => ['sometimes', 'string', Rule::enum(AudioFormat::class)],
+            'provider' => ['sometimes', 'nullable', 'string', Rule::in(['auto', 'youtube_music', 'deezer'])],
         ];
     }
 }

@@ -16,7 +16,8 @@ Guía para correr Music Harvester en un Synology con **Container Manager** (DSM 
 | Ubicación | Ruta en DSM | Ruta en contenedor | Uso |
 |-----------|-------------|-------------------|-----|
 | Biblioteca | `/volume1/music` | `/music` | Archivos descargados (Audio Station) |
-| Cookies YTM | `…/music-harvester/cookies/cookies.txt` | `/cookies/cookies.txt` | Sesión de YouTube Music |
+| Cookies YTM | `…/music-harvester/cookies/youtube/cookies.txt` | `/cookies/youtube/cookies.txt` | Sesión de YouTube Music |
+| ARL Deezer | Settings UI o `DEEZER_ARL` | — | Sesión Deezer Premium/HiFi (FLAC) |
 | Proyecto | `/volume1/docker/music-harvester` (recomendado) | `/var/www/html` | Código, SQLite, logs |
 | UI | `http://<ip-nas>:8085` | — | Angular + API vía nginx |
 
@@ -63,13 +64,23 @@ En **Container Manager → Proyecto**, podés indicar varios archivos compose en
 
 ### Estructura de archivos
 
-Las descargas se organizan así:
+Descargas one-shot (track/álbum):
 
 ```
 /music/{artist}/{album}/{index} - {title}.{ext}
 ```
 
-Ejemplo:
+Playlists guardadas (sync):
+
+```
+/music/playlists/{id}-{slug}/
+  {index} - {artist} - {title}.{ext}
+  {id}-{slug}.m3u
+```
+
+El `.m3u` se regenera en cada sync (rutas relativas). Apuntá Navidrome (o Audio Station) a `/volume1/music` para indexar ambas estructuras. Los cambios remotos en playlists se detectan por polling (~5 min), no hay webhooks de Deezer/YouTube Music.
+
+Ejemplo one-shot:
 
 ```
 /volume1/music/queen/a-night-at-the-opera/01 - bohemian-rhapsody.mp3
@@ -107,18 +118,37 @@ Sin cookies de sesión, YouTube suele bloquear descargas con errores del tipo *�
 ### Ubicación en el NAS
 
 ```bash
+/volume1/docker/music-harvester/cookies/youtube/cookies.txt
+# legacy (sigue funcionando):
 /volume1/docker/music-harvester/cookies/cookies.txt
 ```
 
-El repositorio incluye `cookies/.gitkeep`; **no** subas `cookies.txt` a git (contiene tokens de sesión).
+El repositorio incluye `cookies/youtube/.gitkeep`; **no** subas `cookies.txt` a git (contiene tokens de sesión).
 
 ### Montaje read-only
 
-El `docker-compose.yml` monta `./cookies:/cookies:ro` en `app`, `worker` y `scheduler`. La app detecta el archivo en `/cookies/cookies.txt` vía `COOKIES_PATH`.
+El `docker-compose.yml` monta `./cookies:/cookies:ro` en `app`, `worker` y `scheduler`. La app detecta el archivo vía Settings (`provider_youtube_music_cookies_path`) o env (`YOUTUBE_MUSIC_COOKIES_PATH` / `COOKIES_PATH`).
 
 `yt-dlp` intenta **reescribir** el archivo de cookies al terminar (cookies refrescadas). Como el mount es solo lectura, `YtDlpDownloader` copia el archivo a `/tmp` antes de invocar `yt-dlp`. Las cookies actualizadas **no** persisten en el NAS; cuando caduquen, re-exportá desde el navegador.
 
-### Verificación
+---
+
+## 2b. Deezer (FLAC)
+
+Para descargas nativas en FLAC hace falta una cuenta **Deezer HiFi** y el cookie de sesión **ARL**.
+
+1. Iniciá sesión en [deezer.com](https://www.deezer.com)
+2. DevTools → Application → Cookies → copiá el valor de **`arl`**
+3. En la UI: **Configuración → Deezer** → pegá el ARL y dejá modo **Nativo**
+4. Alternativa: `DEEZER_ARL=...` en `.env` (nunca en git)
+
+Sin ARL (o con modo **Híbrido**), Deezer resuelve metadata por API pública y descarga haciendo match en YouTube Music — **no es lossless**. Detalle: [providers.md](providers.md).
+
+Formatos soportados: MP3 320 / M4A (YouTube Music) y **FLAC** / MP3 320 (Deezer nativo).
+
+---
+
+### Verificación de cookies YTM
 
 ```bash
 # Archivo visible en el worker
@@ -127,11 +157,11 @@ docker compose exec worker head -3 /cookies/cookies.txt
 # Primera línea típica: # Netscape HTTP Cookie File
 
 # API / UI
-curl -s http://<ip-nas>:8085/api/settings | jq '.data.cookies_configured'
+curl -s http://<ip-nas>:8085/api/settings | jq '.data.provider_youtube_music_cookies_configured'
 # true si el archivo existe y es legible
 ```
 
-En **Configuración** de la UI, el indicador de cookies debe estar en verde (**detectadas**). Si dice **no detectadas**, revisá el mount y la ruta en **Ruta de cookies** (`/cookies/cookies.txt`).
+En **Configuración → YouTube Music**, el indicador de cookies debe estar en verde (**configuradas**).
 
 ### Mantenimiento
 

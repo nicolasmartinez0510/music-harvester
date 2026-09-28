@@ -34,6 +34,29 @@ final class LocalMusicStorage
         return "{$index} - {$title}.{$extension}";
     }
 
+    public function playlistDirectory(int $playlistId, ?string $title): string
+    {
+        $slug = Str::slug((string) ($title ?: 'playlist')) ?: 'playlist';
+
+        return "{$this->basePath()}/playlists/{$playlistId}-{$slug}";
+    }
+
+    public function playlistFolderName(int $playlistId, ?string $title): string
+    {
+        $slug = Str::slug((string) ($title ?: 'playlist')) ?: 'playlist';
+
+        return "{$playlistId}-{$slug}";
+    }
+
+    public function playlistTrackFilename(Track $track, string $extension): string
+    {
+        $index = str_pad((string) ($track->index ?? 1), 2, '0', STR_PAD_LEFT);
+        $artist = Str::slug($track->artist?->name ?? 'Unknown Artist');
+        $title = Str::slug($track->title);
+
+        return "{$index} - {$artist} - {$title}.{$extension}";
+    }
+
     public function ensureDirectory(string $path): void
     {
         if (! is_dir($path)) {

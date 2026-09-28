@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\CreateDownload;
 
 use App\Domain\Music\Contracts\DownloadJobRepository;
+use App\Domain\Music\Contracts\MusicProvider;
 use App\Domain\Music\Exceptions\UnsupportedMusicUrlException;
 use App\Domain\Music\ValueObjects\AudioFormat;
 use App\Domain\Music\ValueObjects\MusicUrl;
@@ -16,6 +17,7 @@ final readonly class CreateDownloadCommand
     public function __construct(
         public MusicUrl $url,
         public AudioFormat $format,
+        public ?string $provider = null,
     ) {}
 }
 
@@ -29,9 +31,13 @@ final readonly class CreateDownloadHandler
     public function handle(CreateDownloadCommand $command): int
     {
         $url = (string) $command->url;
-        $provider = $this->providers->resolveForUrl($url);
+        $provider = $this->resolveProvider($url, $command->provider);
 
         if ($provider === null) {
+            throw UnsupportedMusicUrlException::forUrl($url);
+        }
+
+        if ($command->provider !== null && ! $provider->supports($url)) {
             throw UnsupportedMusicUrlException::forUrl($url);
         }
 
@@ -47,13 +53,28 @@ final readonly class CreateDownloadHandler
         return $jobId;
     }
 
+    private function resolveProvider(string $url, ?string $providerName): ?MusicProvider
+    {
+        if ($providerName !== null && $providerName !== '' && $providerName !== 'auto') {
+            return $this->providers->findByName($providerName);
+        }
+
+        return $this->providers->resolveForUrl($url);
+    }
+
     private function inferKind(string $url): string
     {
         if (preg_match('#music\.youtube\.com/browse/#i', $url)) {
             return 'album';
         }
 
-        if (preg_match('#[?&]list=#i', $url)) {
+        if (preg_match('#deezer\.com(?:/[a-z]{2})?/(album)/#i', $url)) {
+            return 'album';
+        }
+
+        if (preg_match('#deezer\.com(?:/[a-z]{2})?/(playlist)/#i', $url)
+            || preg_match('#[?&]list=#i', $url)
+            || preg_match('#/(playlist|list)/#i', $url)) {
             return 'playlist';
         }
 

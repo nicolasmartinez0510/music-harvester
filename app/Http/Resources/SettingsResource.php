@@ -23,8 +23,13 @@ final class SettingsResource extends JsonResource
             'music_path' => (string) $settings['music_path'],
             'default_format' => (string) $settings['default_format'],
             'max_concurrency' => (int) $settings['max_concurrency'],
-            'cookies_path' => $settings['cookies_path'],
-            'cookies_configured' => (bool) $settings['cookies_configured'],
+            'enabled_providers' => (string) ($settings['enabled_providers'] ?? 'youtube_music,deezer'),
+            'provider_youtube_music_cookies_path' => $settings['provider_youtube_music_cookies_path'] ?? null,
+            'provider_youtube_music_cookies_configured' => (bool) ($settings['provider_youtube_music_cookies_configured'] ?? false),
+            'provider_deezer_arl_configured' => (bool) ($settings['provider_deezer_arl_configured'] ?? false),
+            'provider_deezer_mode' => (string) ($settings['provider_deezer_mode'] ?? 'native'),
+            'cookies_path' => $settings['cookies_path'] ?? null,
+            'cookies_configured' => (bool) ($settings['cookies_configured'] ?? false),
         ];
     }
 }

@@ -1,50 +1,118 @@
 <section class="page">
   <header class="page-header">
     <h1>Configuración</h1>
-    <p>Ruta de la biblioteca, formato por defecto y cookies de YouTube Music.</p>
+    <p>Biblioteca, credenciales por proveedor y calidad de descarga.</p>
   </header>
 
   @if (loading) {
     <p class="muted">Cargando…</p>
   } @else {
+    <div class="tabs" role="tablist">
+      @for (tab of tabs; track tab.id) {
+        <button
+          type="button"
+          class="tab"
+          role="tab"
+          [class.active]="activeTab === tab.id"
+          [attr.aria-selected]="activeTab === tab.id"
+          (click)="selectTab(tab.id)"
+        >
+          {{ tab.label }}
+        </button>
+      }
+    </div>
+
     <form class="card form" [formGroup]="form" (ngSubmit)="submit()">
-      <label class="field">
-        <span>Ruta de música</span>
-        <input type="text" formControlName="music_path" />
-        <small class="field-hint">En Synology suele ser <code>/volume1/music</code>.</small>
-      </label>
+      @if (activeTab === 'general') {
+        <label class="field">
+          <span>Ruta de música</span>
+          <input type="text" formControlName="music_path" />
+          <small class="field-hint">En Synology suele ser <code>/volume1/music</code> montado como <code>/music</code>.</small>
+        </label>
 
-      <label class="field">
-        <span>Formato por defecto</span>
-        <select formControlName="default_format">
-          @for (format of formats; track format.value) {
-            <option [value]="format.value">{{ format.label }}</option>
+        <label class="field">
+          <span>Formato por defecto</span>
+          <select formControlName="default_format">
+            @for (format of formats; track format.value) {
+              <option [value]="format.value">{{ format.label }}</option>
+            }
+          </select>
+          <small class="field-hint">FLAC solo aplica a Deezer nativo (cuenta HiFi).</small>
+        </label>
+
+        <label class="field">
+          <span>Concurrencia máxima</span>
+          <input type="number" min="1" max="10" formControlName="max_concurrency" />
+          <small class="field-hint">Recomendado: 1 en NAS doméstico.</small>
+        </label>
+      }
+
+      @if (activeTab === 'youtube_music') {
+        <label class="field">
+          <span>Ruta de cookies</span>
+          <input
+            type="text"
+            formControlName="provider_youtube_music_cookies_path"
+            placeholder="/cookies/youtube/cookies.txt"
+          />
+          <small class="field-hint">
+            Archivo Netscape exportado desde el navegador con sesión en music.youtube.com.
+            Layout recomendado: <code>cookies/youtube/cookies.txt</code>.
+          </small>
+        </label>
+
+        <div
+          class="cred-status"
+          [class.ok]="youtubeCookiesConfigured"
+          [class.missing]="!youtubeCookiesConfigured"
+        >
+          Cookies YouTube Music:
+          @if (youtubeCookiesConfigured) {
+            <strong>configuradas</strong>
+          } @else {
+            <strong>no detectadas</strong> — muchas playlists pueden fallar sin cookies.
           }
-        </select>
-      </label>
+        </div>
+      }
 
-      <label class="field">
-        <span>Concurrencia máxima</span>
-        <input type="number" min="1" max="10" formControlName="max_concurrency" />
-        <small class="field-hint">Recomendado: 1 en NAS doméstico.</small>
-      </label>
+      @if (activeTab === 'deezer') {
+        <label class="field">
+          <span>ARL (sesión Premium / HiFi)</span>
+          <input
+            type="password"
+            formControlName="provider_deezer_arl"
+            [placeholder]="deezerArlConfigured ? '•••••••• (ya configurado — pegá uno nuevo para reemplazar)' : 'Pegá el cookie arl de deezer.com'"
+            autocomplete="off"
+          />
+          <small class="field-hint">
+            DevTools → Application → Cookies → <code>arl</code> en deezer.com. No se muestra de nuevo tras guardar.
+          </small>
+        </label>
 
-      <label class="field">
-        <span>Ruta de cookies (opcional)</span>
-        <input type="text" formControlName="cookies_path" placeholder="/cookies/cookies.txt" />
-        <small class="field-hint">
-          Archivo Netscape exportado desde el navegador con sesión en music.youtube.com.
-        </small>
-      </label>
+        <div
+          class="cred-status"
+          [class.ok]="deezerArlConfigured"
+          [class.missing]="!deezerArlConfigured"
+        >
+          ARL Deezer:
+          @if (deezerArlConfigured) {
+            <strong>configurado</strong>
+          } @else {
+            <strong>no configurado</strong> — sin ARL se usa modo híbrido (YouTube, no lossless).
+          }
+        </div>
 
-      <div class="cookies-status" [class.ok]="cookiesConfigured" [class.missing]="!cookiesConfigured">
-        Cookies:
-        @if (cookiesConfigured) {
-          <strong>configuradas</strong>
-        } @else {
-          <strong>no detectadas</strong> — muchas playlists pueden fallar sin cookies.
-        }
-      </div>
+        <label class="field">
+          <span>Modo de descarga</span>
+          <select formControlName="provider_deezer_mode">
+            <option value="native">Nativo (FLAC / 320 vía streamrip + ARL)</option>
+            <option value="hybrid">Híbrido (match YouTube → yt-dlp — no es lossless)</option>
+          </select>
+          <small class="field-hint">
+            FLAC requiere cuenta Deezer HiFi y modo nativo. El híbrido descarga audio de YouTube.
+          </small>
+        </label>
+      }
 
       @if (errorMessage) {
         <p class="alert alert-error" role="alert">{{ errorMessage }}</p>

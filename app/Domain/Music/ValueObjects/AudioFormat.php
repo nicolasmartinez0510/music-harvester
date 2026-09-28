@@ -8,12 +8,14 @@ enum AudioFormat: string
 {
     case Mp3_320 = 'mp3_320';
     case M4a = 'm4a';
+    case Flac = 'flac';
 
     public function extension(): string
     {
         return match ($this) {
             self::Mp3_320 => 'mp3',
             self::M4a => 'm4a',
+            self::Flac => 'flac',
         };
     }
 
@@ -22,6 +24,7 @@ enum AudioFormat: string
         return match ($this) {
             self::Mp3_320 => 'MP3 320kbps',
             self::M4a => 'M4A (AAC)',
+            self::Flac => 'FLAC lossless',
         };
     }
 }

@@ -1,11 +1,11 @@
 # Music Harvester
 
-Laravel API + queue worker for downloading music from YouTube Music to a local library (Synology NAS).
+Laravel API + queue worker for downloading music from YouTube Music and Deezer to a local library (Synology NAS).
 
 ## Stack
 
 - **Backend:** Laravel 12 (PHP 8.4) + SQLite + database queue
-- **Worker:** `yt-dlp` + `ffmpeg` (same Docker image as app)
+- **Worker:** `yt-dlp` + `ffmpeg` + Deno (YouTube Music) and `streamrip` (Deezer FLAC)
 - **Frontend:** Angular 19 SPA (same origin via nginx)
 - **Proxy:** nginx (Angular UI + `/api` → Laravel)
 
@@ -66,7 +66,21 @@ Production images build the frontend automatically in the Docker multi-stage `Do
 ## Volumes
 
 - `music_data` → `/music` inside containers (map to `/volume1/music` on Synology)
-- `./cookies` → `/cookies` read-only (`cookies/cookies.txt` for YouTube Music)
+- `./cookies` → `/cookies` read-only
+  - YouTube Music: `cookies/youtube/cookies.txt` (or legacy `cookies/cookies.txt`)
+  - Deezer ARL: set in **Settings → Deezer** (or `DEEZER_ARL` env) — never commit it
+
+## Providers
+
+| Provider | Resolve | Download | Quality |
+|----------|---------|----------|---------|
+| YouTube Music | yt-dlp metadata | yt-dlp | MP3 320 / M4A |
+| Deezer (native) | `api.deezer.com` | streamrip + ARL | **FLAC** (HiFi) or MP3 320 |
+| Deezer (hybrid) | `api.deezer.com` | match → YouTube → yt-dlp | YouTube quality (not lossless) |
+
+`GET /api/providers` lists enabled providers, credentials status, and supported qualities.
+
+See [docs/providers.md](docs/providers.md) for ARL setup, streamrip choice, and how to add a new provider.
 
 ## Synology NAS
 
@@ -102,6 +116,7 @@ app/Infrastructure/        # yt-dlp, providers, persistence
 docker compose exec worker yt-dlp --version
 docker compose exec worker deno --version
 docker compose exec worker ffmpeg -version
+docker compose exec worker rip --version
 ```
 
 After changing `Dockerfile` or `docker/yt-dlp/yt-dlp.conf`, rebuild the image:
@@ -111,7 +126,7 @@ docker compose build app
 docker compose up -d --force-recreate app worker scheduler
 ```
 
-The image uses static `ffmpeg`, the `yt-dlp` release binary, and Deno copied from official images — no `apt install ffmpeg/python3-pip`, so rebuilds are much faster after the first pull.
+The image uses static `ffmpeg`, the `yt-dlp` release binary, Deno, and `streamrip` (Python) for Deezer FLAC.
 
 **Build fails with `docker-credential-desktop` not found?** Your Docker config points to a missing credential helper. Either open Docker Desktop, or build with a minimal config:
 

@@ -14,6 +14,12 @@ final class EloquentSettingsRepository implements SettingsRepository
         'music_path',
         'default_format',
         'max_concurrency',
+        'provider_youtube_music_cookies_path',
+        'provider_deezer_arl',
+        'provider_deezer_mode',
+        'enabled_providers',
+        'default_sync_interval_minutes',
+        // Legacy alias — writes mirror to provider_youtube_music_cookies_path via UpdateSettingsHandler
         'cookies_path',
     ];
 

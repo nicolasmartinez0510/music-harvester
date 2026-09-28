@@ -5,19 +5,27 @@ import { Observable, map } from 'rxjs';
 import {
   ApiResource,
   AudioFormat,
+  DeezerMode,
   DownloadJob,
+  ProviderInfo,
+  ProviderName,
   Settings,
 } from './models';
 
 export interface CreateDownloadPayload {
   url: string;
   format?: AudioFormat;
+  provider?: ProviderName | null;
 }
 
 export interface UpdateSettingsPayload {
   music_path?: string;
   default_format?: AudioFormat;
   max_concurrency?: number;
+  enabled_providers?: string;
+  provider_youtube_music_cookies_path?: string | null;
+  provider_deezer_arl?: string | null;
+  provider_deezer_mode?: DeezerMode;
   cookies_path?: string | null;
 }
 
@@ -55,6 +63,12 @@ export class ApiService {
   updateSettings(payload: UpdateSettingsPayload): Observable<Settings> {
     return this.http
       .put<ApiResource<Settings>>(`${this.baseUrl}/settings`, payload)
+      .pipe(map((response) => response.data));
+  }
+
+  getProviders(): Observable<ProviderInfo[]> {
+    return this.http
+      .get<ApiResource<ProviderInfo[]>>(`${this.baseUrl}/providers`)
       .pipe(map((response) => response.data));
   }
 }

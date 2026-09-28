@@ -28,3 +28,7 @@ Homestead.yaml
 Thumbs.db
 /cookies/*
 !/cookies/.gitkeep
+!/cookies/youtube/
+!/cookies/youtube/.gitkeep
+!/cookies/deezer/
+!/cookies/deezer/.gitkeep

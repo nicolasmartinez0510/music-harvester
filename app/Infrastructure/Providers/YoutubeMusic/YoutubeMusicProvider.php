@@ -58,10 +58,12 @@ final class YoutubeMusicProvider implements MusicProvider
         $track = $item->item;
         $url = $this->buildTrackUrl($track);
 
-        $directory = $this->storage->trackDirectory($track);
+        $directory = $options->targetDirectory ?? $this->storage->trackDirectory($track);
         $this->storage->ensureDirectory($directory);
 
-        $filename = $this->storage->trackFilename($track, $options->format->extension());
+        $filename = $options->targetDirectory !== null
+            ? $this->storage->playlistTrackFilename($track, $options->format->extension())
+            : $this->storage->trackFilename($track, $options->format->extension());
         $basename = pathinfo($filename, PATHINFO_FILENAME);
         $outputTemplate = $directory.'/'.$basename.'.%(ext)s';
 

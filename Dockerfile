@@ -24,16 +24,21 @@ RUN composer dump-autoload --optimize --classmap-authoritative --no-dev
 
 FROM php:8.4-fpm-bookworm AS app
 
-# Only packages needed to compile PHP extensions (no ffmpeg/python/git).
+# PHP extensions + Python for streamrip (Deezer FLAC downloads in the worker).
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
         libsqlite3-dev \
+        python3 \
+        python3-pip \
+        python3-venv \
         unzip \
     && docker-php-ext-install -j"$(nproc)" pdo_sqlite pcntl \
     && apt-get purge -y --auto-remove libsqlite3-dev \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && python3 -m pip install --break-system-packages --no-cache-dir "streamrip>=2.0.0" \
+    && rip --version
 
 # Static binaries — avoids heavy apt dependency trees (ffmpeg pulls 100+ packages).
 COPY --from=mwader/static-ffmpeg:8.1 /ffmpeg /usr/local/bin/ffmpeg
@@ -66,6 +71,11 @@ WORKDIR /var/www/html
 COPY --from=vendor /app/vendor ./vendor
 COPY . .
 COPY --from=frontend /build/frontend/dist/frontend/browser/ /var/www/html/frontend/dist/frontend/browser/
+
+# Pristine migrations outside the app_database volume mount path so the
+# entrypoint can sync them into the named volume on every container start.
+RUN mkdir -p /usr/local/share/mh-migrations \
+    && cp -a database/migrations/. /usr/local/share/mh-migrations/
 
 COPY docker/php/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh

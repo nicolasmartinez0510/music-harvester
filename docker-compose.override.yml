@@ -1,0 +1,18 @@
+# Auto-merged by `docker compose up` (local only — do not use on Synology).
+# Replaces the named music_data volume with a host bind so downloads
+# appear under ./storage/music/
+
+services:
+  app:
+    volumes: !override
+      - ./storage/music:/music
+      - ./cookies:/cookies:ro
+      - app_database:/var/www/html/database
+      - app_storage:/var/www/html/storage
+
+  worker:
+    volumes: !override
+      - ./storage/music:/music
+      - ./cookies:/cookies:ro
+      - app_database:/var/www/html/database
+      - app_storage:/var/www/html/storage

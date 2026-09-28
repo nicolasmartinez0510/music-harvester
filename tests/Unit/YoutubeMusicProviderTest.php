@@ -159,4 +159,47 @@ class YoutubeMusicProviderTest extends TestCase
         $this->assertTrue($result->success);
         $this->assertStringEndsWith('01 - test-song.mp3', (string) $result->destinationPath);
     }
+
+    public function test_download_uses_playlist_target_directory_when_set(): void
+    {
+        $basePath = storage_path('framework/testing/music-playlist-download');
+        @mkdir($basePath, 0755, true);
+        $playlistDir = $basePath.'/playlists/1-mix';
+
+        $track = new Track(
+            title: 'Test Song',
+            artist: new Artist('Test Artist'),
+            album: new Album('Test Album', new Artist('Test Artist')),
+            index: 3,
+            id: 'abc123',
+        );
+
+        $options = new DownloadOptions(
+            format: AudioFormat::Mp3_320,
+            musicPath: $basePath,
+            targetDirectory: $playlistDir,
+        );
+
+        $downloader = Mockery::mock(MusicDownloader::class);
+        $downloader->shouldReceive('download')
+            ->once()
+            ->withArgs(function (string $url, DownloadOptions $passedOptions, string $template) use ($playlistDir) {
+                return $url === 'https://music.youtube.com/watch?v=abc123'
+                    && $passedOptions->targetDirectory === $playlistDir
+                    && str_contains($template, $playlistDir.'/03 - test-artist - test-song.%(ext)s');
+            })
+            ->andReturn(DownloadResult::ok($playlistDir.'/03 - test-artist - test-song.mp3'));
+
+        $provider = new YoutubeMusicProvider(
+            $downloader,
+            new LocalMusicStorage($basePath),
+        );
+
+        $result = $provider->download(
+            new ResolvedItem(ResolvedKind::Track, $track),
+            $options,
+        );
+
+        $this->assertTrue($result->success);
+    }
 }

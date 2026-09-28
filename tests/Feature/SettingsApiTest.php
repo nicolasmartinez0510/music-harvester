@@ -21,7 +21,15 @@ class SettingsApiTest extends TestCase
             ->assertJsonPath('data.music_path', config('music.path'))
             ->assertJsonPath('data.default_format', config('music.default_format'))
             ->assertJsonPath('data.max_concurrency', config('music.max_concurrency'))
-            ->assertJsonPath('data.cookies_configured', false);
+            ->assertJsonPath('data.provider_deezer_mode', 'native')
+            ->assertJsonStructure([
+                'data' => [
+                    'enabled_providers',
+                    'provider_youtube_music_cookies_configured',
+                    'provider_deezer_arl_configured',
+                    'cookies_configured',
+                ],
+            ]);
     }
 
     public function test_update_settings_persists_values(): void
@@ -81,7 +89,7 @@ class SettingsApiTest extends TestCase
         file_put_contents($cookiesFile, '# Netscape HTTP Cookie File');
 
         DB::table('settings')->insert([
-            'key' => 'cookies_path',
+            'key' => 'provider_youtube_music_cookies_path',
             'value' => $cookiesFile,
             'created_at' => now(),
             'updated_at' => now(),
@@ -92,10 +100,30 @@ class SettingsApiTest extends TestCase
 
             $response
                 ->assertOk()
+                ->assertJsonPath('data.provider_youtube_music_cookies_path', $cookiesFile)
+                ->assertJsonPath('data.provider_youtube_music_cookies_configured', true)
                 ->assertJsonPath('data.cookies_path', $cookiesFile)
                 ->assertJsonPath('data.cookies_configured', true);
         } finally {
             @unlink($cookiesFile);
         }
+    }
+
+    public function test_update_settings_accepts_deezer_arl_and_mode(): void
+    {
+        $response = $this->putJson('/api/settings', [
+            'provider_deezer_arl' => str_repeat('a', 64),
+            'provider_deezer_mode' => 'hybrid',
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.provider_deezer_arl_configured', true)
+            ->assertJsonPath('data.provider_deezer_mode', 'hybrid');
+
+        $this->assertDatabaseHas('settings', [
+            'key' => 'provider_deezer_arl',
+            'value' => str_repeat('a', 64),
+        ]);
     }
 }

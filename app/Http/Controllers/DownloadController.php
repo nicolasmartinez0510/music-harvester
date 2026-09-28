@@ -47,11 +47,14 @@ final class DownloadController extends Controller
     ): JsonResponse {
         $formatValue = $request->input('format', config('music.default_format'));
         $format = AudioFormat::tryFrom((string) $formatValue) ?? AudioFormat::Mp3_320;
+        $provider = $request->input('provider');
+        $providerName = is_string($provider) && $provider !== '' ? $provider : null;
 
         try {
             $jobId = $handler->handle(new CreateDownloadCommand(
                 url: new MusicUrl($request->string('url')->toString()),
                 format: $format,
+                provider: $providerName,
             ));
         } catch (UnsupportedMusicUrlException $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);

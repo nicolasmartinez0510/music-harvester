@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Application\Settings\ProviderSettingsResolver;
 use App\Domain\Music\Contracts\DownloadJobRepository;
 use App\Domain\Music\Models\Track;
 use App\Domain\Music\ValueObjects\AudioFormat;
@@ -32,6 +33,7 @@ class ProcessDownloadJob implements ShouldQueue
     public function handle(
         DownloadJobRepository $jobs,
         MusicProviderRegistry $providers,
+        ProviderSettingsResolver $settings,
     ): void {
         $job = $jobs->find($this->downloadJobId);
 
@@ -46,13 +48,16 @@ class ProcessDownloadJob implements ShouldQueue
         $jobs->updateStatus($this->downloadJobId, DownloadStatus::Running);
 
         try {
-            $provider = $providers->resolveForUrl($job['url']);
+            $providerName = is_string($job['provider'] ?? null) ? $job['provider'] : null;
+            $provider = $providerName !== null
+                ? ($providers->findByName($providerName) ?? $providers->resolveForUrl($job['url']))
+                : $providers->resolveForUrl($job['url']);
 
             if ($provider === null) {
                 throw new RuntimeException('No provider supports URL: '.$job['url']);
             }
 
-            $options = $this->buildOptions($job);
+            $options = $this->buildOptions($job, $provider->name(), $settings);
             $resolved = $provider->resolve($job['url']);
             $items = $resolved->items;
             $total = count($items);
@@ -108,19 +113,20 @@ class ProcessDownloadJob implements ShouldQueue
     /**
      * @param  array<string, mixed>  $job
      */
-    private function buildOptions(array $job): DownloadOptions
+    private function buildOptions(array $job, string $provider, ProviderSettingsResolver $settings): DownloadOptions
     {
         $optionsJson = json_decode((string) ($job['options_json'] ?? '{}'), true);
         $formatValue = is_array($optionsJson) ? ($optionsJson['format'] ?? null) : null;
         $format = AudioFormat::tryFrom((string) ($formatValue ?? config('music.default_format')))
             ?? AudioFormat::Mp3_320;
 
-        $cookiesPath = config('music.cookies_path');
-
         return new DownloadOptions(
             format: $format,
-            musicPath: config('music.path'),
-            cookiesPath: is_string($cookiesPath) && $cookiesPath !== '' ? $cookiesPath : null,
+            musicPath: $settings->musicPath(),
+            provider: $provider,
+            cookiesPath: $settings->youtubeMusicCookiesPath(),
+            deezerArl: $settings->deezerArl(),
+            deezerMode: $settings->deezerMode(),
         );
     }
 

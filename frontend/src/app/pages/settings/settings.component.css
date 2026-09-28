@@ -3,18 +3,41 @@
   gap: 1.25rem;
 }
 
-.cookies-status {
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.tab {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+  font: inherit;
+}
+
+.tab.active {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: transparent;
+}
+
+.cred-status {
   padding: 0.75rem 1rem;
   border-radius: var(--radius);
   font-size: 0.9rem;
 }
 
-.cookies-status.ok {
-  background: #ecfdf5;
-  color: #065f46;
+.cred-status.ok {
+  background: var(--success-soft);
+  color: var(--success);
 }
 
-.cookies-status.missing {
-  background: #fff7ed;
-  color: #9a3412;
+.cred-status.missing {
+  background: var(--warning-soft);
+  color: var(--warning-text);
 }

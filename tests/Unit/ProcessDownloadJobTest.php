@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Application\Settings\ProviderSettingsResolver;
 use App\Domain\Music\Contracts\DownloadJobRepository;
 use App\Domain\Music\Contracts\MusicProvider;
+use App\Domain\Music\Contracts\SettingsRepository;
 use App\Domain\Music\Models\Artist;
 use App\Domain\Music\Models\Track;
 use App\Domain\Music\ValueObjects\AudioFormat;
@@ -44,8 +46,7 @@ class ProcessDownloadJobTest extends TestCase
             sourceUrl: 'https://music.youtube.com/watch?v=vid123',
         );
 
-        $provider = Mockery::mock(MusicProvider::class);
-        $provider->shouldReceive('supports')->andReturn(true);
+        $provider = $this->mockProvider();
         $provider->shouldReceive('resolve')
             ->once()
             ->with('https://music.youtube.com/watch?v=vid123')
@@ -54,7 +55,8 @@ class ProcessDownloadJobTest extends TestCase
             ->once()
             ->andReturn(DownloadResult::ok('/music/artist/album/01 - song.mp3'));
 
-        $registry = new MusicProviderRegistry([$provider]);
+        $registry = $this->registry([$provider]);
+        $settings = $this->settingsResolver();
 
         $jobs = Mockery::mock(DownloadJobRepository::class);
         $jobs->shouldReceive('find')
@@ -62,6 +64,7 @@ class ProcessDownloadJobTest extends TestCase
             ->with(42)
             ->andReturn([
                 'id' => 42,
+                'provider' => 'youtube_music',
                 'url' => 'https://music.youtube.com/watch?v=vid123',
                 'kind' => 'track',
                 'status' => DownloadStatus::Pending->value,
@@ -78,7 +81,7 @@ class ProcessDownloadJobTest extends TestCase
             ->with(42, DownloadStatus::Done, null);
 
         $job = new ProcessDownloadJob(42);
-        $job->handle($jobs, $registry);
+        $job->handle($jobs, $registry, $settings);
 
         $this->addToAssertionCount(1);
     }
@@ -94,18 +97,19 @@ class ProcessDownloadJobTest extends TestCase
             sourceUrl: 'https://music.youtube.com/watch?v=vid123',
         );
 
-        $provider = Mockery::mock(MusicProvider::class);
-        $provider->shouldReceive('supports')->andReturn(true);
+        $provider = $this->mockProvider();
         $provider->shouldReceive('resolve')->once()->andReturn($resolved);
         $provider->shouldReceive('download')
             ->once()
             ->andReturn(DownloadResult::failed('network error'));
 
-        $registry = new MusicProviderRegistry([$provider]);
+        $registry = $this->registry([$provider]);
+        $settings = $this->settingsResolver();
 
         $jobs = Mockery::mock(DownloadJobRepository::class);
         $jobs->shouldReceive('find')->once()->with(7)->andReturn([
             'id' => 7,
+            'provider' => 'youtube_music',
             'url' => 'https://music.youtube.com/watch?v=vid123',
             'kind' => 'track',
             'status' => DownloadStatus::Pending->value,
@@ -119,7 +123,7 @@ class ProcessDownloadJobTest extends TestCase
         $job = new ProcessDownloadJob(7);
 
         $this->expectException(\RuntimeException::class);
-        $job->handle($jobs, $registry);
+        $job->handle($jobs, $registry, $settings);
     }
 
     public function test_playlist_continues_after_individual_track_failure(): void
@@ -140,8 +144,7 @@ class ProcessDownloadJobTest extends TestCase
             sourceUrl: 'https://music.youtube.com/playlist?list=PLtest',
         );
 
-        $provider = Mockery::mock(MusicProvider::class);
-        $provider->shouldReceive('supports')->andReturn(true);
+        $provider = $this->mockProvider();
         $provider->shouldReceive('resolve')->once()->andReturn($resolved);
         $provider->shouldReceive('download')
             ->once()
@@ -150,11 +153,13 @@ class ProcessDownloadJobTest extends TestCase
             ->once()
             ->andReturn(DownloadResult::failed('ERROR: Did not get any data blocks'));
 
-        $registry = new MusicProviderRegistry([$provider]);
+        $registry = $this->registry([$provider]);
+        $settings = $this->settingsResolver();
 
         $jobs = Mockery::mock(DownloadJobRepository::class);
         $jobs->shouldReceive('find')->once()->with(9)->andReturn([
             'id' => 9,
+            'provider' => 'youtube_music',
             'url' => 'https://music.youtube.com/playlist?list=PLtest',
             'kind' => 'playlist',
             'status' => DownloadStatus::Pending->value,
@@ -170,8 +175,33 @@ class ProcessDownloadJobTest extends TestCase
             ));
 
         $job = new ProcessDownloadJob(9);
-        $job->handle($jobs, $registry);
+        $job->handle($jobs, $registry, $settings);
 
         $this->addToAssertionCount(1);
+    }
+
+    private function mockProvider(): MusicProvider&\Mockery\MockInterface
+    {
+        $provider = Mockery::mock(MusicProvider::class);
+        $provider->shouldReceive('name')->andReturn('youtube_music');
+        $provider->shouldReceive('supports')->andReturn(true);
+
+        return $provider;
+    }
+
+    /**
+     * @param  list<MusicProvider>  $providers
+     */
+    private function registry(array $providers): MusicProviderRegistry
+    {
+        return new MusicProviderRegistry($providers, $this->settingsResolver());
+    }
+
+    private function settingsResolver(): ProviderSettingsResolver
+    {
+        $repo = Mockery::mock(SettingsRepository::class);
+        $repo->shouldReceive('get')->andReturn(null);
+
+        return new ProviderSettingsResolver($repo);
     }
 }

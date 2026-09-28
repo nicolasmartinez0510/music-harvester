@@ -2,7 +2,14 @@ import { Component, inject, OnInit } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { ApiService } from '../../core/api.service';
-import { ApiValidationError, AUDIO_FORMATS, AudioFormat } from '../../core/models';
+import {
+  ApiValidationError,
+  AUDIO_FORMATS,
+  AudioFormat,
+  DeezerMode,
+} from '../../core/models';
+
+type SettingsTab = 'general' | 'youtube_music' | 'deezer';
 
 @Component({
   selector: 'app-settings',
@@ -15,28 +22,43 @@ export class SettingsComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
 
   readonly formats = AUDIO_FORMATS;
+  readonly tabs: { id: SettingsTab; label: string }[] = [
+    { id: 'general', label: 'General' },
+    { id: 'youtube_music', label: 'YouTube Music' },
+    { id: 'deezer', label: 'Deezer' },
+  ];
+
+  activeTab: SettingsTab = 'general';
   loading = true;
   saving = false;
   errorMessage: string | null = null;
   successMessage: string | null = null;
-  cookiesConfigured = false;
+  youtubeCookiesConfigured = false;
+  deezerArlConfigured = false;
 
   readonly form = this.fb.nonNullable.group({
     music_path: ['', [Validators.required, Validators.maxLength(500)]],
     default_format: ['mp3_320' as AudioFormat, Validators.required],
     max_concurrency: [1, [Validators.required, Validators.min(1), Validators.max(10)]],
-    cookies_path: [''],
+    provider_youtube_music_cookies_path: [''],
+    provider_deezer_arl: [''],
+    provider_deezer_mode: ['native' as DeezerMode, Validators.required],
   });
 
   ngOnInit(): void {
     this.api.getSettings().subscribe({
       next: (settings) => {
-        this.cookiesConfigured = settings.cookies_configured;
+        this.youtubeCookiesConfigured =
+          settings.provider_youtube_music_cookies_configured ?? settings.cookies_configured;
+        this.deezerArlConfigured = settings.provider_deezer_arl_configured;
         this.form.patchValue({
           music_path: settings.music_path,
           default_format: settings.default_format,
           max_concurrency: settings.max_concurrency,
-          cookies_path: settings.cookies_path ?? '',
+          provider_youtube_music_cookies_path:
+            settings.provider_youtube_music_cookies_path ?? settings.cookies_path ?? '',
+          provider_deezer_arl: '',
+          provider_deezer_mode: settings.provider_deezer_mode ?? 'native',
         });
         this.loading = false;
       },
@@ -45,6 +67,10 @@ export class SettingsComponent implements OnInit {
         this.errorMessage = 'No se pudo cargar la configuración.';
       },
     });
+  }
+
+  selectTab(tab: SettingsTab): void {
+    this.activeTab = tab;
   }
 
   submit(): void {
@@ -56,31 +82,40 @@ export class SettingsComponent implements OnInit {
       return;
     }
 
-    const { music_path, default_format, max_concurrency, cookies_path } =
-      this.form.getRawValue();
+    const raw = this.form.getRawValue();
+    const payload: Parameters<ApiService['updateSettings']>[0] = {
+      music_path: raw.music_path,
+      default_format: raw.default_format,
+      max_concurrency: raw.max_concurrency,
+      provider_youtube_music_cookies_path:
+        raw.provider_youtube_music_cookies_path.trim() === ''
+          ? null
+          : raw.provider_youtube_music_cookies_path.trim(),
+      provider_deezer_mode: raw.provider_deezer_mode,
+    };
+
+    if (raw.provider_deezer_arl.trim() !== '') {
+      payload.provider_deezer_arl = raw.provider_deezer_arl.trim();
+    }
 
     this.saving = true;
-    this.api
-      .updateSettings({
-        music_path,
-        default_format,
-        max_concurrency,
-        cookies_path: cookies_path.trim() === '' ? null : cookies_path.trim(),
-      })
-      .subscribe({
-        next: (settings) => {
-          this.saving = false;
-          this.cookiesConfigured = settings.cookies_configured;
-          this.successMessage = 'Configuración guardada.';
-        },
-        error: (error: { error?: ApiValidationError }) => {
-          this.saving = false;
-          const body = error.error;
-          this.errorMessage =
-            body?.message ??
-            Object.values(body?.errors ?? {})[0]?.[0] ??
-            'No se pudo guardar la configuración.';
-        },
-      });
+    this.api.updateSettings(payload).subscribe({
+      next: (settings) => {
+        this.saving = false;
+        this.youtubeCookiesConfigured =
+          settings.provider_youtube_music_cookies_configured ?? settings.cookies_configured;
+        this.deezerArlConfigured = settings.provider_deezer_arl_configured;
+        this.form.patchValue({ provider_deezer_arl: '' });
+        this.successMessage = 'Configuración guardada.';
+      },
+      error: (error: { error?: ApiValidationError }) => {
+        this.saving = false;
+        const body = error.error;
+        this.errorMessage =
+          body?.message ??
+          Object.values(body?.errors ?? {})[0]?.[0] ??
+          'No se pudo guardar la configuración.';
+      },
+    });
   }
 }

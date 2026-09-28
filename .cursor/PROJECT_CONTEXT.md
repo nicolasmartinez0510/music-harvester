@@ -79,13 +79,22 @@ docker compose restart worker
 
 ## Próximos pasos (según plan)
 
-1. Confirmar descargas funcionando con cookies
-2. **angular-ui** — SPA Angular + nginx same-origin
-3. **synology-docs** — deploy en NAS, volumen `/volume1/music`, Media Indexing
+1. Épica 1 providers + Deezer FLAC ✅ (ver `.cursor/plans/v2_providers.plan.md`)
+2. Épica 2 playlists sync — `.cursor/plans/v2_playlists_sync_a9010a47.plan.md`
+3. Épica 3 content manager — `.cursor/plans/v2_content_manager.plan.md`
+
+## Providers (épica 1)
+
+- Registry: `youtube_music` + `deezer` (tag `music.providers`)
+- Deezer resolve: API pública `api.deezer.com`
+- Deezer download nativo: **streamrip** (`rip`) + ARL → FLAC
+- Deezer híbrido: match YouTube → yt-dlp (no lossless)
+- Settings por proveedor; `GET /api/providers`
+- Docs: [docs/providers.md](../docs/providers.md)
 
 ## Decisiones / convenciones
 
 - DDD bajo `app/Domain`, `app/Application`, `app/Infrastructure`
-- Provider MVP: YouTube Music; Spotify queda para después
+- Providers: YouTube Music + Deezer; Spotify queda para después
 - Biblioteca real en filesystem; SQLite solo jobs/config
 - **Dev local:** música en `storage/music/` (via `docker-compose.override.yml` → `/music` en contenedores)

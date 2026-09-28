@@ -19,7 +19,15 @@ mkdir -p \
     storage/framework/sessions \
     storage/framework/views \
     storage/logs \
-    bootstrap/cache
+    bootstrap/cache \
+    database/migrations
+
+# app_database mounts over /var/www/html/database and keeps the first-boot
+# copy forever, so new migration files from image rebuilds never appear.
+# Sync the pristine image copy on every start before migrate runs.
+if [ -d /usr/local/share/mh-migrations ]; then
+    cp -a /usr/local/share/mh-migrations/. database/migrations/
+fi
 
 if [ ! -f database/database.sqlite ]; then
     touch database/database.sqlite

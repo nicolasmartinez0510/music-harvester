@@ -71,6 +71,7 @@ final class YtDlpDownloader implements MusicDownloader
         match ($options->format) {
             AudioFormat::Mp3_320 => array_push($args, '--audio-format', 'mp3', '--audio-quality', '320K'),
             AudioFormat::M4a => array_push($args, '--audio-format', 'm4a'),
+            AudioFormat::Flac => array_push($args, '--audio-format', 'flac'),
         };
 
         $this->appendCookiesArg($args, $options->cookiesPath);
