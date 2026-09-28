@@ -13,9 +13,11 @@ Laravel API + queue worker for downloading music from YouTube Music and Deezer t
 
 ```bash
 cp .env.example .env
-composer install   # only needed for local dev bind-mount
+cd backend && composer install && cd ..   # only needed for local dev bind-mount
 
-docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm app php artisan key:generate
+# Write APP_KEY into the root .env (compose + env_file read that file):
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm app php artisan key:generate --show
+# paste the output into APP_KEY=... in .env, then:
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
 
@@ -133,18 +135,21 @@ cp .env.example .env
 docker compose -f docker-compose.yml -f docker-compose.synology.yml up -d --build
 ```
 
-For local dev (bind-mounts source code; requires `composer install` on the host):
+For local dev (bind-mounts source code; requires `cd backend && composer install` on the host):
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
 
-## DDD layout
+## Layout
 
 ```
-app/Domain/Music/          # entities, value objects, contracts
-app/Application/           # use cases (handlers)
-app/Infrastructure/        # yt-dlp, providers, persistence
+backend/                   # Laravel API + queue worker
+  app/Domain/Music/        # entities, value objects, contracts
+  app/Application/         # use cases (handlers)
+  app/Infrastructure/      # yt-dlp, providers, persistence
+frontend/                  # Angular 19 SPA
+docker/                    # nginx, php entrypoint, yt-dlp conf
 ```
 
 ## Verify worker tools

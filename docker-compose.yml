@@ -25,6 +25,8 @@ services:
       target: app
     image: music-harvester-app
     restart: unless-stopped
+    env_file:
+      - .env
     volumes:
       - music_data:/music
       - ./cookies:/cookies:ro
@@ -57,6 +59,8 @@ services:
     image: music-harvester-app
     restart: unless-stopped
     command: php artisan queue:work --sleep=3 --tries=3 --timeout=3600
+    env_file:
+      - .env
     volumes:
       - music_data:/music
       - ./cookies:/cookies:ro
@@ -72,6 +76,8 @@ services:
     image: music-harvester-app
     restart: unless-stopped
     command: php artisan schedule:work
+    env_file:
+      - .env
     volumes:
       - app_storage:/var/www/html/storage
     environment: *app_env

@@ -98,4 +98,5 @@ docker compose restart worker
 - DDD bajo `app/Domain`, `app/Application`, `app/Infrastructure`
 - Providers: YouTube Music + Deezer; Spotify queda para después
 - Biblioteca real en filesystem; SQLite solo jobs/config
-- **Dev local:** música en `storage/music/` (via `docker-compose.override.yml` → `/music` en contenedores)
+- **Dev local:** música en `backend/storage/music/` (via `docker-compose.override.yml` → `/music` en contenedores)
+- **Layout:** `backend/` (Laravel) + `frontend/` (Angular); compose/Docker/docs en la raíz

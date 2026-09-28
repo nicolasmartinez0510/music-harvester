@@ -11,7 +11,7 @@ FROM composer:2 AS vendor
 
 WORKDIR /app
 
-COPY composer.json composer.lock ./
+COPY backend/composer.json backend/composer.lock ./
 RUN composer install \
     --no-dev \
     --no-interaction \
@@ -19,7 +19,7 @@ RUN composer install \
     --no-scripts \
     --no-autoloader
 
-COPY . .
+COPY backend/ .
 RUN composer dump-autoload --optimize --classmap-authoritative --no-dev
 
 FROM php:8.4-fpm-bookworm AS app
@@ -72,7 +72,7 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
 
 COPY --from=vendor /app/vendor ./vendor
-COPY . .
+COPY backend/ .
 COPY --from=frontend /build/frontend/dist/frontend/browser/ /var/www/html/frontend/dist/frontend/browser/
 
 COPY docker/php/entrypoint.sh /usr/local/bin/entrypoint.sh

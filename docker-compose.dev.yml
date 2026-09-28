@@ -1,26 +1,33 @@
 # Local development: bind-mount source code (uses host vendor/ after composer install).
 # Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+#
+# Env vars come from root `.env` via `env_file` in docker-compose.yml (do not
+# bind-mount `.env` into `/var/www/html` — Docker Desktop rejects nesting a file
+# mount inside the backend bind mount).
 
 services:
   app:
     volumes: !override
-      - .:/var/www/html
-      - ./storage/music:/music
+      - ./backend:/var/www/html
+      - ./frontend:/var/www/html/frontend
+      - ./backend/storage/music:/music
       - ./cookies:/cookies:ro
 
   worker:
     volumes: !override
-      - .:/var/www/html
-      - ./storage/music:/music
+      - ./backend:/var/www/html
+      - ./frontend:/var/www/html/frontend
+      - ./backend/storage/music:/music
       - ./cookies:/cookies:ro
 
   scheduler:
     volumes: !override
-      - .:/var/www/html
+      - ./backend:/var/www/html
 
   nginx:
     image: nginx:1.27-alpine
     build: !reset null
     volumes: !override
-      - .:/var/www/html:ro
+      - ./backend:/var/www/html:ro
+      - ./frontend:/var/www/html/frontend:ro
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro

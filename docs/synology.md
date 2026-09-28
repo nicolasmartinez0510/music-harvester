@@ -18,7 +18,7 @@ Guía para correr Music Harvester en un Synology con **Container Manager** (DSM 
 | Biblioteca | `/volume1/music` | `/music` | Archivos descargados (Audio Station) |
 | Cookies YTM | `…/music-harvester/cookies/youtube/cookies.txt` | `/cookies/youtube/cookies.txt` | Sesión de YouTube Music |
 | ARL Deezer | Settings UI o `DEEZER_ARL` | — | Sesión Deezer Premium/HiFi (FLAC) |
-| Proyecto | `/volume1/docker/music-harvester` (recomendado) | `/var/www/html` | Código, compose, cookies |
+| Proyecto | `/volume1/docker/music-harvester` (recomendado) | — (código en imagen) | Compose, cookies, `.env` |
 | UI | `http://<ip-nas>:8085` | — | Angular + API vía nginx |
 
 En contenedores **no** uses `/volume1/...`; siempre montá la carpeta compartida del host sobre `/music` y `/cookies`.
