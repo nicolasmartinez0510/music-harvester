@@ -54,10 +54,32 @@ curl -s -X POST http://localhost:8085/api/downloads \
 
 Override de proveedor: `"provider": "deezer"` | `"youtube_music"` | `"auto"`.
 
+## Explorar (catálogo)
+
+Solo providers con `has_catalog: true` (hoy: **Deezer**) aparecen en **Explorar** (`/browse`).
+
+La búsqueda y las fichas usan la API pública `api.deezer.com` (sin ARL). Descargar FLAC desde Explorar sigue el mismo flujo que un one-shot: `POST /api/downloads` con la URL canónica; hace falta ARL HiFi + modo nativo.
+
+```bash
+# Buscar
+curl -s 'http://localhost:8085/api/catalog/search?provider=deezer&q=Daft%20Punk&type=all' | jq
+
+# Fichas
+curl -s http://localhost:8085/api/catalog/deezer/artists/27 | jq
+curl -s http://localhost:8085/api/catalog/deezer/albums/302127 | jq
+curl -s http://localhost:8085/api/catalog/deezer/playlists/908622995 | jq
+```
+
+### Destacar playlist → sync
+
+En la ficha de playlist: **Destacar / sync automático** llama `POST /api/playlists` con `{ url, sync_now: true, sync_enabled: true }`. Si la URL ya estaba guardada, la API responde **200** con la existente (idempotente) y puede re-encolar sync. La lista de destacadas es `/playlists`.
+
+Flujo típico: Explorar → buscar → abrir playlist → Destacar → esperar sync (o forzar sync en detalle).
+
 ## Agregar un provider nuevo
 
 1. Implementar `MusicProvider` (`supports` / `resolve` / `download`)
-2. Opcional: implementar `CatalogSource` para búsqueda (épica 3)
+2. Opcional: implementar `CatalogSource` para búsqueda / Explorar
 3. Registrar con tag `music.providers` (y `music.catalog_sources`) en `MusicHarvesterServiceProvider`
 4. Añadir keys de settings / env si hace falta
 5. Incluir el nombre en `enabled_providers`

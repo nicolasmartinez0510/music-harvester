@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
+import { ArtistFavoritesService } from './core/artist-favorites.service';
 import { ThemeService } from './core/theme.service';
 import { IconComponent } from './shared/icon.component';
 import { ToastHostComponent } from './shared/toast-host.component';
@@ -13,6 +14,7 @@ import { ToastHostComponent } from './shared/toast-host.component';
 })
 export class AppComponent {
   readonly theme = inject(ThemeService);
+  readonly favorites = inject(ArtistFavoritesService);
   sidebarOpen = false;
 
   openSidebar(): void {

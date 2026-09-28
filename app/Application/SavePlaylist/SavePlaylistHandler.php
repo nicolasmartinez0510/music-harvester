@@ -30,11 +30,24 @@ final readonly class SavePlaylistHandler
     ) {}
 
     /**
-     * @return array<string, mixed>
+     * @return array{playlist: array<string, mixed>, created: bool}
      */
     public function handle(SavePlaylistCommand $command): array
     {
         $url = (string) $command->url;
+        $existing = $this->playlists->findByUrl($url);
+
+        if ($existing !== null) {
+            if ($command->syncNow && ($existing['last_sync_status'] ?? '') !== 'running') {
+                ProcessPlaylistSyncJob::dispatch((int) $existing['id']);
+            }
+
+            return [
+                'playlist' => $existing,
+                'created' => false,
+            ];
+        }
+
         $provider = $this->providers->resolveForUrl($url);
 
         if ($provider === null) {
@@ -57,6 +70,9 @@ final readonly class SavePlaylistHandler
             ProcessPlaylistSyncJob::dispatch((int) $playlist['id']);
         }
 
-        return $playlist;
+        return [
+            'playlist' => $playlist,
+            'created' => true,
+        ];
     }
 }

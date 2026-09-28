@@ -14,12 +14,13 @@ import {
   detectProviderFromUrl,
 } from '../../core/models';
 import { IconComponent } from '../../shared/icon.component';
+import { PageLoadingComponent } from '../../shared/page-loading.component';
 import { PaginationComponent } from '../../shared/pagination.component';
 import { ToastService } from '../../shared/toast.service';
 
 @Component({
   selector: 'app-playlists',
-  imports: [DatePipe, ReactiveFormsModule, RouterLink, IconComponent, PaginationComponent],
+  imports: [DatePipe, ReactiveFormsModule, RouterLink, IconComponent, PaginationComponent, PageLoadingComponent],
   templateUrl: './playlists.component.html',
   styleUrl: './playlists.component.css',
 })

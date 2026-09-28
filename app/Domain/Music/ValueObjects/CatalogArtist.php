@@ -18,5 +18,20 @@ final readonly class CatalogArtist
         public int $nbFans = 0,
         public array $topTracks = [],
         public array $albums = [],
+        public ?string $description = null,
     ) {}
+
+    public function withDescription(?string $description): self
+    {
+        return new self(
+            id: $this->id,
+            name: $this->name,
+            coverUrl: $this->coverUrl,
+            canonicalUrl: $this->canonicalUrl,
+            nbFans: $this->nbFans,
+            topTracks: $this->topTracks,
+            albums: $this->albums,
+            description: $description,
+        );
+    }
 }

@@ -27,6 +27,41 @@
         <span>Descargas</span>
       </a>
       <a
+        routerLink="/browse"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        class="nav-item"
+        (click)="closeSidebar()"
+      >
+        <app-icon name="compass" [size]="18" />
+        <span>Explorar</span>
+      </a>
+
+      <div class="nav-section">
+        <p class="nav-section-title">Favoritos</p>
+        @if (favorites.favorites().length === 0) {
+          <p class="nav-empty">Sin favoritos</p>
+        } @else {
+          @for (fav of favorites.favorites(); track fav.provider + fav.id) {
+            <a
+              [routerLink]="['/browse', fav.provider, 'artists', fav.id]"
+              [queryParams]="{ from: 'favorites' }"
+              routerLinkActive="active"
+              class="nav-item nav-favorite"
+              (click)="closeSidebar()"
+            >
+              @if (fav.cover_url) {
+                <img [src]="fav.cover_url" [alt]="" class="nav-fav-cover" width="18" height="18" />
+              } @else {
+                <app-icon name="star-filled" [size]="16" />
+              }
+              <span>{{ fav.name }}</span>
+            </a>
+          }
+        }
+      </div>
+
+      <a
         routerLink="/playlists"
         routerLinkActive="active"
         class="nav-item"

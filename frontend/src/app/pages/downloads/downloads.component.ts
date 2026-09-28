@@ -17,11 +17,12 @@ import {
   detectProviderFromUrl,
 } from '../../core/models';
 import { IconComponent } from '../../shared/icon.component';
+import { PageLoadingComponent } from '../../shared/page-loading.component';
 import { ToastService } from '../../shared/toast.service';
 
 @Component({
   selector: 'app-downloads',
-  imports: [DatePipe, ReactiveFormsModule, IconComponent],
+  imports: [DatePipe, ReactiveFormsModule, IconComponent, PageLoadingComponent],
   templateUrl: './downloads.component.html',
   styleUrl: './downloads.component.css',
 })

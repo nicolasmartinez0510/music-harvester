@@ -80,7 +80,11 @@ Production images build the frontend automatically in the Docker multi-stage `Do
 
 `GET /api/providers` lists enabled providers, credentials status, and supported qualities.
 
-See [docs/providers.md](docs/providers.md) for ARL setup, streamrip choice, and how to add a new provider.
+See [docs/providers.md](docs/providers.md) for ARL setup, streamrip choice, **Explorar / catálogo**, and how to add a new provider.
+
+## Explorar (buscar y destacar)
+
+UI **Explorar** (`/browse`): búsqueda en providers con `has_catalog` (Deezer). Desde resultados o fichas podés **Descargar ahora** (`POST /api/downloads`) o **Destacar** una playlist (`POST /api/playlists` + sync). El catálogo es API pública; el FLAC autenticado sigue necesitando ARL HiFi.
 
 ## Saved playlists (re-sync)
 

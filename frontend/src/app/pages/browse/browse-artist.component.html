@@ -1,0 +1,158 @@
+<section class="page">
+  @if (showBackToBrowse) {
+    <p>
+      <a routerLink="/browse" class="back-link">← Explorar</a>
+    </p>
+  }
+
+  @if (loading) {
+    <app-page-loading />
+  } @else if (errorMessage) {
+    <p class="alert alert-error" role="alert">{{ errorMessage }}</p>
+  } @else if (artist) {
+    <header class="page-header">
+      <div class="detail-hero card">
+        @if (artist.cover_url) {
+          <img [src]="artist.cover_url" [alt]="artist.name" class="detail-cover" />
+        }
+        <div class="detail-meta">
+          <div class="title-row">
+            <h1>{{ artist.name }}</h1>
+            <button
+              type="button"
+              class="btn-icon"
+              [class.favorite-active]="isFavorite"
+              (click)="toggleFavorite()"
+              [attr.aria-label]="isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'"
+              [attr.title]="isFavorite ? 'Quitar de favoritos' : 'Destacar artista'"
+            >
+              <app-icon [name]="isFavorite ? 'star-filled' : 'star'" />
+            </button>
+          </div>
+          <p class="muted">{{ artist.nb_fans | number }} fans</p>
+          @if (artist.description) {
+            <p class="artist-bio">{{ artist.description }}</p>
+            <small class="muted bio-source">Fuente: Wikipedia</small>
+          }
+        </div>
+      </div>
+    </header>
+
+    <div class="type-chips" role="tablist">
+      <button
+        type="button"
+        class="chip"
+        role="tab"
+        [class.active]="activeTab === 'tracks'"
+        (click)="setTab('tracks')"
+      >
+        Tracks
+      </button>
+      <button
+        type="button"
+        class="chip"
+        role="tab"
+        [class.active]="activeTab === 'albums'"
+        (click)="setTab('albums')"
+      >
+        Álbumes
+      </button>
+    </div>
+
+    @if (activeTab === 'tracks') {
+      <section class="card">
+        <h2 class="section-title">Top tracks</h2>
+        @if (artist.top_tracks.length === 0) {
+          <p class="muted">Sin tracks.</p>
+        } @else {
+          <div class="hits">
+            @for (hit of pagedTracks; track hit.id) {
+              <article class="hit">
+                @if (hit.cover_url) {
+                  <img [src]="hit.cover_url" [alt]="hit.title" class="hit-cover" width="44" height="44" />
+                } @else {
+                  <div class="hit-cover placeholder" aria-hidden="true"></div>
+                }
+                <div class="hit-body">
+                  <span class="hit-title">{{ hit.title }}</span>
+                  @if (hit.subtitle) {
+                    <small class="muted">{{ hit.subtitle }}</small>
+                  }
+                </div>
+                <div class="hit-actions">
+                  <app-catalog-download-btn [url]="hit.canonical_url" />
+                </div>
+              </article>
+            }
+          </div>
+
+          <app-pagination
+            [total]="artist.top_tracks.length"
+            [page]="trackPage"
+            [pageSize]="trackPageSize"
+            [showPageSize]="false"
+            (pageChange)="onTrackPageChange($event)"
+          />
+        }
+      </section>
+    } @else {
+      <section class="card">
+        <div class="section-header">
+          <h2 class="section-title">Discografía</h2>
+          @if (artist.albums.length > 0) {
+            <div class="type-chips sort-chips" role="group" aria-label="Ordenar álbumes">
+              @for (option of albumSortOptions; track option.id) {
+                <button
+                  type="button"
+                  class="chip"
+                  [class.active]="albumSort === option.id"
+                  (click)="setAlbumSort(option.id)"
+                >
+                  {{ option.label }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+        @if (artist.albums.length === 0) {
+          <p class="muted">Sin álbumes.</p>
+        } @else {
+          <div class="album-grid">
+            @for (hit of pagedAlbums; track hit.id) {
+              <article class="album-card">
+                <a [routerLink]="albumLink(hit)" class="album-cover-link">
+                  @if (hit.cover_url) {
+                    <img [src]="hit.cover_url" [alt]="hit.title" class="album-cover" />
+                  } @else {
+                    <div class="album-cover placeholder" aria-hidden="true"></div>
+                  }
+                </a>
+                <a [routerLink]="albumLink(hit)" class="album-title">{{ hit.title }}</a>
+                <small class="muted">
+                  @if (albumYear(hit); as year) {
+                    {{ year }}
+                    @if (hit.nb_tracks != null) {
+                      ·
+                    }
+                  }
+                  @if (hit.nb_tracks != null) {
+                    {{ hit.nb_tracks }} tracks
+                  }
+                </small>
+                <app-catalog-download-btn [url]="hit.canonical_url" />
+              </article>
+            }
+          </div>
+
+          <app-pagination
+            [total]="sortedAlbums.length"
+            [page]="albumPage"
+            [pageSize]="albumPageSize"
+            [showPageSize]="false"
+            (pageChange)="onAlbumPageChange($event)"
+          />
+        }
+      </section>
+    }
+  }
+</section>

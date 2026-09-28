@@ -17,7 +17,7 @@ interface CatalogSource
     /**
      * @return list<CatalogHit>
      */
-    public function search(string $query, CatalogType $type, int $limit = 25): array;
+    public function search(string $query, CatalogType $type, int $limit = 25, int $index = 0): array;
 
     public function getArtist(string $id): CatalogArtist;
 

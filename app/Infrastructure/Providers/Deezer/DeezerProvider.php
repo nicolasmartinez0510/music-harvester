@@ -84,14 +84,15 @@ final class DeezerProvider implements MusicProvider, CatalogSource
         return $this->downloadNative($track, $options, $directory, $playlistLayout);
     }
 
-    public function search(string $query, CatalogType $type, int $limit = 25): array
+    public function search(string $query, CatalogType $type, int $limit = 25, int $index = 0): array
     {
         $limit = max(1, min(100, $limit));
+        $index = max(0, $index);
 
         if ($type === CatalogType::All) {
             $hits = [];
             foreach ([CatalogType::Track, CatalogType::Album, CatalogType::Artist, CatalogType::Playlist] as $subType) {
-                $hits = array_merge($hits, $this->search($query, $subType, min(10, $limit)));
+                $hits = array_merge($hits, $this->search($query, $subType, min(10, $limit), $index));
             }
 
             return array_slice($hits, 0, $limit);
@@ -105,7 +106,7 @@ final class DeezerProvider implements MusicProvider, CatalogSource
             CatalogType::All => 'search',
         };
 
-        $payload = $this->api->get($path, ['q' => $query, 'limit' => $limit]);
+        $payload = $this->api->get($path, ['q' => $query, 'limit' => $limit, 'index' => $index]);
         $data = $payload['data'] ?? [];
         $hits = [];
 
@@ -360,6 +361,10 @@ final class DeezerProvider implements MusicProvider, CatalogSource
             coverUrl: $cover,
             canonicalUrl: $id !== '' ? $this->canonical($kindPath, $id) : null,
             nbTracks: isset($row['nb_tracks']) ? (int) $row['nb_tracks'] : null,
+            releaseDate: isset($row['release_date']) && is_string($row['release_date']) && $row['release_date'] !== ''
+                ? $row['release_date']
+                : null,
+            fans: isset($row['fans']) ? (int) $row['fans'] : (isset($row['rank']) ? (int) $row['rank'] : null),
         );
     }
 

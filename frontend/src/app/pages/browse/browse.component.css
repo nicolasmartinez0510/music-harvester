@@ -1,0 +1,177 @@
+.search-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.search-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.provider-field {
+  min-width: 10rem;
+}
+
+.query-field {
+  flex: 1;
+  min-width: 12rem;
+}
+
+.type-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.chip.active {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: transparent;
+}
+
+.recent-history {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.recent-label {
+  font-size: 0.8rem;
+}
+
+.recent-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.recent-chip {
+  background: var(--surface-muted);
+}
+
+.recent-chip small {
+  opacity: 0.75;
+  margin-left: 0.2rem;
+}
+
+.favorite-active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.history-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.history-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.history-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.history-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0.25rem 0;
+}
+
+.history-q {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.hits {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.hit {
+  display: flex;
+  gap: 0.85rem;
+  align-items: center;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.hit:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.hit-cover {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: var(--radius);
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--surface-muted);
+}
+
+.hit-cover.placeholder {
+  background: var(--accent-soft);
+}
+
+.hit-body {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.hit-title {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.hit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.empty-state {
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .hit {
+    flex-wrap: wrap;
+  }
+
+  .hit-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}

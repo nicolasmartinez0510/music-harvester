@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Application\Catalog\GetCatalogAlbumHandler;
+use App\Application\Catalog\GetCatalogArtistHandler;
+use App\Application\Catalog\GetCatalogPlaylistHandler;
+use App\Application\Catalog\SearchCatalogHandler;
 use App\Application\CreateDownload\CreateDownloadHandler;
 use App\Application\DeleteSavedPlaylist\DeleteSavedPlaylistHandler;
 use App\Application\DownloadPlaylist\DownloadPlaylistHandler;
@@ -20,10 +24,12 @@ use App\Application\SyncSavedPlaylist\SyncSavedPlaylistHandler;
 use App\Application\UpdateSavedPlaylist\UpdateSavedPlaylistHandler;
 use App\Application\UpdateSettings\UpdateSettingsHandler;
 use App\Domain\Music\Contracts\DownloadJobRepository;
+use App\Domain\Music\Contracts\ArtistBiographyLookup;
 use App\Domain\Music\Contracts\MusicDownloader;
 use App\Domain\Music\Contracts\MusicProvider;
 use App\Domain\Music\Contracts\SavedPlaylistRepository;
 use App\Domain\Music\Contracts\SettingsRepository;
+use App\Infrastructure\Biography\WikipediaArtistBiographyLookup;
 use App\Infrastructure\Downloader\YtDlpDownloader;
 use App\Infrastructure\Persistence\EloquentDownloadRepository;
 use App\Infrastructure\Persistence\EloquentSavedPlaylistRepository;
@@ -45,6 +51,7 @@ class MusicHarvesterServiceProvider extends ServiceProvider
         $this->app->singleton(DownloadJobRepository::class, EloquentDownloadRepository::class);
         $this->app->singleton(SavedPlaylistRepository::class, EloquentSavedPlaylistRepository::class);
         $this->app->singleton(SettingsRepository::class, EloquentSettingsRepository::class);
+        $this->app->singleton(ArtistBiographyLookup::class, WikipediaArtistBiographyLookup::class);
         $this->app->singleton(ProviderSettingsResolver::class);
 
         $this->app->singleton(LocalMusicStorage::class, function ($app) {
@@ -91,6 +98,11 @@ class MusicHarvesterServiceProvider extends ServiceProvider
                 $app->make(ProviderSettingsResolver::class),
             );
         });
+
+        $this->app->singleton(SearchCatalogHandler::class);
+        $this->app->singleton(GetCatalogArtistHandler::class);
+        $this->app->singleton(GetCatalogAlbumHandler::class);
+        $this->app->singleton(GetCatalogPlaylistHandler::class);
 
         $this->app->singleton(DownloadTrackHandler::class);
         $this->app->singleton(DownloadPlaylistHandler::class);

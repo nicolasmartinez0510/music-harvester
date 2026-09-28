@@ -41,6 +41,28 @@ class PlaylistApiTest extends TestCase
         Queue::assertPushed(ProcessPlaylistSyncJob::class, fn (ProcessPlaylistSyncJob $job) => $job->savedPlaylistId === $id);
     }
 
+    public function test_create_playlist_is_idempotent_for_same_url(): void
+    {
+        Queue::fake();
+
+        $first = $this->postJson('/api/playlists', [
+            'url' => 'https://www.deezer.com/playlist/908622995',
+            'sync_now' => true,
+        ]);
+        $first->assertCreated();
+        $id = (int) $first->json('data.id');
+
+        $second = $this->postJson('/api/playlists', [
+            'url' => 'https://www.deezer.com/playlist/908622995',
+            'sync_now' => true,
+        ]);
+        $second
+            ->assertOk()
+            ->assertJsonPath('data.id', $id);
+
+        $this->assertSame(1, DB::table('saved_playlists')->count());
+    }
+
     public function test_create_playlist_without_sync_now_does_not_dispatch(): void
     {
         Queue::fake();

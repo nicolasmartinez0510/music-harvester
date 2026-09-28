@@ -39,7 +39,7 @@ final class PlaylistController extends Controller
         SavedPlaylistRepository $playlists,
     ): JsonResponse {
         try {
-            $playlist = $handler->handle(new SavePlaylistCommand(
+            $result = $handler->handle(new SavePlaylistCommand(
                 url: new MusicUrl($request->string('url')->toString()),
                 syncNow: $request->boolean('sync_now', true),
                 syncEnabled: $request->boolean('sync_enabled', true),
@@ -51,11 +51,12 @@ final class PlaylistController extends Controller
             return response()->json(['message' => $exception->getMessage()], 422);
         }
 
+        $playlist = $result['playlist'];
         $counts = $playlists->trackCounts((int) $playlist['id']);
 
         return (new SavedPlaylistResource(array_merge($playlist, ['counts' => $counts])))
             ->response()
-            ->setStatusCode(201);
+            ->setStatusCode($result['created'] ? 201 : 200);
     }
 
     public function show(int $id, GetSavedPlaylistHandler $handler): JsonResponse

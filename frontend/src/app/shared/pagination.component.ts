@@ -5,14 +5,18 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
   template: `
     @if (total > 0) {
       <div class="pagination">
-        <label class="pagination-size">
-          <span>Por página</span>
-          <select [value]="pageSize" (change)="onPageSizeChange($event)">
-            @for (size of pageSizes; track size) {
-              <option [value]="size">{{ size }}</option>
-            }
-          </select>
-        </label>
+        @if (showPageSize) {
+          <label class="pagination-size">
+            <span>Por página</span>
+            <select [value]="pageSize" (change)="onPageSizeChange($event)">
+              @for (size of pageSizes; track size) {
+                <option [value]="size">{{ size }}</option>
+              }
+            </select>
+          </label>
+        } @else {
+          <span></span>
+        }
 
         <div class="pagination-nav">
           <button type="button" class="btn btn-small" [disabled]="page <= 1" (click)="goTo(page - 1)">
@@ -33,6 +37,7 @@ export class PaginationComponent {
   @Input({ required: true }) total = 0;
   @Input() page = 1;
   @Input() pageSize = 10;
+  @Input() showPageSize = true;
 
   @Output() readonly pageChange = new EventEmitter<number>();
   @Output() readonly pageSizeChange = new EventEmitter<number>();

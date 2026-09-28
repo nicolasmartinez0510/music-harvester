@@ -15,7 +15,7 @@
   }
 
   @if (loading) {
-    <p class="muted">Cargando…</p>
+    <app-page-loading />
   } @else if (playlists.length === 0) {
     <div class="card empty-state">
       <p>No hay playlists guardadas todavía.</p>

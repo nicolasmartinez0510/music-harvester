@@ -5,6 +5,11 @@ import { Observable, map } from 'rxjs';
 import {
   ApiResource,
   AudioFormat,
+  CatalogAlbum,
+  CatalogArtist,
+  CatalogHit,
+  CatalogPlaylist,
+  CatalogType,
   DeezerMode,
   DownloadJob,
   ProviderInfo,
@@ -118,6 +123,50 @@ export class ApiService {
   getProviders(): Observable<ProviderInfo[]> {
     return this.http
       .get<ApiResource<ProviderInfo[]>>(`${this.baseUrl}/providers`)
+      .pipe(map((response) => response.data));
+  }
+
+  searchCatalog(params: {
+    provider: string;
+    q: string;
+    type?: CatalogType;
+    limit?: number;
+    index?: number;
+  }): Observable<CatalogHit[]> {
+    const query: Record<string, string> = {
+      provider: params.provider,
+      q: params.q,
+    };
+    if (params.type) {
+      query['type'] = params.type;
+    }
+    if (params.limit != null) {
+      query['limit'] = String(params.limit);
+    }
+    if (params.index != null) {
+      query['index'] = String(params.index);
+    }
+
+    return this.http
+      .get<ApiResource<CatalogHit[]>>(`${this.baseUrl}/catalog/search`, { params: query })
+      .pipe(map((response) => response.data));
+  }
+
+  getCatalogArtist(provider: string, id: string): Observable<CatalogArtist> {
+    return this.http
+      .get<ApiResource<CatalogArtist>>(`${this.baseUrl}/catalog/${provider}/artists/${id}`)
+      .pipe(map((response) => response.data));
+  }
+
+  getCatalogAlbum(provider: string, id: string): Observable<CatalogAlbum> {
+    return this.http
+      .get<ApiResource<CatalogAlbum>>(`${this.baseUrl}/catalog/${provider}/albums/${id}`)
+      .pipe(map((response) => response.data));
+  }
+
+  getCatalogPlaylist(provider: string, id: string): Observable<CatalogPlaylist> {
+    return this.http
+      .get<ApiResource<CatalogPlaylist>>(`${this.baseUrl}/catalog/${provider}/playlists/${id}`)
       .pipe(map((response) => response.data));
   }
 }

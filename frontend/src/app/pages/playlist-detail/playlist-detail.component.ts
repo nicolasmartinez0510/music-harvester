@@ -17,12 +17,13 @@ import {
   SavedPlaylistTrack,
 } from '../../core/models';
 import { IconComponent } from '../../shared/icon.component';
+import { PageLoadingComponent } from '../../shared/page-loading.component';
 import { PaginationComponent } from '../../shared/pagination.component';
 import { ToastService } from '../../shared/toast.service';
 
 @Component({
   selector: 'app-playlist-detail',
-  imports: [DatePipe, ReactiveFormsModule, RouterLink, IconComponent, PaginationComponent],
+  imports: [DatePipe, ReactiveFormsModule, RouterLink, IconComponent, PaginationComponent, PageLoadingComponent],
   templateUrl: './playlist-detail.component.html',
   styleUrl: './playlist-detail.component.css',
 })

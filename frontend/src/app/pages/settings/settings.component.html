@@ -5,7 +5,7 @@
   </header>
 
   @if (loading) {
-    <p class="muted">Cargando…</p>
+    <app-page-loading />
   } @else {
     <div class="tabs" role="tablist">
       @for (tab of tabs; track tab.id) {

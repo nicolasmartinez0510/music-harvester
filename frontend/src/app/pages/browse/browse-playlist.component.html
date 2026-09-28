@@ -1,0 +1,68 @@
+<section class="page">
+  <p>
+    <a routerLink="/browse" class="back-link">← Explorar</a>
+  </p>
+
+  @if (loading) {
+    <app-page-loading />
+  } @else if (errorMessage) {
+    <p class="alert alert-error" role="alert">{{ errorMessage }}</p>
+  } @else if (playlist) {
+    <header class="page-header">
+      <div class="detail-hero card">
+        @if (playlist.cover_url) {
+          <img [src]="playlist.cover_url" [alt]="playlist.title" class="detail-cover" />
+        }
+        <div class="detail-meta">
+          <h1>{{ playlist.title }}</h1>
+          <p class="muted">
+            @if (playlist.creator_name) {
+              {{ playlist.creator_name }} ·
+            }
+            {{ playlist.nb_tracks }} tracks
+          </p>
+          <div class="detail-actions">
+            <app-catalog-download-btn
+              [url]="playlist.canonical_url"
+              label="Descargar playlist"
+              size="default"
+              variant="primary"
+            />
+            <button
+              type="button"
+              class="btn btn-secondary btn-with-icon"
+              [disabled]="starring"
+              (click)="star()"
+            >
+              <app-icon name="plus" class="btn-leading-icon" />
+              {{ starring ? 'Destacando…' : 'Destacar / sync automático' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2 class="section-title">Tracks</h2>
+      @if (playlist.tracks.length === 0) {
+        <p class="muted">Sin tracks.</p>
+      } @else {
+        <div class="hits">
+          @for (hit of playlist.tracks; track hit.id) {
+            <article class="hit">
+              <div class="hit-body">
+                <span class="hit-title">{{ hit.title }}</span>
+                @if (hit.subtitle) {
+                  <small class="muted">{{ hit.subtitle }}</small>
+                }
+              </div>
+              <div class="hit-actions">
+                <app-catalog-download-btn [url]="hit.canonical_url" />
+              </div>
+            </article>
+          }
+        </div>
+      }
+    </section>
+  }
+</section>

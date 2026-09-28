@@ -81,6 +81,57 @@ export interface ProviderInfo {
   mode?: DeezerMode;
 }
 
+export type CatalogType = 'track' | 'album' | 'artist' | 'playlist' | 'all';
+
+export interface CatalogHit {
+  id: string;
+  type: Exclude<CatalogType, 'all'>;
+  title: string;
+  subtitle: string | null;
+  cover_url: string | null;
+  canonical_url: string | null;
+  nb_tracks: number | null;
+  release_date?: string | null;
+  fans?: number | null;
+}
+
+export interface CatalogArtist {
+  id: string;
+  type: 'artist';
+  title: string;
+  name: string;
+  cover_url: string | null;
+  canonical_url: string | null;
+  nb_fans: number;
+  description?: string | null;
+  top_tracks: CatalogHit[];
+  albums: CatalogHit[];
+}
+
+export interface CatalogAlbum {
+  id: string;
+  type: 'album';
+  title: string;
+  subtitle: string | null;
+  artist_name: string | null;
+  cover_url: string | null;
+  canonical_url: string | null;
+  nb_tracks: number;
+  tracks: CatalogHit[];
+}
+
+export interface CatalogPlaylist {
+  id: string;
+  type: 'playlist';
+  title: string;
+  subtitle: string | null;
+  creator_name: string | null;
+  cover_url: string | null;
+  canonical_url: string | null;
+  nb_tracks: number;
+  tracks: CatalogHit[];
+}
+
 export interface ApiResource<T> {
   data: T;
 }
@@ -121,6 +172,14 @@ export const PLAYLIST_TRACK_LABELS: Record<PlaylistTrackStatus, string> = {
   downloaded: 'Descargado',
   failed: 'Fallido',
   skipped: 'Omitido',
+};
+
+export const CATALOG_TYPE_LABELS: Record<CatalogType, string> = {
+  all: 'Todo',
+  track: 'Tracks',
+  album: 'Álbumes',
+  artist: 'Artistas',
+  playlist: 'Playlists',
 };
 
 export function detectProviderFromUrl(url: string): ProviderName | null {

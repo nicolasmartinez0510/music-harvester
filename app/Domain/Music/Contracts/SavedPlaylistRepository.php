@@ -28,6 +28,11 @@ interface SavedPlaylistRepository
     public function find(int $id): ?array;
 
     /**
+     * @return array<string, mixed>|null
+     */
+    public function findByUrl(string $url): ?array;
+
+    /**
      * @return list<array<string, mixed>>
      */
     public function listAll(): array;

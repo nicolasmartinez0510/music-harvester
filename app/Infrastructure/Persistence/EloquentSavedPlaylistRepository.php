@@ -50,6 +50,13 @@ final class EloquentSavedPlaylistRepository implements SavedPlaylistRepository
         return $row ? $this->mapPlaylist((array) $row) : null;
     }
 
+    public function findByUrl(string $url): ?array
+    {
+        $row = DB::table('saved_playlists')->where('url', $url)->first();
+
+        return $row ? $this->mapPlaylist((array) $row) : null;
+    }
+
     public function listAll(): array
     {
         return DB::table('saved_playlists')

@@ -14,5 +14,7 @@ final readonly class CatalogHit
         public ?string $coverUrl = null,
         public ?string $canonicalUrl = null,
         public ?int $nbTracks = null,
+        public ?string $releaseDate = null,
+        public ?int $fans = null,
     ) {}
 }

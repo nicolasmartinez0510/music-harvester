@@ -1,0 +1,202 @@
+<section class="page">
+  <header class="page-header row-between">
+    <div>
+      <h1>Explorar</h1>
+      <p>Buscá artistas, álbumes, tracks y playlists del provider con catálogo.</p>
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="openHistory()">
+      Historial
+    </button>
+  </header>
+
+  @if (catalogProviders.length === 0) {
+    <div class="card">
+      <p class="muted">
+        No hay providers con catálogo habilitados. Deezer debe estar en
+        <code>enabled_providers</code>.
+      </p>
+    </div>
+  } @else {
+    <form class="card search-form" [formGroup]="form" (ngSubmit)="search()">
+      <div class="search-row">
+        <label class="field provider-field">
+          <span>Provider</span>
+          <select formControlName="provider">
+            @for (provider of catalogProviders; track provider.name) {
+              <option [value]="provider.name">{{ providerLabel(provider.name) }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="field query-field">
+          <span>Buscar</span>
+          <input
+            type="search"
+            formControlName="q"
+            placeholder="Daft Punk, Discovery…"
+            autocomplete="off"
+          />
+        </label>
+
+        <button type="submit" class="btn btn-primary" [disabled]="loading">
+          {{ loading ? 'Buscando…' : 'Buscar' }}
+        </button>
+      </div>
+
+      <div class="type-chips" role="tablist">
+        @for (type of types; track type) {
+          <button
+            type="button"
+            class="chip"
+            role="tab"
+            [class.active]="form.controls.type.value === type"
+            (click)="setType(type)"
+          >
+            {{ typeLabels[type] }}
+          </button>
+        }
+      </div>
+
+      @if (recentHistory.length > 0) {
+        <div class="recent-history">
+          <span class="muted recent-label">Últimas búsquedas</span>
+          <div class="recent-chips">
+            @for (entry of recentHistory; track entry.at) {
+              <button type="button" class="chip recent-chip" (click)="applyHistory(entry)">
+                {{ entry.q }}
+                <small>· {{ typeLabels[entry.type] }}</small>
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </form>
+  }
+
+  @if (errorMessage) {
+    <p class="alert alert-error" role="alert">{{ errorMessage }}</p>
+  }
+
+  @if (loading) {
+    <app-page-loading label="Buscando…" />
+  } @else if (searched && hits.length === 0 && !errorMessage) {
+    <div class="card empty-state">
+      <p>Sin resultados.</p>
+    </div>
+  } @else if (hits.length > 0) {
+    <div class="card hits">
+      @for (hit of hits; track hit.type + hit.id) {
+        <article class="hit">
+          @if (hit.cover_url) {
+            <img [src]="hit.cover_url" [alt]="hit.title" class="hit-cover" width="56" height="56" />
+          } @else {
+            <div class="hit-cover placeholder" aria-hidden="true"></div>
+          }
+          <div class="hit-body">
+            @if (detailLink(hit); as link) {
+              <a [routerLink]="link" class="hit-title">{{ hit.title }}</a>
+            } @else {
+              <span class="hit-title">{{ hit.title }}</span>
+            }
+            <small class="muted">
+              {{ typeLabels[hit.type] }}
+              @if (hit.subtitle) {
+                · {{ hit.subtitle }}
+              }
+              @if (hit.nb_tracks != null) {
+                · {{ hit.nb_tracks }} tracks
+              }
+            </small>
+          </div>
+          <div class="hit-actions">
+            @if (hit.type === 'artist') {
+              <button
+                type="button"
+                class="btn-icon"
+                [class.favorite-active]="isFavorite(hit)"
+                (click)="toggleFavorite(hit)"
+                [attr.aria-label]="isFavorite(hit) ? 'Quitar de favoritos' : 'Agregar a favoritos'"
+                [attr.title]="isFavorite(hit) ? 'Quitar de favoritos' : 'Destacar artista'"
+              >
+                <app-icon [name]="isFavorite(hit) ? 'star-filled' : 'star'" />
+              </button>
+            } @else if (hit.type === 'track' || hit.type === 'album' || hit.type === 'playlist') {
+              <app-catalog-download-btn [url]="hit.canonical_url" />
+            }
+          </div>
+        </article>
+      }
+    </div>
+  }
+
+  @if (showHistoryModal) {
+    <div class="modal-backdrop" (click)="closeHistory()">
+      <div
+        class="modal modal-lg"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="search-history-title"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="modal-header">
+          <h2 id="search-history-title">Historial de búsqueda</h2>
+          <button
+            type="button"
+            class="btn-icon"
+            (click)="closeHistory()"
+            aria-label="Cerrar"
+            title="Cerrar"
+          >
+            <app-icon name="x" />
+          </button>
+        </div>
+
+        <div class="modal-body">
+          @if (allHistory.length === 0) {
+            <p class="muted">Todavía no hay búsquedas.</p>
+          } @else {
+            <div class="history-list">
+              @for (entry of pagedHistory; track entry.at) {
+                <div class="history-row">
+                  <button type="button" class="history-main" (click)="applyHistory(entry)">
+                    <span class="history-q">{{ entry.q }}</span>
+                    <small class="muted">
+                      {{ providerLabel(entry.provider) }} · {{ typeLabels[entry.type] }} ·
+                      {{ entry.at | date: 'short' }}
+                    </small>
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-icon btn-icon-danger"
+                    (click)="removeHistory(entry)"
+                    aria-label="Eliminar del historial"
+                    title="Eliminar"
+                  >
+                    <app-icon name="trash" />
+                  </button>
+                </div>
+              }
+            </div>
+
+            <app-pagination
+              [total]="allHistory.length"
+              [page]="historyPage"
+              [pageSize]="historyPageSize"
+              [showPageSize]="false"
+              (pageChange)="onHistoryPageChange($event)"
+            />
+
+            <div class="modal-actions">
+              <button type="button" class="btn btn-danger" (click)="clearHistory()">
+                Vaciar historial
+              </button>
+              <button type="button" class="btn btn-secondary" (click)="closeHistory()">
+                Cerrar
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</section>

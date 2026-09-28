@@ -4,7 +4,7 @@
   </p>
 
   @if (loading) {
-    <p class="muted">Cargando…</p>
+    <app-page-loading />
   } @else if (!detail) {
     <p class="alert alert-error">Playlist no encontrada.</p>
   } @else {

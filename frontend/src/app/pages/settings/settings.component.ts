@@ -8,12 +8,13 @@ import {
   AudioFormat,
   DeezerMode,
 } from '../../core/models';
+import { PageLoadingComponent } from '../../shared/page-loading.component';
 
 type SettingsTab = 'general' | 'youtube_music' | 'deezer';
 
 @Component({
   selector: 'app-settings',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, PageLoadingComponent],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.css',
 })

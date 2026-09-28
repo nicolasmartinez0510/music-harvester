@@ -13,7 +13,10 @@ export type IconName =
   | 'compass'
   | 'sun'
   | 'moon'
-  | 'menu';
+  | 'menu'
+  | 'star'
+  | 'star-filled'
+  | 'check';
 
 @Component({
   selector: 'app-icon',
@@ -132,6 +135,32 @@ export type IconName =
       @case ('menu') {
         <svg [attr.width]="size" [attr.height]="size" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+      }
+      @case ('star') {
+        <svg [attr.width]="size" [attr.height]="size" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="m12 3.5 2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.7 6.8 19.5l1-5.8L3.6 9.6l5.8-.8L12 3.5Z"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linejoin="round"
+          />
+        </svg>
+      }
+      @case ('star-filled') {
+        <svg [attr.width]="size" [attr.height]="size" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="m12 3.5 2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.7 6.8 19.5l1-5.8L3.6 9.6l5.8-.8L12 3.5Z" />
+        </svg>
+      }
+      @case ('check') {
+        <svg [attr.width]="size" [attr.height]="size" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M5 12.5 10 17.5 19 7"
+            stroke="currentColor"
+            stroke-width="2.25"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
         </svg>
       }
     }
