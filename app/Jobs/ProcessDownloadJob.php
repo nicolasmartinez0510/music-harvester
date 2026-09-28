@@ -10,6 +10,8 @@ use App\Domain\Music\Models\Track;
 use App\Domain\Music\ValueObjects\AudioFormat;
 use App\Domain\Music\ValueObjects\DownloadOptions;
 use App\Domain\Music\ValueObjects\DownloadStatus;
+use App\Domain\Music\ValueObjects\ResolvedKind;
+use App\Domain\Music\ValueObjects\ResolvedMusic;
 use App\Infrastructure\Providers\MusicProviderRegistry;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -66,6 +68,12 @@ class ProcessDownloadJob implements ShouldQueue
                 throw new RuntimeException('No items found to download.');
             }
 
+            $jobs->updateMetadata(
+                $this->downloadJobId,
+                $resolved->title,
+                $this->resolveArtist($resolved),
+            );
+
             $completed = 0;
             $lastPath = null;
             $failures = [];
@@ -95,6 +103,9 @@ class ProcessDownloadJob implements ShouldQueue
                 $lastPath = $result->destinationPath;
                 $progress = (int) round(($completed / $total) * 100);
                 $jobs->updateProgress($this->downloadJobId, $progress, $lastPath);
+                if (is_string($lastPath) && $lastPath !== '') {
+                    $jobs->appendDownloadedPath($this->downloadJobId, $lastPath);
+                }
             }
 
             if ($completed === 0) {
@@ -136,6 +147,22 @@ class ProcessDownloadJob implements ShouldQueue
     private function isMultiItemJob(array $job): bool
     {
         return in_array($job['kind'] ?? '', ['playlist', 'album'], true);
+    }
+
+    private function resolveArtist(ResolvedMusic $resolved): ?string
+    {
+        if ($resolved->kind === ResolvedKind::Playlist) {
+            return null;
+        }
+
+        $first = $resolved->items[0]->item ?? null;
+        if ($first instanceof Track) {
+            $name = $first->artist?->name;
+
+            return is_string($name) && $name !== '' ? $name : null;
+        }
+
+        return null;
     }
 
     /**

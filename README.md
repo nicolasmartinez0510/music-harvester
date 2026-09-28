@@ -4,7 +4,7 @@ Laravel API + queue worker for downloading music from YouTube Music and Deezer t
 
 ## Stack
 
-- **Backend:** Laravel 12 (PHP 8.4) + SQLite + database queue
+- **Backend:** Laravel 12 (PHP 8.4) + PostgreSQL + database queue
 - **Worker:** `yt-dlp` + `ffmpeg` + Deno (YouTube Music) and `streamrip` (Deezer FLAC)
 - **Frontend:** Angular 19 SPA (same origin via nginx)
 - **Proxy:** nginx (Angular UI + `/api` → Laravel)

@@ -21,7 +21,9 @@ Route::get('/catalog/{provider}/playlists/{id}', [CatalogController::class, 'pla
 
 Route::get('/downloads', [DownloadController::class, 'index']);
 Route::post('/downloads', [DownloadController::class, 'store']);
+Route::delete('/downloads', [DownloadController::class, 'destroyAll']);
 Route::get('/downloads/{id}', [DownloadController::class, 'show'])->whereNumber('id');
+Route::delete('/downloads/{id}', [DownloadController::class, 'destroy'])->whereNumber('id');
 Route::post('/downloads/{id}/retry', [DownloadController::class, 'retry'])->whereNumber('id');
 
 Route::get('/playlists', [PlaylistController::class, 'index']);

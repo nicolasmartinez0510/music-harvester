@@ -8,7 +8,9 @@ use App\Application\Catalog\GetCatalogAlbumHandler;
 use App\Application\Catalog\GetCatalogArtistHandler;
 use App\Application\Catalog\GetCatalogPlaylistHandler;
 use App\Application\Catalog\SearchCatalogHandler;
+use App\Application\ClearDownloads\ClearDownloadsHandler;
 use App\Application\CreateDownload\CreateDownloadHandler;
+use App\Application\DeleteDownload\DeleteDownloadHandler;
 use App\Application\DeleteSavedPlaylist\DeleteSavedPlaylistHandler;
 use App\Application\DownloadPlaylist\DownloadPlaylistHandler;
 use App\Application\DownloadTrack\DownloadTrackHandler;
@@ -41,6 +43,7 @@ use App\Infrastructure\Providers\Deezer\StreamripDeezerDownloader;
 use App\Infrastructure\Providers\MusicProviderRegistry;
 use App\Infrastructure\Providers\YoutubeMusic\YoutubeMusicMatcher;
 use App\Infrastructure\Providers\YoutubeMusic\YoutubeMusicProvider;
+use App\Infrastructure\Storage\DownloadedFilesCleanup;
 use App\Infrastructure\Storage\LocalMusicStorage;
 use Illuminate\Support\ServiceProvider;
 
@@ -57,6 +60,8 @@ class MusicHarvesterServiceProvider extends ServiceProvider
         $this->app->singleton(LocalMusicStorage::class, function ($app) {
             return new LocalMusicStorage(config('music.path'));
         });
+
+        $this->app->singleton(DownloadedFilesCleanup::class);
 
         $this->app->singleton(YtDlpDownloader::class);
         $this->app->bind(MusicDownloader::class, YtDlpDownloader::class);
@@ -109,6 +114,8 @@ class MusicHarvesterServiceProvider extends ServiceProvider
         $this->app->singleton(CreateDownloadHandler::class);
         $this->app->singleton(RetryDownloadHandler::class);
         $this->app->singleton(ListDownloadsHandler::class);
+        $this->app->singleton(DeleteDownloadHandler::class);
+        $this->app->singleton(ClearDownloadsHandler::class);
         $this->app->singleton(ListProvidersHandler::class);
         $this->app->singleton(GetSettingsHandler::class);
         $this->app->singleton(UpdateSettingsHandler::class);

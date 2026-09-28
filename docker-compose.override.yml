@@ -7,12 +7,10 @@ services:
     volumes: !override
       - ./storage/music:/music
       - ./cookies:/cookies:ro
-      - app_database:/var/www/html/database
       - app_storage:/var/www/html/storage
 
   worker:
     volumes: !override
       - ./storage/music:/music
       - ./cookies:/cookies:ro
-      - app_database:/var/www/html/database
       - app_storage:/var/www/html/storage

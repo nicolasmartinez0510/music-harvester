@@ -73,9 +73,15 @@ class ProcessDownloadJobTest extends TestCase
         $jobs->shouldReceive('updateStatus')
             ->once()
             ->with(42, DownloadStatus::Running);
+        $jobs->shouldReceive('updateMetadata')
+            ->once()
+            ->with(42, 'Song', 'Artist');
         $jobs->shouldReceive('updateProgress')
             ->once()
             ->with(42, 100, '/music/artist/album/01 - song.mp3');
+        $jobs->shouldReceive('appendDownloadedPath')
+            ->once()
+            ->with(42, '/music/artist/album/01 - song.mp3');
         $jobs->shouldReceive('updateStatus')
             ->once()
             ->with(42, DownloadStatus::Done, null);
@@ -116,6 +122,7 @@ class ProcessDownloadJobTest extends TestCase
             'options_json' => json_encode(['format' => AudioFormat::Mp3_320->value]),
         ]);
         $jobs->shouldReceive('updateStatus')->once()->with(7, DownloadStatus::Running);
+        $jobs->shouldReceive('updateMetadata')->once()->with(7, 'Song', 'Artist');
         $jobs->shouldReceive('updateStatus')
             ->once()
             ->with(7, DownloadStatus::Failed, Mockery::type('string'));
@@ -166,7 +173,9 @@ class ProcessDownloadJobTest extends TestCase
             'options_json' => json_encode(['format' => AudioFormat::Mp3_320->value]),
         ]);
         $jobs->shouldReceive('updateStatus')->once()->with(9, DownloadStatus::Running);
+        $jobs->shouldReceive('updateMetadata')->once()->with(9, 'Playlist', null);
         $jobs->shouldReceive('updateProgress')->once()->with(9, 50, '/music/artist/album/01 - song-one.mp3');
+        $jobs->shouldReceive('appendDownloadedPath')->once()->with(9, '/music/artist/album/01 - song-one.mp3');
         $jobs->shouldReceive('updateStatus')
             ->once()
             ->with(9, DownloadStatus::Done, Mockery::on(

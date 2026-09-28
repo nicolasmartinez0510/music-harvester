@@ -19,35 +19,46 @@ mkdir -p \
     storage/framework/sessions \
     storage/framework/views \
     storage/logs \
-    bootstrap/cache \
-    database/migrations
-
-# app_database mounts over /var/www/html/database and keeps the first-boot
-# copy forever, so new migration files from image rebuilds never appear.
-# Sync the pristine image copy on every start before migrate runs.
-if [ -d /usr/local/share/mh-migrations ]; then
-    cp -a /usr/local/share/mh-migrations/. database/migrations/
-fi
-
-if [ ! -f database/database.sqlite ]; then
-    touch database/database.sqlite
-fi
+    bootstrap/cache
 
 # php-fpm workers and the queue worker run as www-data; they must be able to
-# write logs, cache, sessions and the SQLite database (and its directory, so
-# SQLite can create -wal/-journal lock files).
-if ! chown -R www-data:www-data storage bootstrap/cache database; then
+# write logs, cache and sessions.
+if ! chown -R www-data:www-data storage bootstrap/cache; then
     echo "WARNING: chown failed — bind-mounted host folder? Falling back to chmod."
-    chmod -R a+rw storage bootstrap/cache database || true
+    chmod -R a+rw storage bootstrap/cache || true
 fi
 
+wait_for_db() {
+    if [ "${DB_CONNECTION:-pgsql}" != "pgsql" ]; then
+        return 0
+    fi
+
+    host="${DB_HOST:-db}"
+    port="${DB_PORT:-5432}"
+    user="${DB_USERNAME:-music}"
+    database="${DB_DATABASE:-music_harvester}"
+
+    echo "Waiting for PostgreSQL at ${host}:${port}..."
+    i=0
+    while [ "$i" -lt 60 ]; do
+        if pg_isready -h "$host" -p "$port" -U "$user" -d "$database" >/dev/null 2>&1; then
+            echo "PostgreSQL is ready."
+            return 0
+        fi
+        i=$((i + 1))
+        sleep 1
+    done
+
+    echo "ERROR: PostgreSQL did not become ready in time." >&2
+    return 1
+}
+
 # Run migrations only from the web/app service (php-fpm) to avoid several
-# containers writing to the same SQLite file at once. worker/scheduler wait
-# for the app healthcheck before starting.
+# containers migrating at once. worker/scheduler wait for the app healthcheck.
 if [ "$1" = "php-fpm" ]; then
+    wait_for_db
     echo "Running database migrations..."
     php artisan migrate --force
-    chown -R www-data:www-data database 2>/dev/null || true
 fi
 
 exec "$@"

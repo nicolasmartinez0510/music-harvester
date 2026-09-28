@@ -20,13 +20,26 @@ interface DownloadJobRepository
 
     public function updateProgress(int $id, int $progress, ?string $destinationPath = null): void;
 
+    public function updateMetadata(int $id, string $title, ?string $artist): void;
+
+    public function appendDownloadedPath(int $id, string $path): void;
+
     /**
      * @return list<array<string, mixed>>
      */
     public function listRecent(int $limit = 50): array;
 
     /**
+     * @return list<array<string, mixed>>
+     */
+    public function listAll(): array;
+
+    /**
      * @return array<string, mixed>|null
      */
     public function find(int $id): ?array;
+
+    public function delete(int $id): bool;
+
+    public function deleteAll(): int;
 }

@@ -52,6 +52,34 @@ final class EloquentDownloadRepository implements DownloadJobRepository
         DB::table('download_jobs')->where('id', $id)->update($data);
     }
 
+    public function updateMetadata(int $id, string $title, ?string $artist): void
+    {
+        DB::table('download_jobs')->where('id', $id)->update([
+            'title' => $title,
+            'artist' => $artist,
+            'updated_at' => now(),
+        ]);
+    }
+
+    public function appendDownloadedPath(int $id, string $path): void
+    {
+        $job = $this->find($id);
+        if ($job === null) {
+            return;
+        }
+
+        $paths = $this->decodePaths($job['downloaded_paths'] ?? null);
+        if (! in_array($path, $paths, true)) {
+            $paths[] = $path;
+        }
+
+        DB::table('download_jobs')->where('id', $id)->update([
+            'downloaded_paths' => json_encode(array_values($paths)),
+            'destination_path' => $path,
+            'updated_at' => now(),
+        ]);
+    }
+
     public function listRecent(int $limit = 50): array
     {
         return DB::table('download_jobs')
@@ -62,10 +90,50 @@ final class EloquentDownloadRepository implements DownloadJobRepository
             ->all();
     }
 
+    public function listAll(): array
+    {
+        return DB::table('download_jobs')
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn ($row) => (array) $row)
+            ->all();
+    }
+
     public function find(int $id): ?array
     {
         $row = DB::table('download_jobs')->where('id', $id)->first();
 
         return $row ? (array) $row : null;
+    }
+
+    public function delete(int $id): bool
+    {
+        return DB::table('download_jobs')->where('id', $id)->delete() > 0;
+    }
+
+    public function deleteAll(): int
+    {
+        return (int) DB::table('download_jobs')->delete();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function decodePaths(mixed $raw): array
+    {
+        if (is_array($raw)) {
+            return array_values(array_filter($raw, fn ($p) => is_string($p) && $p !== ''));
+        }
+
+        if (! is_string($raw) || $raw === '') {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (! is_array($decoded)) {
+            return [];
+        }
+
+        return array_values(array_filter($decoded, fn ($p) => is_string($p) && $p !== ''));
     }
 }

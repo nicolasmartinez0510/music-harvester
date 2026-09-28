@@ -74,6 +74,14 @@ export class ApiService {
       .pipe(map((response) => response.data));
   }
 
+  deleteDownload(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/downloads/${id}`);
+  }
+
+  clearDownloads(): Observable<{ deleted: number }> {
+    return this.http.delete<{ deleted: number }>(`${this.baseUrl}/downloads`);
+  }
+
   listPlaylists(): Observable<SavedPlaylist[]> {
     return this.http
       .get<ApiResource<SavedPlaylist[]>>(`${this.baseUrl}/playlists`)

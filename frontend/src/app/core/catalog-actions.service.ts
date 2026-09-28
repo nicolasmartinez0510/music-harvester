@@ -8,8 +8,8 @@ import { AudioFormat, DownloadJob, DownloadStatus, SavedPlaylist } from './model
 
 export type CatalogDownloadUiState = 'idle' | 'queued' | 'done' | 'failed';
 
-const DONE_STORAGE_KEY = 'mh-catalog-downloaded-urls';
 const POLL_MS = 3000;
+const LIST_LIMIT = 200;
 
 @Injectable({ providedIn: 'root' })
 export class CatalogActionsService {
@@ -17,14 +17,13 @@ export class CatalogActionsService {
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
 
-  private readonly statesSignal = signal<Record<string, CatalogDownloadUiState>>(this.loadDoneMap());
+  private readonly statesSignal = signal<Record<string, CatalogDownloadUiState>>({});
   private pollSub: Subscription | null = null;
-  private hydrated = false;
 
   readonly states = this.statesSignal.asReadonly();
 
   constructor() {
-    this.hydrateFromJobs();
+    this.reloadFromServer();
   }
 
   status(url: string | null | undefined): CatalogDownloadUiState {
@@ -61,7 +60,7 @@ export class CatalogActionsService {
 
     this.api.createDownload({ url, format }).subscribe({
       next: (job) => {
-        this.applyJob(job);
+        this.mergeJob(job);
         this.toast.success('Descarga encolada.');
         this.ensurePolling();
       },
@@ -97,20 +96,24 @@ export class CatalogActionsService {
       );
   }
 
-  private hydrateFromJobs(): void {
-    if (this.hydrated) {
-      return;
-    }
-    this.hydrated = true;
-
-    this.api.listDownloads(100).subscribe({
+  /** Rebuild download UI state from the server (source of truth). */
+  reloadFromServer(): void {
+    this.api.listDownloads(LIST_LIMIT).subscribe({
       next: (jobs) => {
-        this.applyJobs(jobs);
+        this.replaceFromJobs(jobs);
         if (jobs.some((job) => this.isActiveStatus(job.status))) {
           this.ensurePolling();
         }
       },
+      error: () => {
+        this.statesSignal.set({});
+      },
     });
+  }
+
+  /** Apply a fresh downloads list (e.g. from the Descargas page poll). */
+  applyJobsSnapshot(jobs: DownloadJob[]): void {
+    this.replaceFromJobs(jobs);
   }
 
   private ensurePolling(): void {
@@ -121,11 +124,11 @@ export class CatalogActionsService {
     this.pollSub = interval(POLL_MS)
       .pipe(
         startWith(0),
-        switchMap(() => this.api.listDownloads(100)),
+        switchMap(() => this.api.listDownloads(LIST_LIMIT)),
       )
       .subscribe({
         next: (jobs) => {
-          this.applyJobs(jobs);
+          this.replaceFromJobs(jobs);
           const hasActive = jobs.some((job) => this.isActiveStatus(job.status));
           const hasLocalQueued = Object.values(this.statesSignal()).includes('queued');
           if (!hasActive && !hasLocalQueued) {
@@ -140,40 +143,48 @@ export class CatalogActionsService {
       });
   }
 
-  private applyJobs(jobs: DownloadJob[]): void {
-    const next = { ...this.statesSignal() };
+  private replaceFromJobs(jobs: DownloadJob[]): void {
+    const next: Record<string, CatalogDownloadUiState> = {};
+    const previous = this.statesSignal();
 
     for (const job of jobs) {
-      const mapped = this.mapJobStatus(job.status);
+      const mapped = this.mapJobStatus(job);
       if (!mapped) {
         continue;
       }
 
       const current = next[job.url];
-      if (mapped === 'done' || current !== 'done') {
+      if (!current || mapped === 'done' || (mapped === 'queued' && current === 'failed')) {
         next[job.url] = mapped;
       }
     }
 
+    // Keep optimistic local "queued" until the server lists the job.
+    for (const [url, state] of Object.entries(previous)) {
+      if (state === 'queued' && next[url] === undefined) {
+        next[url] = 'queued';
+      }
+    }
+
     this.statesSignal.set(next);
-    this.persistDone(next);
   }
 
-  private applyJob(job: DownloadJob): void {
-    const mapped = this.mapJobStatus(job.status);
-    if (mapped) {
-      this.patchState(job.url, mapped);
+  private mergeJob(job: DownloadJob): void {
+    const mapped = this.mapJobStatus(job);
+    if (!mapped) {
+      return;
     }
+    this.patchState(job.url, mapped);
   }
 
-  private mapJobStatus(status: DownloadStatus): CatalogDownloadUiState | null {
-    if (status === 'done') {
-      return 'done';
+  private mapJobStatus(job: DownloadJob): CatalogDownloadUiState | null {
+    if (job.status === 'done') {
+      return job.files_present ? 'done' : null;
     }
-    if (status === 'pending' || status === 'running') {
+    if (job.status === 'pending' || job.status === 'running') {
       return 'queued';
     }
-    if (status === 'failed') {
+    if (job.status === 'failed') {
       return 'failed';
     }
     return null;
@@ -184,36 +195,6 @@ export class CatalogActionsService {
   }
 
   private patchState(url: string, state: CatalogDownloadUiState): void {
-    this.statesSignal.update((current) => {
-      const next = { ...current, [url]: state };
-      this.persistDone(next);
-      return next;
-    });
-  }
-
-  private loadDoneMap(): Record<string, CatalogDownloadUiState> {
-    try {
-      const raw = localStorage.getItem(DONE_STORAGE_KEY);
-      if (!raw) {
-        return {};
-      }
-      const urls = JSON.parse(raw) as string[];
-      if (!Array.isArray(urls)) {
-        return {};
-      }
-      return Object.fromEntries(
-        urls.filter((url) => typeof url === 'string' && url.length > 0).map((url) => [url, 'done' as const]),
-      );
-    } catch {
-      return {};
-    }
-  }
-
-  private persistDone(states: Record<string, CatalogDownloadUiState>): void {
-    const doneUrls = Object.entries(states)
-      .filter(([, state]) => state === 'done')
-      .map(([url]) => url)
-      .slice(0, 200);
-    localStorage.setItem(DONE_STORAGE_KEY, JSON.stringify(doneUrls));
+    this.statesSignal.update((current) => ({ ...current, [url]: state }));
   }
 }

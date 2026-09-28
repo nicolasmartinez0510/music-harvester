@@ -18,7 +18,7 @@ Guía para correr Music Harvester en un Synology con **Container Manager** (DSM 
 | Biblioteca | `/volume1/music` | `/music` | Archivos descargados (Audio Station) |
 | Cookies YTM | `…/music-harvester/cookies/youtube/cookies.txt` | `/cookies/youtube/cookies.txt` | Sesión de YouTube Music |
 | ARL Deezer | Settings UI o `DEEZER_ARL` | — | Sesión Deezer Premium/HiFi (FLAC) |
-| Proyecto | `/volume1/docker/music-harvester` (recomendado) | `/var/www/html` | Código, SQLite, logs |
+| Proyecto | `/volume1/docker/music-harvester` (recomendado) | `/var/www/html` | Código, compose, cookies |
 | UI | `http://<ip-nas>:8085` | — | Angular + API vía nginx |
 
 En contenedores **no** uses `/volume1/...`; siempre montá la carpeta compartida del host sobre `/music` y `/cookies`.
@@ -27,7 +27,7 @@ En contenedores **no** uses `/volume1/...`; siempre montá la carpeta compartida
 
 ## 1. Volumen de música (`/music`)
 
-Music Harvester escribe la biblioteca en el filesystem. SQLite solo guarda jobs y configuración; los archivos reales van a la ruta configurada en `MUSIC_PATH` (por defecto `/music` dentro del contenedor).
+Music Harvester escribe la biblioteca en el filesystem. PostgreSQL guarda jobs, cola, settings y playlists; los archivos reales van a la ruta configurada en `MUSIC_PATH` (por defecto `/music` dentro del contenedor).
 
 ### Crear la carpeta compartida
 
@@ -38,7 +38,7 @@ Music Harvester escribe la biblioteca en el filesystem. SQLite solo guarda jobs 
 
 ### Montaje en Docker
 
-En Synology **no** montes el código fuente sobre `/var/www/html`: eso tapa el `vendor/` que viene dentro de la imagen. El archivo `docker-compose.synology.yml` del repo solo bind-montea la biblioteca de música y las cookies; `database/` y `storage/` van en **volúmenes nombrados** (`app_database`, `app_storage`):
+En Synology **no** montes el código fuente sobre `/var/www/html`: eso tapa el `vendor/` que viene dentro de la imagen. El archivo `docker-compose.synology.yml` del repo solo bind-montea la biblioteca de música y las cookies; Postgres (`pg_data`) y Laravel `storage/` (`app_storage`) van en **volúmenes nombrados**:
 
 ```yaml
 # docker-compose.synology.yml (incluido en el repo)
@@ -47,12 +47,11 @@ services:
     volumes: !override
       - /volume1/music:/music
       - ./cookies:/cookies:ro
-      - app_database:/var/www/html/database
       - app_storage:/var/www/html/storage
-  # worker, scheduler: ver archivo completo
+  # db (Postgres), worker, scheduler: ver docker-compose.yml + este override
 ```
 
-> **¿Por qué volúmenes nombrados y no `./database` / `./storage`?** En Synology las carpetas del host pertenecen al usuario de DSM, no a `www-data` (uid 33) del contenedor, y el `chown` suele fallar sobre bind mounts. Eso produce errores de *permission denied* en el log y `attempt to write a readonly database`. Con volúmenes nombrados, Docker los inicializa y el entrypoint puede darles permiso a `www-data`.
+> **¿Por qué volúmenes nombrados y no bind mounts para storage/DB?** En Synology las carpetas del host pertenecen al usuario de DSM, no a `www-data` (uid 33) del contenedor, y el `chown` suele fallar sobre bind mounts. Eso produce errores de *permission denied* en el log. Con volúmenes nombrados, Docker los inicializa y el entrypoint puede darles permiso a `www-data`. Postgres guarda los datos en `pg_data`.
 
 Levantá el stack con ambos archivos:
 
@@ -249,7 +248,7 @@ Usá el `docker-compose.synology.yml` del repo (no `docker-compose.dev.yml`, que
 
 - Instala `vendor/` y el frontend **dentro de la imagen** al hacer `build`
 - Bind-montea solo `/volume1/music` y `./cookies`
-- Deja `database/` y `storage/` en **volúmenes nombrados** (permisos correctos para `www-data`)
+- Deja Postgres (`pg_data`) y `storage/` (`app_storage`) en **volúmenes nombrados** (permisos correctos)
 
 **No** uses `docker-compose.dev.yml` en el NAS: monta el código fuente del host y requiere `composer install` local.
 
@@ -341,9 +340,9 @@ docker compose exec worker pip3 install --break-system-packages -U "yt-dlp[defau
 | `cookies_configured: false` | Mount incorrecto o archivo ausente | Verificar `./cookies/cookies.txt` y `COOKIES_PATH` |
 | Archivos no aparecen en Audio Station | Carpeta no indexada | Agregar `/volume1/music` en Indexación multimedia |
 | `vendor/autoload.php` no encontrado | Compose viejo montaba `.:/var/www/html` y tapaba la imagen | `git pull`, `down`, `build --no-cache`, levantar con `docker-compose.synology.yml` (sin `docker-compose.dev.yml`) |
-| `no such table: cache` / `jobs` / `sessions` | Base SQLite vacía, migraciones sin correr | `exec app php artisan migrate --force` (o recrear `app`: el entrypoint migra al arrancar) |
-| `attempt to write a readonly database` / `laravel.log … Permission denied` | `database/` o `storage/` bind-mounteados desde el host con dueño ≠ `www-data` | Usar volúmenes nombrados (compose actualizado): `down -v` → `up -d --build` |
-| UI carga pero API falla | `APP_KEY` vacío o SQLite sin migrar | `key:generate` + recrear `app` (migra solo) |
+| `no such table: cache` / `jobs` / `sessions` | Postgres vacío o migraciones sin correr | `exec app php artisan migrate --force` (o recrear `app`: el entrypoint migra al arrancar) |
+| `laravel.log … Permission denied` | `storage/` bind-mounteado desde el host con dueño ≠ `www-data` | Usar volumen nombrado `app_storage` (compose actualizado): `down -v` → `up -d --build` |
+| UI carga pero API falla | `APP_KEY` vacío o DB sin migrar | `key:generate` + recrear `app` (migra solo); verificar servicio `db` healthy |
 | Descargas muy lentas | Concurrencia alta en NAS débil | `MUSIC_MAX_CONCURRENCY=1` en Settings |
 
 Logs del worker y de la app (con `storage/` en volumen nombrado, leelos vía `docker compose`):

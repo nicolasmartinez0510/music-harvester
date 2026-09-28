@@ -3,6 +3,22 @@
 # Synology:  docker compose -f docker-compose.yml -f docker-compose.synology.yml up -d --build
 
 services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-music_harvester}
+      POSTGRES_USER: ${DB_USERNAME:-music}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-music}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-music} -d ${DB_DATABASE:-music_harvester}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
   app:
     build:
       context: .
@@ -12,17 +28,23 @@ services:
     volumes:
       - music_data:/music
       - ./cookies:/cookies:ro
-      - app_database:/var/www/html/database
       - app_storage:/var/www/html/storage
     environment: &app_env
       APP_ENV: ${APP_ENV:-production}
       APP_DEBUG: ${APP_DEBUG:-false}
       APP_KEY: ${APP_KEY}
-      DB_CONNECTION: sqlite
-      DB_DATABASE: /var/www/html/database/database.sqlite
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE:-music_harvester}
+      DB_USERNAME: ${DB_USERNAME:-music}
+      DB_PASSWORD: ${DB_PASSWORD:-music}
       QUEUE_CONNECTION: database
       MUSIC_PATH: /music
       COOKIES_PATH: /cookies/cookies.txt
+    depends_on:
+      db:
+        condition: service_healthy
     healthcheck:
       # Becomes healthy once the migrations table exists (app entrypoint migrated).
       test: ["CMD", "php", "artisan", "migrate:status"]
@@ -38,11 +60,12 @@ services:
     volumes:
       - music_data:/music
       - ./cookies:/cookies:ro
-      - app_database:/var/www/html/database
       - app_storage:/var/www/html/storage
     environment: *app_env
     depends_on:
       app:
+        condition: service_healthy
+      db:
         condition: service_healthy
 
   scheduler:
@@ -50,11 +73,12 @@ services:
     restart: unless-stopped
     command: php artisan schedule:work
     volumes:
-      - app_database:/var/www/html/database
       - app_storage:/var/www/html/storage
     environment: *app_env
     depends_on:
       app:
+        condition: service_healthy
+      db:
         condition: service_healthy
 
   nginx:
@@ -72,5 +96,5 @@ services:
 
 volumes:
   music_data:
-  app_database:
+  pg_data:
   app_storage:

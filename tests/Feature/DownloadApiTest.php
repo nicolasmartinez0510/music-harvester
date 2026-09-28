@@ -195,4 +195,178 @@ class DownloadApiTest extends TestCase
 
         Queue::assertNothingPushed();
     }
+
+    public function test_list_includes_title_artist_and_files_present(): void
+    {
+        $musicPath = storage_path('framework/testing/music-'.uniqid());
+        mkdir($musicPath, 0777, true);
+        config(['music.path' => $musicPath]);
+
+        $file = $musicPath.'/artist/album/01 - song.mp3';
+        mkdir(dirname($file), 0777, true);
+        file_put_contents($file, 'x');
+
+        DB::table('download_jobs')->insert([
+            'provider' => 'youtube_music',
+            'url' => 'https://music.youtube.com/watch?v=meta',
+            'kind' => 'track',
+            'title' => 'Song Title',
+            'artist' => 'Artist Name',
+            'status' => DownloadStatus::Done->value,
+            'progress' => 100,
+            'destination_path' => $file,
+            'downloaded_paths' => json_encode([$file]),
+            'options_json' => json_encode(['format' => 'mp3_320']),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->getJson('/api/downloads');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.0.title', 'Song Title')
+            ->assertJsonPath('data.0.artist', 'Artist Name')
+            ->assertJsonPath('data.0.files_present', true);
+
+        @unlink($file);
+        @rmdir(dirname($file));
+        @rmdir(dirname(dirname($file)));
+        @rmdir($musicPath);
+    }
+
+    public function test_files_present_false_when_file_missing(): void
+    {
+        config(['music.path' => storage_path('framework/testing')]);
+
+        DB::table('download_jobs')->insert([
+            'provider' => 'youtube_music',
+            'url' => 'https://music.youtube.com/watch?v=gone',
+            'kind' => 'track',
+            'title' => 'Gone',
+            'artist' => 'Nobody',
+            'status' => DownloadStatus::Done->value,
+            'progress' => 100,
+            'destination_path' => storage_path('framework/testing/missing-file.mp3'),
+            'downloaded_paths' => json_encode([storage_path('framework/testing/missing-file.mp3')]),
+            'options_json' => json_encode(['format' => 'mp3_320']),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->getJson('/api/downloads');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.0.files_present', false);
+    }
+
+    public function test_delete_download_removes_job_and_file(): void
+    {
+        $musicPath = storage_path('framework/testing/music-'.uniqid());
+        mkdir($musicPath, 0777, true);
+        config(['music.path' => $musicPath]);
+
+        $file = $musicPath.'/artist/album/01 - song.mp3';
+        mkdir(dirname($file), 0777, true);
+        file_put_contents($file, 'x');
+
+        $jobId = DB::table('download_jobs')->insertGetId([
+            'provider' => 'youtube_music',
+            'url' => 'https://music.youtube.com/watch?v=del',
+            'kind' => 'track',
+            'title' => 'Delete Me',
+            'artist' => 'Artist',
+            'status' => DownloadStatus::Done->value,
+            'progress' => 100,
+            'destination_path' => $file,
+            'downloaded_paths' => json_encode([$file]),
+            'options_json' => json_encode(['format' => 'mp3_320']),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->deleteJson('/api/downloads/'.$jobId);
+
+        $response->assertNoContent();
+        $this->assertDatabaseMissing('download_jobs', ['id' => $jobId]);
+        $this->assertFileDoesNotExist($file);
+
+        @rmdir(dirname($file));
+        @rmdir(dirname(dirname($file)));
+        @rmdir($musicPath);
+    }
+
+    public function test_delete_download_succeeds_when_file_missing(): void
+    {
+        config(['music.path' => storage_path('framework/testing')]);
+
+        $jobId = DB::table('download_jobs')->insertGetId([
+            'provider' => 'youtube_music',
+            'url' => 'https://music.youtube.com/watch?v=nofile',
+            'kind' => 'track',
+            'status' => DownloadStatus::Done->value,
+            'progress' => 100,
+            'destination_path' => storage_path('framework/testing/does-not-exist.mp3'),
+            'options_json' => json_encode(['format' => 'mp3_320']),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->deleteJson('/api/downloads/'.$jobId);
+
+        $response->assertNoContent();
+        $this->assertDatabaseMissing('download_jobs', ['id' => $jobId]);
+    }
+
+    public function test_clear_downloads_removes_all_jobs_and_files(): void
+    {
+        $musicPath = storage_path('framework/testing/music-'.uniqid());
+        mkdir($musicPath, 0777, true);
+        config(['music.path' => $musicPath]);
+
+        $fileA = $musicPath.'/a.mp3';
+        $fileB = $musicPath.'/b.mp3';
+        file_put_contents($fileA, 'a');
+        file_put_contents($fileB, 'b');
+
+        DB::table('download_jobs')->insert([
+            [
+                'provider' => 'youtube_music',
+                'url' => 'https://music.youtube.com/watch?v=a',
+                'kind' => 'track',
+                'status' => DownloadStatus::Done->value,
+                'progress' => 100,
+                'destination_path' => $fileA,
+                'downloaded_paths' => json_encode([$fileA]),
+                'options_json' => json_encode(['format' => 'mp3_320']),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'provider' => 'youtube_music',
+                'url' => 'https://music.youtube.com/watch?v=b',
+                'kind' => 'track',
+                'status' => DownloadStatus::Done->value,
+                'progress' => 100,
+                'destination_path' => $fileB,
+                'downloaded_paths' => json_encode([$fileB]),
+                'options_json' => json_encode(['format' => 'mp3_320']),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $response = $this->deleteJson('/api/downloads');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('deleted', 2);
+
+        $this->assertDatabaseCount('download_jobs', 0);
+        $this->assertFileDoesNotExist($fileA);
+        $this->assertFileDoesNotExist($fileB);
+
+        @rmdir($musicPath);
+    }
 }

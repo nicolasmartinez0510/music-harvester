@@ -10,10 +10,13 @@ export interface DownloadJob {
   provider: string;
   url: string;
   kind: string;
+  title: string | null;
+  artist: string | null;
   status: DownloadStatus;
   progress: number;
   error: string | null;
   destination_path: string | null;
+  files_present: boolean;
   format: AudioFormat;
   created_at: string;
   updated_at: string;

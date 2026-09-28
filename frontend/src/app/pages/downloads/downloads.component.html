@@ -4,10 +4,18 @@
       <h1>Descargas</h1>
       <p>Estado de descargas recientes. Se actualiza cada 5 segundos.</p>
     </div>
-    <button type="button" class="btn btn-primary btn-with-icon" (click)="openForm()">
-      <app-icon name="plus" class="btn-leading-icon" />
-      Nueva descarga
-    </button>
+    <div class="header-actions">
+      @if (jobs.length > 0) {
+        <button type="button" class="btn btn-danger btn-with-icon" (click)="openClearConfirm()">
+          <app-icon name="trash" class="btn-leading-icon" />
+          Vaciar historial
+        </button>
+      }
+      <button type="button" class="btn btn-primary btn-with-icon" (click)="openForm()">
+        <app-icon name="plus" class="btn-leading-icon" />
+        Nueva descarga
+      </button>
+    </div>
   </header>
 
   @if (loading) {
@@ -27,19 +35,31 @@
       <table>
         <thead>
           <tr>
-            <th>ID</th>
+            <th>Contenido</th>
             <th>Estado</th>
             <th>Tipo</th>
             <th>Progreso</th>
-            <th>URL</th>
             <th>Creado</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
-          @for (job of jobs; track job.id) {
+          @for (job of pagedJobs; track job.id) {
             <tr>
-              <td>#{{ job.id }}</td>
+              <td class="content-cell">
+                <div class="job-title">{{ displayTitle(job) }}</div>
+                @if (job.artist) {
+                  <small class="muted">{{ job.artist }}</small>
+                }
+                @if (job.status === 'done' && !job.files_present) {
+                  <small class="job-missing">Archivos ausentes</small>
+                }
+                @if (job.title) {
+                  <small class="url-fallback">
+                    <a [href]="job.url" target="_blank" rel="noopener">{{ job.url }}</a>
+                  </small>
+                }
+              </td>
               <td>
                 <span [class]="statusClass(job.status)">{{ statusLabels[job.status] }}</span>
                 @if (job.error) {
@@ -53,26 +73,43 @@
                 </div>
                 <small>{{ job.progress }}%</small>
               </td>
-              <td class="url-cell">
-                <a [href]="job.url" target="_blank" rel="noopener">{{ job.url }}</a>
-              </td>
               <td>{{ job.created_at | date: 'short' }}</td>
               <td>
-                @if (job.status === 'failed') {
+                <div class="row-actions">
+                  @if (job.status === 'failed') {
+                    <button
+                      type="button"
+                      class="btn btn-small"
+                      [disabled]="retryingId === job.id"
+                      (click)="retry(job)"
+                    >
+                      {{ retryingId === job.id ? 'Reintentando…' : 'Reintentar' }}
+                    </button>
+                  }
                   <button
                     type="button"
-                    class="btn btn-small"
-                    [disabled]="retryingId === job.id"
-                    (click)="retry(job)"
+                    class="btn-icon btn-icon-danger"
+                    [disabled]="deletingId === job.id"
+                    (click)="remove(job)"
+                    aria-label="Eliminar"
+                    title="Eliminar"
                   >
-                    {{ retryingId === job.id ? 'Reintentando…' : 'Reintentar' }}
+                    <app-icon [name]="deletingId === job.id ? 'spinner' : 'trash'" />
                   </button>
-                }
+                </div>
               </td>
             </tr>
           }
         </tbody>
       </table>
+
+      <app-pagination
+        [total]="jobs.length"
+        [page]="page"
+        [pageSize]="pageSize"
+        (pageChange)="onPageChange($event)"
+        (pageSizeChange)="onPageSizeChange($event)"
+      />
     </div>
   }
 
@@ -158,6 +195,100 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  }
+
+  @if (showDeleteConfirm && jobPendingDelete) {
+    <div class="modal-backdrop" (click)="cancelDelete()">
+      <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-download-title"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="modal-header">
+          <h2 id="delete-download-title">Eliminar descarga</h2>
+          <button
+            type="button"
+            class="btn-icon"
+            (click)="cancelDelete()"
+            aria-label="Cerrar"
+            title="Cerrar"
+            [disabled]="deletingId !== null"
+          >
+            <app-icon name="x" />
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p>
+            ¿Eliminar
+            <strong>{{ displayTitle(jobPendingDelete) }}</strong>
+            del historial?
+          </p>
+          <p class="muted">También se borrarán los archivos descargados de esta entrada, si existen.</p>
+
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="btn btn-danger"
+              [disabled]="deletingId !== null"
+              (click)="confirmDelete()"
+            >
+              {{ deletingId !== null ? 'Eliminando…' : 'Eliminar' }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              (click)="cancelDelete()"
+              [disabled]="deletingId !== null"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (showClearConfirm) {
+    <div class="modal-backdrop" (click)="cancelClear()">
+      <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="clear-downloads-title"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="modal-header">
+          <h2 id="clear-downloads-title">Vaciar historial</h2>
+          <button
+            type="button"
+            class="btn-icon"
+            (click)="cancelClear()"
+            aria-label="Cerrar"
+            title="Cerrar"
+            [disabled]="clearing"
+          >
+            <app-icon name="x" />
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p>¿Vaciar todo el historial de descargas?</p>
+          <p class="muted">Se borrarán también los archivos asociados, si existen.</p>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-danger" [disabled]="clearing" (click)="confirmClear()">
+              {{ clearing ? 'Vaciando…' : 'Vaciar historial' }}
+            </button>
+            <button type="button" class="btn btn-secondary" (click)="cancelClear()" [disabled]="clearing">
+              Cancelar
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   }

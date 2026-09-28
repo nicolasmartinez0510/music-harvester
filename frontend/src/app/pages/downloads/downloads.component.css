@@ -2,6 +2,14 @@
   overflow-x: auto;
 }
 
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -23,13 +31,37 @@ th {
   color: var(--muted);
 }
 
-.url-cell {
-  max-width: 16rem;
+.content-cell {
+  max-width: 20rem;
+}
+
+.job-title {
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.url-fallback {
+  display: block;
+  margin-top: 0.25rem;
   word-break: break-all;
 }
 
-.url-cell a {
+.url-fallback a {
   color: var(--accent);
+}
+
+.job-missing {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--warning-text);
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .progress {

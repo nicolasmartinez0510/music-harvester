@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Application\ClearDownloads\ClearDownloadsCommand;
+use App\Application\ClearDownloads\ClearDownloadsHandler;
 use App\Application\CreateDownload\CreateDownloadCommand;
 use App\Application\CreateDownload\CreateDownloadHandler;
+use App\Application\DeleteDownload\DeleteDownloadCommand;
+use App\Application\DeleteDownload\DeleteDownloadHandler;
 use App\Application\ListDownloads\ListDownloadsHandler;
 use App\Application\ListDownloads\ListDownloadsQuery;
 use App\Application\RetryDownload\RetryDownloadCommand;
@@ -24,7 +28,7 @@ final class DownloadController extends Controller
 {
     public function index(Request $request, ListDownloadsHandler $handler): AnonymousResourceCollection
     {
-        $limit = min(max((int) $request->query('limit', 50), 1), 100);
+        $limit = min(max((int) $request->query('limit', 50), 1), 200);
         $jobs = $handler->handle(new ListDownloadsQuery($limit));
 
         return DownloadJobResource::collection($jobs);
@@ -82,6 +86,22 @@ final class DownloadController extends Controller
         return (new DownloadJobResource($this->requireJob($id)))
             ->response()
             ->setStatusCode(202);
+    }
+
+    public function destroy(int $id, DeleteDownloadHandler $handler): JsonResponse
+    {
+        if (! $handler->handle(new DeleteDownloadCommand($id))) {
+            return response()->json(['message' => 'Download job not found.'], 404);
+        }
+
+        return response()->json(null, 204);
+    }
+
+    public function destroyAll(ClearDownloadsHandler $handler): JsonResponse
+    {
+        $deleted = $handler->handle(new ClearDownloadsCommand);
+
+        return response()->json(['deleted' => $deleted]);
     }
 
     /**

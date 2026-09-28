@@ -1,10 +1,11 @@
 import { DatePipe } from '@angular/common';
-import { Component, DestroyRef, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Subscription, interval, startWith, switchMap } from 'rxjs';
 
 import { ApiService } from '../../core/api.service';
+import { CatalogActionsService } from '../../core/catalog-actions.service';
 import {
   ApiValidationError,
   AUDIO_FORMATS,
@@ -18,16 +19,24 @@ import {
 } from '../../core/models';
 import { IconComponent } from '../../shared/icon.component';
 import { PageLoadingComponent } from '../../shared/page-loading.component';
+import { PaginationComponent } from '../../shared/pagination.component';
 import { ToastService } from '../../shared/toast.service';
 
 @Component({
   selector: 'app-downloads',
-  imports: [DatePipe, ReactiveFormsModule, IconComponent, PageLoadingComponent],
+  imports: [
+    DatePipe,
+    ReactiveFormsModule,
+    IconComponent,
+    PageLoadingComponent,
+    PaginationComponent,
+  ],
   templateUrl: './downloads.component.html',
   styleUrl: './downloads.component.css',
 })
 export class DownloadsComponent implements OnInit, OnDestroy {
   private readonly api = inject(ApiService);
+  private readonly catalogActions = inject(CatalogActionsService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
@@ -43,9 +52,17 @@ export class DownloadsComponent implements OnInit, OnDestroy {
   loading = true;
   errorMessage: string | null = null;
   retryingId: number | null = null;
+  deletingId: number | null = null;
+  clearing = false;
   showForm = false;
+  showDeleteConfirm = false;
+  showClearConfirm = false;
+  jobPendingDelete: DownloadJob | null = null;
   submitting = false;
   formError: string | null = null;
+
+  page = 1;
+  pageSize = 10;
 
   readonly form = this.fb.nonNullable.group({
     url: ['', [Validators.required, Validators.maxLength(2048)]],
@@ -73,14 +90,16 @@ export class DownloadsComponent implements OnInit, OnDestroy {
     interval(5000)
       .pipe(
         startWith(0),
-        switchMap(() => this.api.listDownloads()),
+        switchMap(() => this.api.listDownloads(200)),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
         next: (jobs) => {
           this.jobs = jobs;
+          this.catalogActions.applyJobsSnapshot(jobs);
           this.loading = false;
           this.errorMessage = null;
+          this.clampPage();
         },
         error: () => {
           this.loading = false;
@@ -91,6 +110,11 @@ export class DownloadsComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.urlSub?.unsubscribe();
+  }
+
+  get pagedJobs(): DownloadJob[] {
+    const start = (this.page - 1) * this.pageSize;
+    return this.jobs.slice(start, start + this.pageSize);
   }
 
   get availableFormats(): { value: AudioFormat; label: string }[] {
@@ -114,6 +138,22 @@ export class DownloadsComponent implements OnInit, OnDestroy {
 
   effectiveProviderIsDeezer(): boolean {
     return this.effectiveProvider() === 'deezer';
+  }
+
+  displayTitle(job: DownloadJob): string {
+    if (job.title) {
+      return job.title;
+    }
+    return job.url;
+  }
+
+  onPageChange(page: number): void {
+    this.page = page;
+  }
+
+  onPageSizeChange(size: number): void {
+    this.pageSize = size;
+    this.page = 1;
   }
 
   openForm(): void {
@@ -155,7 +195,9 @@ export class DownloadsComponent implements OnInit, OnDestroy {
           this.form.reset({ url: '', format: 'mp3_320', provider: 'auto' });
           this.detectedProvider = null;
           this.jobs = [job, ...this.jobs.filter((item) => item.id !== job.id)];
+          this.catalogActions.applyJobsSnapshot(this.jobs);
           this.toast.success('Descarga encolada.');
+          this.clampPage();
         },
         error: (error: { error?: ApiValidationError }) => {
           this.submitting = false;
@@ -178,6 +220,7 @@ export class DownloadsComponent implements OnInit, OnDestroy {
       next: (updated) => {
         this.retryingId = null;
         this.jobs = this.jobs.map((item) => (item.id === updated.id ? updated : item));
+        this.catalogActions.applyJobsSnapshot(this.jobs);
       },
       error: () => {
         this.retryingId = null;
@@ -186,8 +229,100 @@ export class DownloadsComponent implements OnInit, OnDestroy {
     });
   }
 
+  remove(job: DownloadJob): void {
+    this.jobPendingDelete = job;
+    this.showDeleteConfirm = true;
+  }
+
+  cancelDelete(): void {
+    if (this.deletingId !== null) {
+      return;
+    }
+    this.showDeleteConfirm = false;
+    this.jobPendingDelete = null;
+  }
+
+  confirmDelete(): void {
+    const job = this.jobPendingDelete;
+    if (!job || this.deletingId !== null) {
+      return;
+    }
+
+    this.deletingId = job.id;
+    this.api.deleteDownload(job.id).subscribe({
+      next: () => {
+        this.jobs = this.jobs.filter((item) => item.id !== job.id);
+        this.catalogActions.applyJobsSnapshot(this.jobs);
+        this.deletingId = null;
+        this.showDeleteConfirm = false;
+        this.jobPendingDelete = null;
+        this.toast.success('Descarga eliminada del historial.');
+        this.clampPage();
+      },
+      error: () => {
+        this.deletingId = null;
+        this.toast.error('No se pudo eliminar la descarga.');
+      },
+    });
+  }
+
+  openClearConfirm(): void {
+    this.showClearConfirm = true;
+  }
+
+  cancelClear(): void {
+    if (this.clearing) {
+      return;
+    }
+    this.showClearConfirm = false;
+  }
+
+  confirmClear(): void {
+    if (this.clearing) {
+      return;
+    }
+
+    this.clearing = true;
+    this.api.clearDownloads().subscribe({
+      next: () => {
+        this.jobs = [];
+        this.catalogActions.applyJobsSnapshot([]);
+        this.clearing = false;
+        this.showClearConfirm = false;
+        this.toast.success('Historial de descargas vaciado.');
+        this.clampPage();
+      },
+      error: () => {
+        this.clearing = false;
+        this.toast.error('No se pudo vaciar el historial.');
+      },
+    });
+  }
+
   statusClass(status: DownloadJob['status']): string {
     return `status status-${status}`;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.showDeleteConfirm && this.deletingId === null) {
+      this.cancelDelete();
+      return;
+    }
+    if (this.showClearConfirm && !this.clearing) {
+      this.cancelClear();
+      return;
+    }
+    if (this.showForm && !this.submitting) {
+      this.cancelForm();
+    }
+  }
+
+  private clampPage(): void {
+    const totalPages = Math.max(1, Math.ceil(this.jobs.length / this.pageSize));
+    if (this.page > totalPages) {
+      this.page = totalPages;
+    }
   }
 
   private effectiveProvider(): ProviderName | null {
