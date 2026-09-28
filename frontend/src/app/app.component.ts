@@ -1,8 +1,9 @@
-import { Component, OnInit, inject } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, OnInit, effect, inject } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 import { ApiService } from './core/api.service';
 import { ArtistFavoritesService } from './core/artist-favorites.service';
+import { AuthService } from './core/auth.service';
 import {
   LIBRARY_KIND_LABELS,
   LibraryKind,
@@ -27,7 +28,9 @@ const COLLECTION_PROVIDERS_KEY = 'mh-collection-providers-expanded';
 export class AppComponent implements OnInit {
   readonly theme = inject(ThemeService);
   readonly favorites = inject(ArtistFavoritesService);
+  readonly auth = inject(AuthService);
   private readonly api = inject(ApiService);
+  private readonly router = inject(Router);
 
   readonly providerLabels = PROVIDER_LABELS;
   readonly libraryKinds: LibraryKind[] = ['artists', 'tracks', 'albums', 'playlists'];
@@ -39,8 +42,29 @@ export class AppComponent implements OnInit {
   libraryProviders: ProviderInfo[] = [];
   private expandedProviders = this.readExpandedProviders();
 
+  constructor() {
+    effect(() => {
+      const user = this.auth.user();
+      if (user) {
+        this.refreshLibraryProviders();
+        this.favorites.load();
+      } else {
+        this.libraryProviders = [];
+        this.favorites.clear();
+      }
+    });
+  }
+
   ngOnInit(): void {
-    this.refreshLibraryProviders();
+    this.auth.bootstrap().subscribe();
+  }
+
+  logout(): void {
+    this.auth.logout().subscribe({
+      next: () => {
+        void this.router.navigate(['/login']);
+      },
+    });
   }
 
   openSidebar(): void {

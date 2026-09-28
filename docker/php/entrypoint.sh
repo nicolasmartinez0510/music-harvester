@@ -59,6 +59,8 @@ if [ "$1" = "php-fpm" ]; then
     wait_for_db
     echo "Running database migrations..."
     php artisan migrate --force
+    php artisan db:seed --class=AdminUserSeeder --force
+    mkdir -p storage/app/private/cookies storage/app/private/tmp-downloads
 fi
 
 exec "$@"

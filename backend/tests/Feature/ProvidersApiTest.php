@@ -12,6 +12,8 @@ class ProvidersApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected bool $authenticate = true;
+
     public function test_list_providers_returns_youtube_and_deezer(): void
     {
         $response = $this->getJson('/api/providers');

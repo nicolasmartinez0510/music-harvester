@@ -19,6 +19,7 @@ final class EloquentSettingsRepository implements SettingsRepository
         'provider_deezer_mode',
         'enabled_providers',
         'default_sync_interval_minutes',
+        'email_verification_enabled',
         // Legacy alias — writes mirror to provider_youtube_music_cookies_path via UpdateSettingsHandler
         'cookies_path',
     ];

@@ -10,6 +10,8 @@ final readonly class ListDownloadsQuery
 {
     public function __construct(
         public int $limit = 50,
+        public ?int $userId = null,
+        public bool $includeUnowned = false,
     ) {}
 }
 
@@ -24,6 +26,6 @@ final readonly class ListDownloadsHandler
      */
     public function handle(ListDownloadsQuery $query): array
     {
-        return $this->jobs->listRecent($query->limit);
+        return $this->jobs->listRecent($query->limit, $query->userId, $query->includeUnowned);
     }
 }

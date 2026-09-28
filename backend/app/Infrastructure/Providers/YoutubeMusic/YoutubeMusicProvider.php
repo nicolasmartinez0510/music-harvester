@@ -25,6 +25,14 @@ final class YoutubeMusicProvider implements MusicProvider
         private ?string $cookiesPath = null,
     ) {}
 
+    public function usingCookies(?string $cookiesPath): self
+    {
+        $copy = clone $this;
+        $copy->cookiesPath = $cookiesPath;
+
+        return $copy;
+    }
+
     public function name(): string
     {
         return 'youtube_music';
@@ -58,7 +66,7 @@ final class YoutubeMusicProvider implements MusicProvider
         $track = $item->item;
         $url = $this->buildTrackUrl($track);
 
-        $directory = $options->targetDirectory ?? $this->storage->trackDirectory($track);
+        $directory = $options->targetDirectory ?? $this->storage->trackDirectory($track, $options->musicPath);
         $this->storage->ensureDirectory($directory);
 
         $filename = $options->targetDirectory !== null

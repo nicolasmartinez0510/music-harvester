@@ -16,14 +16,14 @@ final class PlaylistM3uWriter
      * @param  array{id: int, title: string|null}  $playlist
      * @param  list<array{title: string, artist: string|null, status: string, file_path: string|null, position?: int}>  $tracks
      */
-    public function write(array $playlist, array $tracks): string
+    public function write(array $playlist, array $tracks, ?string $basePath = null): string
     {
         $playlistId = (int) $playlist['id'];
         $title = is_string($playlist['title'] ?? null) && $playlist['title'] !== ''
             ? (string) $playlist['title']
             : 'Playlist '.$playlistId;
 
-        $directory = $this->storage->playlistDirectory($playlistId, $title);
+        $directory = $this->storage->playlistDirectory($playlistId, $title, $basePath);
         $this->storage->ensureDirectory($directory);
 
         $folderName = $this->storage->playlistFolderName($playlistId, $title);

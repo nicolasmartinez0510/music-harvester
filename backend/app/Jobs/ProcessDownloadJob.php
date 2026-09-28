@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Application\Auth\LibraryPathResolver;
 use App\Application\Settings\ProviderSettingsResolver;
 use App\Domain\Music\Contracts\DownloadJobRepository;
 use App\Domain\Music\Models\Track;
@@ -13,6 +14,8 @@ use App\Domain\Music\ValueObjects\DownloadStatus;
 use App\Domain\Music\ValueObjects\ResolvedKind;
 use App\Domain\Music\ValueObjects\ResolvedMusic;
 use App\Infrastructure\Providers\MusicProviderRegistry;
+use App\Infrastructure\Providers\YoutubeMusic\YoutubeMusicProvider;
+use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use RuntimeException;
@@ -60,6 +63,9 @@ class ProcessDownloadJob implements ShouldQueue
             }
 
             $options = $this->buildOptions($job, $provider->name(), $settings);
+            if ($provider instanceof YoutubeMusicProvider) {
+                $provider = $provider->usingCookies($options->cookiesPath);
+            }
             $resolved = $provider->resolve($job['url']);
             $items = $resolved->items;
             $total = count($items);
@@ -131,12 +137,19 @@ class ProcessDownloadJob implements ShouldQueue
         $format = AudioFormat::tryFrom((string) ($formatValue ?? config('music.default_format')))
             ?? AudioFormat::Mp3_320;
 
+        $userId = isset($job['user_id']) && $job['user_id'] !== null ? (int) $job['user_id'] : null;
+        $destination = is_string($job['download_destination'] ?? null) && $job['download_destination'] !== ''
+            ? (string) $job['download_destination']
+            : 'server';
+        $user = $userId !== null ? User::query()->find($userId) : null;
+        $root = app(LibraryPathResolver::class)->outputRoot($user, $destination, $this->downloadJobId);
+
         return new DownloadOptions(
             format: $format,
-            musicPath: $settings->musicPath(),
+            musicPath: $root,
             provider: $provider,
-            cookiesPath: $settings->youtubeMusicCookiesPath(),
-            deezerArl: $settings->deezerArl(),
+            cookiesPath: $settings->youtubeMusicCookiesPath($userId),
+            deezerArl: $settings->deezerArl($userId),
             deezerMode: $settings->deezerMode(),
         );
     }

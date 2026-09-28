@@ -18,6 +18,8 @@ final readonly class CreateDownloadCommand
         public MusicUrl $url,
         public AudioFormat $format,
         public ?string $provider = null,
+        public ?int $userId = null,
+        public string $downloadDestination = 'server',
     ) {}
 }
 
@@ -46,6 +48,8 @@ final readonly class CreateDownloadHandler
             url: $url,
             kind: $this->inferKind($url),
             format: $command->format,
+            userId: $command->userId,
+            downloadDestination: $command->downloadDestination,
         );
 
         ProcessDownloadJob::dispatch($jobId);

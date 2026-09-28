@@ -20,6 +20,7 @@ final readonly class SavePlaylistCommand
         public bool $syncEnabled = true,
         public ?int $syncIntervalMinutes = null,
         public ?AudioFormat $defaultFormat = null,
+        public ?int $userId = null,
     ) {}
 }
 
@@ -36,7 +37,7 @@ final readonly class SavePlaylistHandler
     public function handle(SavePlaylistCommand $command): array
     {
         $url = (string) $command->url;
-        $existing = $this->playlists->findByUrl($url);
+        $existing = $this->playlists->findByUrl($url, $command->userId);
 
         if ($existing !== null) {
             if ($command->syncNow && ($existing['last_sync_status'] ?? '') !== PlaylistSyncStatus::Running->value) {
@@ -67,6 +68,7 @@ final readonly class SavePlaylistHandler
             syncEnabled: $command->syncEnabled,
             syncIntervalMinutes: max(1, $interval),
             defaultFormat: $command->defaultFormat,
+            userId: $command->userId,
         );
 
         if ($command->syncNow) {

@@ -14,6 +14,8 @@ class LibraryApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected bool $authenticate = true;
+
     private const FAKE_ARL = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
     public function test_library_artists_requires_arl(): void

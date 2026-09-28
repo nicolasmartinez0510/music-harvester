@@ -210,6 +210,22 @@ export class DownloadsComponent implements OnInit, OnDestroy {
       });
   }
 
+  downloadArtifact(job: DownloadJob): void {
+    this.api.downloadArtifact(job.id).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `descarga-${job.id}`;
+        link.click();
+        URL.revokeObjectURL(url);
+      },
+      error: () => {
+        this.toast.error('No se pudo bajar el archivo.');
+      },
+    });
+  }
+
   retry(job: DownloadJob): void {
     if (job.status !== 'failed') {
       return;

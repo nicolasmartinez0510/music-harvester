@@ -16,6 +16,8 @@ class PlaylistApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected bool $authenticate = true;
+
     public function test_create_playlist_returns_created_and_dispatches_sync(): void
     {
         Queue::fake();

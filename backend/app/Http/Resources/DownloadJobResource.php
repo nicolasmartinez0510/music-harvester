@@ -35,6 +35,10 @@ final class DownloadJobResource extends JsonResource
             'destination_path' => $job['destination_path'],
             'files_present' => $cleanup->filesPresent($job),
             'format' => $this->resolveFormat($job),
+            'download_destination' => (string) ($job['download_destination'] ?? 'server'),
+            'can_download_artifact' => ($job['download_destination'] ?? 'server') === 'direct'
+                && ($job['status'] ?? '') === 'done'
+                && $cleanup->filesPresent($job),
             'created_at' => $job['created_at'],
             'updated_at' => $job['updated_at'],
         ];

@@ -47,6 +47,16 @@ final readonly class GetSettingsHandler
             // Legacy aliases for older clients
             'cookies_path' => $youtubeCookies,
             'cookies_configured' => $youtubeConfigured,
+            'email_verification_enabled' => $this->emailVerificationEnabled($stored['email_verification_enabled'] ?? null),
         ];
+    }
+
+    private function emailVerificationEnabled(mixed $value): bool
+    {
+        if ($value === null || $value === '') {
+            return true;
+        }
+
+        return ! in_array(strtolower((string) $value), ['0', 'false', 'off'], true);
     }
 }

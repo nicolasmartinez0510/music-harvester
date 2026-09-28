@@ -8,7 +8,10 @@ use App\Domain\Music\Contracts\SavedPlaylistRepository;
 
 final readonly class ListSavedPlaylistsQuery
 {
-    public function __construct() {}
+    public function __construct(
+        public ?int $userId = null,
+        public bool $includeUnowned = false,
+    ) {}
 }
 
 final readonly class ListSavedPlaylistsHandler
@@ -24,7 +27,7 @@ final readonly class ListSavedPlaylistsHandler
     {
         $items = [];
 
-        foreach ($this->playlists->listAll() as $playlist) {
+        foreach ($this->playlists->listAll($query->userId, $query->includeUnowned) as $playlist) {
             $counts = $this->playlists->trackCounts((int) $playlist['id']);
             $items[] = array_merge($playlist, ['counts' => $counts]);
         }

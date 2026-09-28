@@ -314,6 +314,112 @@
   background: var(--surface-muted);
 }
 
+.user-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.35rem;
+  padding: 0.35rem 0.4rem;
+}
+
+.user-avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.45rem;
+  flex-shrink: 0;
+}
+
+.user-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 650;
+  font-size: 0.9rem;
+}
+
+.layout.guest {
+  background: linear-gradient(180deg, #d7ebf8 0%, #eef6fb 32%, #f7fbfd 100%);
+}
+
+:host-context(html[data-theme='dark']) .layout.guest {
+  background: #0b1220;
+}
+
+.layout.guest .shell {
+  width: 100%;
+}
+
+.auth-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 4rem;
+  padding: 0.65rem 1.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.auth-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.auth-nav-link {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.auth-nav-register {
+  padding: 0.42rem 0.95rem;
+  border-radius: 0.45rem;
+  color: var(--on-accent);
+}
+
+.auth-theme {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.38rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.auth-theme:hover {
+  background: var(--surface-muted);
+}
+
+.layout.guest .auth-content {
+  width: 100%;
+  max-width: none;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 3.25rem 1rem 3rem;
+}
+
+@media (max-width: 560px) {
+  .auth-topbar {
+    padding-inline: 0.85rem;
+  }
+
+  .auth-topbar .brand-text,
+  .auth-theme span {
+    display: none;
+  }
+}
+
 .sidebar-backdrop {
   display: none;
 }
@@ -382,7 +488,8 @@
   .layout.sidebar-collapsed .nav-empty,
   .layout.sidebar-collapsed .nav-provider-chevron,
   .layout.sidebar-collapsed .nav-collection-link,
-  .layout.sidebar-collapsed .theme-toggle > span {
+  .layout.sidebar-collapsed .theme-toggle > span,
+  .layout.sidebar-collapsed .user-name {
     display: none;
   }
 

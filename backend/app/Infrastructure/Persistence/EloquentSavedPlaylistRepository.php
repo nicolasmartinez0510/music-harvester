@@ -8,6 +8,7 @@ use App\Domain\Music\Contracts\SavedPlaylistRepository;
 use App\Domain\Music\ValueObjects\AudioFormat;
 use App\Domain\Music\ValueObjects\PlaylistSyncStatus;
 use App\Domain\Music\ValueObjects\PlaylistTrackStatus;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 final class EloquentSavedPlaylistRepository implements SavedPlaylistRepository
@@ -19,8 +20,10 @@ final class EloquentSavedPlaylistRepository implements SavedPlaylistRepository
         bool $syncEnabled = true,
         int $syncIntervalMinutes = 5,
         ?AudioFormat $defaultFormat = null,
+        ?int $userId = null,
     ): array {
         $id = (int) DB::table('saved_playlists')->insertGetId([
+            'user_id' => $userId,
             'provider' => $provider,
             'url' => $url,
             'title' => $title,
@@ -50,17 +53,32 @@ final class EloquentSavedPlaylistRepository implements SavedPlaylistRepository
         return $row ? $this->mapPlaylist((array) $row) : null;
     }
 
-    public function findByUrl(string $url): ?array
+    public function findByUrl(string $url, ?int $userId = null): ?array
     {
-        $row = DB::table('saved_playlists')->where('url', $url)->first();
+        $query = DB::table('saved_playlists')->where('url', $url);
+        if ($userId !== null) {
+            $query->where('user_id', $userId);
+        }
+
+        $row = $query->first();
 
         return $row ? $this->mapPlaylist((array) $row) : null;
     }
 
-    public function listAll(): array
+    public function listAll(?int $userId = null, bool $includeUnowned = false): array
     {
-        return DB::table('saved_playlists')
-            ->orderByDesc('id')
+        $query = DB::table('saved_playlists')->orderByDesc('id');
+
+        if ($userId !== null) {
+            $query->where(function (Builder $inner) use ($userId, $includeUnowned): void {
+                $inner->where('user_id', $userId);
+                if ($includeUnowned) {
+                    $inner->orWhereNull('user_id');
+                }
+            });
+        }
+
+        return $query
             ->get()
             ->map(fn ($row) => $this->mapPlaylist((array) $row))
             ->all();
@@ -319,6 +337,7 @@ final class EloquentSavedPlaylistRepository implements SavedPlaylistRepository
     {
         return [
             'id' => (int) $row['id'],
+            'user_id' => isset($row['user_id']) && $row['user_id'] !== null ? (int) $row['user_id'] : null,
             'provider' => (string) $row['provider'],
             'url' => (string) $row['url'],
             'title' => $row['title'],

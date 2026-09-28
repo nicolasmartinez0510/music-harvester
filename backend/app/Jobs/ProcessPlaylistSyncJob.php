@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Application\Auth\LibraryPathResolver;
 use App\Application\Settings\ProviderSettingsResolver;
 use App\Domain\Music\Contracts\SavedPlaylistRepository;
 use App\Domain\Music\Models\Track;
@@ -14,8 +15,10 @@ use App\Domain\Music\ValueObjects\PlaylistTrackStatus;
 use App\Domain\Music\ValueObjects\ResolvedItem;
 use App\Domain\Music\ValueObjects\ResolvedKind;
 use App\Infrastructure\Providers\MusicProviderRegistry;
+use App\Infrastructure\Providers\YoutubeMusic\YoutubeMusicProvider;
 use App\Infrastructure\Storage\LocalMusicStorage;
 use App\Infrastructure\Storage\PlaylistM3uWriter;
+use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use RuntimeException;
@@ -62,6 +65,11 @@ class ProcessPlaylistSyncJob implements ShouldQueue
                 throw new RuntimeException('No provider supports URL: '.$url);
             }
 
+            $userId = isset($playlist['user_id']) && $playlist['user_id'] !== null ? (int) $playlist['user_id'] : null;
+            if ($provider instanceof YoutubeMusicProvider) {
+                $provider = $provider->usingCookies($settings->youtubeMusicCookiesPath($userId));
+            }
+
             $resolved = $provider->resolve($url);
 
             // Playlist may have been deleted while resolve was in flight.
@@ -103,14 +111,20 @@ class ProcessPlaylistSyncJob implements ShouldQueue
 
             $playlists->markMissingTracksSkipped($this->savedPlaylistId, $seenExternalIds);
 
+            $owner = $userId !== null ? User::query()->find($userId) : null;
+            $libraryRoot = $owner !== null
+                ? app(LibraryPathResolver::class)->rootForPlaylist($owner)
+                : null;
+
             $playlistDir = $storage->playlistDirectory(
                 $this->savedPlaylistId,
                 is_string($playlist['title'] ?? null) ? $playlist['title'] : null,
+                $libraryRoot,
             );
             $storage->ensureDirectory($playlistDir);
 
             $pending = $playlists->listPendingTracks($this->savedPlaylistId);
-            $options = $this->buildOptions($playlist, $provider->name(), $settings, $playlistDir);
+            $options = $this->buildOptions($playlist, $provider->name(), $settings, $playlistDir, $userId);
             $completed = 0;
 
             foreach ($pending as $pendingTrack) {
@@ -162,10 +176,10 @@ class ProcessPlaylistSyncJob implements ShouldQueue
                 );
                 $completed++;
 
-                $this->regenerateM3u($playlists, $m3uWriter, $playlist);
+                $this->regenerateM3u($playlists, $m3uWriter, $playlist, $libraryRoot);
             }
 
-            $this->regenerateM3u($playlists, $m3uWriter, $playlist);
+            $this->regenerateM3u($playlists, $m3uWriter, $playlist, $libraryRoot);
 
             $playlists->updateSyncStatus(
                 $this->savedPlaylistId,
@@ -192,6 +206,7 @@ class ProcessPlaylistSyncJob implements ShouldQueue
         string $provider,
         ProviderSettingsResolver $settings,
         string $targetDirectory,
+        ?int $userId = null,
     ): DownloadOptions {
         $formatValue = $playlist['default_format'] ?? config('music.default_format');
         $format = AudioFormat::tryFrom((string) $formatValue) ?? AudioFormat::Mp3_320;
@@ -200,8 +215,8 @@ class ProcessPlaylistSyncJob implements ShouldQueue
             format: $format,
             musicPath: $settings->musicPath(),
             provider: $provider,
-            cookiesPath: $settings->youtubeMusicCookiesPath(),
-            deezerArl: $settings->deezerArl(),
+            cookiesPath: $settings->youtubeMusicCookiesPath($userId),
+            deezerArl: $settings->deezerArl($userId),
             deezerMode: $settings->deezerMode(),
             targetDirectory: $targetDirectory,
         );
@@ -214,6 +229,7 @@ class ProcessPlaylistSyncJob implements ShouldQueue
         SavedPlaylistRepository $playlists,
         PlaylistM3uWriter $m3uWriter,
         array $playlist,
+        ?string $libraryRoot = null,
     ): void {
         $m3uWriter->write(
             [
@@ -221,6 +237,7 @@ class ProcessPlaylistSyncJob implements ShouldQueue
                 'title' => is_string($playlist['title'] ?? null) ? $playlist['title'] : null,
             ],
             $playlists->listTracks($this->savedPlaylistId),
+            $libraryRoot,
         );
     }
 

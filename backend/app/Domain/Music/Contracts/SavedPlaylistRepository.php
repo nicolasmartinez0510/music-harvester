@@ -20,6 +20,7 @@ interface SavedPlaylistRepository
         bool $syncEnabled = true,
         int $syncIntervalMinutes = 5,
         ?AudioFormat $defaultFormat = null,
+        ?int $userId = null,
     ): array;
 
     /**
@@ -30,12 +31,12 @@ interface SavedPlaylistRepository
     /**
      * @return array<string, mixed>|null
      */
-    public function findByUrl(string $url): ?array;
+    public function findByUrl(string $url, ?int $userId = null): ?array;
 
     /**
      * @return list<array<string, mixed>>
      */
-    public function listAll(): array;
+    public function listAll(?int $userId = null, bool $includeUnowned = false): array;
 
     /**
      * @param  array{sync_enabled?: bool, sync_interval_minutes?: int, default_format?: string|null, title?: string|null}  $attributes

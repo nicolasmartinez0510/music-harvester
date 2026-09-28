@@ -22,6 +22,8 @@ export type IconName =
   | 'star'
   | 'star-filled'
   | 'check'
+  | 'users'
+  | 'logout'
   | 'provider-deezer'
   | 'provider-youtube-music';
 
@@ -227,6 +229,20 @@ export type IconName =
             stroke-linecap="round"
             stroke-linejoin="round"
           />
+        </svg>
+      }
+      @case ('logout') {
+        <svg [attr.width]="size" [attr.height]="size" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M10 7V5a2 2 0 0 1 2-2h7v18h-7a2 2 0 0 1-2-2v-2" stroke="currentColor" stroke-width="2" />
+          <path d="M4 12h10M11 8l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      }
+      @case ('users') {
+        <svg [attr.width]="size" [attr.height]="size" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="2" />
+          <path d="M3.5 19c.6-2.8 2.8-4.5 5.5-4.5S14.4 16.2 15 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          <circle cx="17" cy="9" r="2.2" stroke="currentColor" stroke-width="2" />
+          <path d="M16.2 14.6c1.8.3 3.2 1.6 3.8 3.4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
         </svg>
       }
       @case ('provider-deezer') {

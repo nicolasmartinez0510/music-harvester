@@ -1,7 +1,7 @@
 <section class="page">
   <header class="page-header">
     <h1>Configuración</h1>
-    <p>Biblioteca, credenciales por proveedor y calidad de descarga.</p>
+    <p>Credenciales de tus cuentas y dónde se guardan las descargas.</p>
   </header>
 
   @if (loading) {
@@ -23,11 +23,11 @@
     </div>
 
     <form class="card form" [formGroup]="form" (ngSubmit)="submit()">
-      @if (activeTab === 'general') {
+      @if (activeTab === 'general' && isAdmin) {
         <label class="field">
           <span>Ruta de música</span>
           <input type="text" formControlName="music_path" />
-          <small class="field-hint">En Synology suele ser <code>/volume1/music</code> montado como <code>/music</code>.</small>
+          <small class="field-hint">Raíz compartida. El admin escribe directo ahí; el resto en una subcarpeta con su usuario.</small>
         </label>
 
         <label class="field">
@@ -37,41 +37,31 @@
               <option [value]="format.value">{{ format.label }}</option>
             }
           </select>
-          <small class="field-hint">FLAC solo aplica a Deezer nativo (cuenta HiFi).</small>
         </label>
 
         <label class="field">
           <span>Concurrencia máxima</span>
           <input type="number" min="1" max="10" formControlName="max_concurrency" />
-          <small class="field-hint">Recomendado: 1 en NAS doméstico.</small>
         </label>
+
+        <label class="check-field">
+          <input type="checkbox" formControlName="email_verification_enabled" />
+          <span>Pedir verificación de correo</span>
+        </label>
+        <small class="field-hint">
+          Si lo desactivás, las cuentas nuevas entran sin código y se oculta “olvidé mi contraseña”, porque no se envían mails.
+        </small>
       }
 
       @if (activeTab === 'youtube_music') {
         <label class="field">
-          <span>Ruta de cookies</span>
-          <input
-            type="text"
-            formControlName="provider_youtube_music_cookies_path"
-            placeholder="/cookies/youtube/cookies.txt"
-          />
-          <small class="field-hint">
-            Archivo Netscape exportado desde el navegador con sesión en music.youtube.com.
-            Layout recomendado: <code>cookies/youtube/cookies.txt</code>.
-          </small>
+          <span>Archivo de cookies</span>
+          <input type="file" accept=".txt,text/plain" (change)="onCookiesSelected($event)" />
+          <small class="field-hint">Netscape exportado con sesión en music.youtube.com. Se guarda solo para tu usuario.</small>
         </label>
-
-        <div
-          class="cred-status"
-          [class.ok]="youtubeCookiesConfigured"
-          [class.missing]="!youtubeCookiesConfigured"
-        >
+        <div class="cred-status" [class.ok]="youtubeCookiesConfigured" [class.missing]="!youtubeCookiesConfigured">
           Cookies YouTube Music:
-          @if (youtubeCookiesConfigured) {
-            <strong>configuradas</strong>
-          } @else {
-            <strong>no detectadas</strong> — muchas playlists pueden fallar sin cookies.
-          }
+          <strong>{{ youtubeCookiesConfigured ? 'configuradas' : 'no detectadas' }}</strong>
         </div>
       }
 
@@ -81,43 +71,48 @@
           <input
             type="password"
             formControlName="provider_deezer_arl"
-            [placeholder]="deezerArlConfigured ? '•••••••• (ya configurado — pegá uno nuevo para reemplazar)' : 'Pegá el cookie arl de deezer.com'"
+            [placeholder]="deezerArlConfigured ? '•••••••• (ya configurado)' : 'Pegá el cookie arl de deezer.com'"
             autocomplete="off"
           />
-          <small class="field-hint">
-            DevTools → Application → Cookies → <code>arl</code> en deezer.com. No se muestra de nuevo tras guardar.
-          </small>
         </label>
-
-        <div
-          class="cred-status"
-          [class.ok]="deezerArlConfigured"
-          [class.missing]="!deezerArlConfigured"
-        >
+        <div class="cred-status" [class.ok]="deezerArlConfigured" [class.missing]="!deezerArlConfigured">
           ARL Deezer:
-          @if (deezerArlConfigured) {
-            <strong>configurado</strong>
-          } @else {
-            <strong>no configurado</strong> — sin ARL se usa modo híbrido (YouTube, no lossless).
-          }
+          <strong>{{ deezerArlConfigured ? 'configurado' : 'no configurado' }}</strong>
         </div>
+        @if (isAdmin) {
+          <label class="field">
+            <span>Modo de descarga</span>
+            <select formControlName="provider_deezer_mode">
+              <option value="native">Nativo (FLAC / 320 vía streamrip + ARL)</option>
+              <option value="hybrid">Híbrido (match YouTube → yt-dlp)</option>
+            </select>
+          </label>
+        }
+      }
 
+      @if (activeTab === 'download') {
         <label class="field">
-          <span>Modo de descarga</span>
-          <select formControlName="provider_deezer_mode">
-            <option value="native">Nativo (FLAC / 320 vía streamrip + ARL)</option>
-            <option value="hybrid">Híbrido (match YouTube → yt-dlp — no es lossless)</option>
+          <span>Destino</span>
+          <select formControlName="download_destination">
+            <option value="direct">Descargar a esta computadora</option>
+            <option value="server">Guardar en el servidor</option>
           </select>
           <small class="field-hint">
-            FLAC requiere cuenta Deezer HiFi y modo nativo. El híbrido descarga audio de YouTube.
+            En el servidor, el admin usa <code>{{ libraryRoot || '/music' }}</code>.
+            El resto queda en una carpeta con su usuario, después de que un admin lo apruebe.
           </small>
         </label>
+        @if (serverStorageStatus === 'pending') {
+          <p class="alert alert-error" role="status">Pendiente de aprobación del admin. Mientras tanto se descarga a tu computadora.</p>
+        }
+        @if (effectiveDestination === 'direct' && form.controls.download_destination.value === 'server' && serverStorageStatus !== 'approved' && !isAdmin) {
+          <p class="field-hint">Todavía no podés escribir en el servidor.</p>
+        }
       }
 
       @if (errorMessage) {
         <p class="alert alert-error" role="alert">{{ errorMessage }}</p>
       }
-
       @if (successMessage) {
         <p class="alert alert-success" role="status">{{ successMessage }}</p>
       }

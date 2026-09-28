@@ -7,6 +7,7 @@ namespace App\Infrastructure\Persistence;
 use App\Domain\Music\Contracts\DownloadJobRepository;
 use App\Domain\Music\ValueObjects\AudioFormat;
 use App\Domain\Music\ValueObjects\DownloadStatus;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 final class EloquentDownloadRepository implements DownloadJobRepository
@@ -16,13 +17,17 @@ final class EloquentDownloadRepository implements DownloadJobRepository
         string $url,
         string $kind,
         AudioFormat $format,
+        ?int $userId = null,
+        string $downloadDestination = 'server',
     ): int {
         return (int) DB::table('download_jobs')->insertGetId([
+            'user_id' => $userId,
             'provider' => $provider,
             'url' => $url,
             'kind' => $kind,
             'status' => DownloadStatus::Pending->value,
             'progress' => 0,
+            'download_destination' => $downloadDestination,
             'options_json' => json_encode(['format' => $format->value]),
             'created_at' => now(),
             'updated_at' => now(),
@@ -80,20 +85,24 @@ final class EloquentDownloadRepository implements DownloadJobRepository
         ]);
     }
 
-    public function listRecent(int $limit = 50): array
+    public function listRecent(int $limit = 50, ?int $userId = null, bool $includeUnowned = false): array
     {
-        return DB::table('download_jobs')
-            ->orderByDesc('id')
+        $query = DB::table('download_jobs')->orderByDesc('id');
+        $this->scopeOwner($query, $userId, $includeUnowned);
+
+        return $query
             ->limit($limit)
             ->get()
             ->map(fn ($row) => (array) $row)
             ->all();
     }
 
-    public function listAll(): array
+    public function listAll(?int $userId = null, bool $includeUnowned = false): array
     {
-        return DB::table('download_jobs')
-            ->orderByDesc('id')
+        $query = DB::table('download_jobs')->orderByDesc('id');
+        $this->scopeOwner($query, $userId, $includeUnowned);
+
+        return $query
             ->get()
             ->map(fn ($row) => (array) $row)
             ->all();
@@ -114,6 +123,20 @@ final class EloquentDownloadRepository implements DownloadJobRepository
     public function deleteAll(): int
     {
         return (int) DB::table('download_jobs')->delete();
+    }
+
+    private function scopeOwner(Builder $query, ?int $userId, bool $includeUnowned): void
+    {
+        if ($userId === null) {
+            return;
+        }
+
+        $query->where(function (Builder $inner) use ($userId, $includeUnowned): void {
+            $inner->where('user_id', $userId);
+            if ($includeUnowned) {
+                $inner->orWhereNull('user_id');
+            }
+        });
     }
 
     /**

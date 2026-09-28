@@ -1,0 +1,20 @@
+<section>
+  <form class="auth-card" [formGroup]="form" (ngSubmit)="submit()">
+    <img src="logo.png?v=4" alt="" class="auth-logo" width="54" height="54" />
+    <h1>Confirmá tu correo</h1>
+    <p class="auth-subtitle">Ingresá el código de 4 dígitos que enviamos a {{ email }}. Vence en 30 minutos.</p>
+    <label class="field">
+      <span>Código</span>
+      <input class="code-input" type="text" inputmode="numeric" maxlength="4" formControlName="code" />
+    </label>
+    @if (errorMessage) {
+      <p class="alert alert-error" role="alert">{{ errorMessage }}</p>
+    }
+    @if (message) {
+      <p class="alert alert-success" role="status">{{ message }}</p>
+    }
+    <button type="submit" class="btn btn-primary auth-submit" [disabled]="saving">Confirmar</button>
+    <button type="button" class="btn btn-secondary auth-secondary" (click)="resend()">Reenviar código</button>
+    <p class="auth-switch"><a routerLink="/login">Volver a iniciar sesión</a></p>
+  </form>
+</section>

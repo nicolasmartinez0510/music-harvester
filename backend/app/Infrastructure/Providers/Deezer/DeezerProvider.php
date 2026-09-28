@@ -75,7 +75,7 @@ final class DeezerProvider implements MusicProvider, CatalogSource, UserLibraryS
             return DownloadResult::failed('Track is missing a Deezer id.');
         }
 
-        $directory = $options->targetDirectory ?? $this->storage->trackDirectory($track);
+        $directory = $options->targetDirectory ?? $this->storage->trackDirectory($track, $options->musicPath);
         $this->storage->ensureDirectory($directory);
         $playlistLayout = $options->targetDirectory !== null;
 

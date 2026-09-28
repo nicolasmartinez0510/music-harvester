@@ -12,6 +12,8 @@ class CatalogApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected bool $authenticate = true;
+
     public function test_search_returns_hits_for_deezer(): void
     {
         Http::fake([

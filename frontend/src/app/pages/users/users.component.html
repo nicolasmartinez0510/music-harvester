@@ -1,0 +1,81 @@
+<section class="page users-page">
+  <header class="page-header">
+    <h1>Usuarios</h1>
+    <p>Administración general de cuentas de la app</p>
+  </header>
+
+  @if (errorMessage) {
+    <p class="alert alert-error" role="alert">{{ errorMessage }}</p>
+  }
+
+  <ul class="user-list">
+    @for (user of users; track user.id) {
+      <li class="user-card">
+        <img class="user-avatar" [src]="'avatars/' + user.avatar_id + '.svg'" alt="" />
+        <div class="user-meta">
+          <strong>{{ user.first_name }} {{ user.last_name }}</strong>
+          <span>{{ user.email }}</span>
+        </div>
+        <div class="user-actions">
+          @if (user.server_storage_status === 'pending') {
+            <button type="button" class="btn btn-small" (click)="approve(user)">Aprobar</button>
+          }
+          @if (user.role !== 'admin') {
+            <button
+              type="button"
+              class="user-delete"
+              (click)="remove(user)"
+              aria-label="Borrar usuario"
+              title="Borrar"
+            >
+              <app-icon name="trash" [size]="18" />
+            </button>
+          }
+        </div>
+      </li>
+    }
+  </ul>
+
+  @if (userPendingDelete) {
+    <div class="modal-backdrop" (click)="cancelDelete()">
+      <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-user-title"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="modal-header">
+          <h2 id="delete-user-title">Eliminar usuario</h2>
+          <button
+            type="button"
+            class="btn-icon"
+            (click)="cancelDelete()"
+            aria-label="Cerrar"
+            title="Cerrar"
+            [disabled]="deleting"
+          >
+            <app-icon name="x" />
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p>
+            ¿Eliminar a
+            <strong>{{ userPendingDelete.first_name }} {{ userPendingDelete.last_name }}</strong>?
+          </p>
+          <p class="muted">Se borra la cuenta, sus playlists, descargas y credenciales.</p>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-danger" [disabled]="deleting" (click)="confirmDelete()">
+              {{ deleting ? 'Eliminando…' : 'Eliminar' }}
+            </button>
+            <button type="button" class="btn btn-secondary" (click)="cancelDelete()" [disabled]="deleting">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</section>

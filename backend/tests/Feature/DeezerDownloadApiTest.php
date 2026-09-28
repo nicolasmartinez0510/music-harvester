@@ -12,6 +12,8 @@ class DeezerDownloadApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected bool $authenticate = true;
+
     public function test_create_download_accepts_deezer_track_url(): void
     {
         Queue::fake();

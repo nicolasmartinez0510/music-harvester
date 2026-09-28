@@ -5,6 +5,7 @@ import { Observable, map } from 'rxjs';
 import {
   ApiResource,
   AudioFormat,
+  AuthUser,
   CatalogAlbum,
   CatalogArtist,
   CatalogHit,
@@ -34,6 +35,7 @@ export interface UpdateSettingsPayload {
   provider_deezer_arl?: string | null;
   provider_deezer_mode?: DeezerMode;
   cookies_path?: string | null;
+  email_verification_enabled?: boolean;
 }
 
 export interface CreatePlaylistPayload {
@@ -197,4 +199,64 @@ export class ApiService {
       })
       .pipe(map((response) => response.data));
   }
+
+  listUsers(): Observable<AuthUser[]> {
+    return this.http
+      .get<ApiResource<AuthUser[]>>(`${this.baseUrl}/admin/users`)
+      .pipe(map((response) => response.data));
+  }
+
+  deleteUser(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/admin/users/${id}`);
+  }
+
+  approveServerStorage(id: number): Observable<AuthUser> {
+    return this.http
+      .post<ApiResource<AuthUser>>(`${this.baseUrl}/admin/users/${id}/approve-server-storage`, {})
+      .pipe(map((response) => response.data));
+  }
+
+  updateDeezerArl(arl: string): Observable<void> {
+    return this.http.put<unknown>(`${this.baseUrl}/settings/providers/deezer`, { arl }).pipe(map(() => undefined));
+  }
+
+  uploadYoutubeCookies(file: File): Observable<void> {
+    const body = new FormData();
+    body.append('cookies', file);
+    return this.http
+      .post<unknown>(`${this.baseUrl}/settings/providers/youtube-music/cookies`, body)
+      .pipe(map(() => undefined));
+  }
+
+  updatePreferences(payload: {
+    download_destination?: 'direct' | 'server';
+    avatar_id?: string;
+  }): Observable<AuthUser> {
+    return this.http
+      .put<ApiResource<AuthUser>>(`${this.baseUrl}/me/preferences`, payload)
+      .pipe(map((response) => response.data));
+  }
+
+  listFavoriteArtists(): Observable<FavoriteArtistPayload[]> {
+    return this.http
+      .get<ApiResource<FavoriteArtistPayload[]>>(`${this.baseUrl}/favorites/artists`)
+      .pipe(map((response) => response.data));
+  }
+
+  toggleFavoriteArtist(artist: FavoriteArtistPayload): Observable<boolean> {
+    return this.http
+      .post<ApiResource<{ favorited: boolean }>>(`${this.baseUrl}/favorites/artists/toggle`, artist)
+      .pipe(map((response) => response.data.favorited));
+  }
+
+  downloadArtifact(id: number): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/downloads/${id}/artifact`, { responseType: 'blob' });
+  }
+}
+
+export interface FavoriteArtistPayload {
+  provider: string;
+  id: string;
+  name: string;
+  cover_url: string | null;
 }

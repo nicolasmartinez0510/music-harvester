@@ -145,14 +145,20 @@ final class DownloadedFilesCleanup
 
     private function isSafePath(string $path): bool
     {
-        $normalized = $this->normalize($path);
-        $base = $this->normalizedBase();
+        return $this->isUnder($path, $this->settings->musicPath())
+            || $this->isUnder($path, storage_path('app/private/tmp-downloads'));
+    }
 
-        if ($normalized === '' || $base === '') {
+    private function isUnder(string $path, string $base): bool
+    {
+        $normalized = $this->normalize($path);
+        $root = $this->normalize($base);
+
+        if ($normalized === '' || $root === '') {
             return false;
         }
 
-        return $normalized === $base || str_starts_with($normalized, $base.'/');
+        return $normalized === $root || str_starts_with($normalized, $root.'/');
     }
 
     private function normalizedBase(): string

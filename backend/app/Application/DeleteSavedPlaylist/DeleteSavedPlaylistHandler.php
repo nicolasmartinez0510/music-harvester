@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Application\DeleteSavedPlaylist;
 
+use App\Application\Auth\LibraryPathResolver;
 use App\Domain\Music\Contracts\SavedPlaylistRepository;
 use App\Infrastructure\Queue\PlaylistSyncQueueCanceller;
 use App\Infrastructure\Storage\DownloadedFilesCleanup;
 use App\Infrastructure\Storage\LocalMusicStorage;
+use App\Models\User;
 
 final readonly class DeleteSavedPlaylistCommand
 {
@@ -23,6 +25,7 @@ final readonly class DeleteSavedPlaylistHandler
         private PlaylistSyncQueueCanceller $queueCanceller,
         private LocalMusicStorage $storage,
         private DownloadedFilesCleanup $filesCleanup,
+        private LibraryPathResolver $paths,
     ) {}
 
     public function handle(DeleteSavedPlaylistCommand $command): bool
@@ -42,10 +45,17 @@ final readonly class DeleteSavedPlaylistHandler
             }
         }
 
-        $directories = $this->storage->playlistDirectoriesForId($command->id);
+        $ownerId = $playlist['user_id'] ?? null;
+        $owner = is_int($ownerId) || (is_string($ownerId) && $ownerId !== '')
+            ? User::query()->find((int) $ownerId)
+            : null;
+        $root = $this->paths->rootForPlaylist($owner);
+
+        $directories = $this->storage->playlistDirectoriesForId($command->id, $root);
         $expectedDir = $this->storage->playlistDirectory(
             $command->id,
             is_string($playlist['title'] ?? null) ? $playlist['title'] : null,
+            $root,
         );
         if (! in_array($expectedDir, $directories, true)) {
             $directories[] = $expectedDir;

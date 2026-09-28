@@ -5,20 +5,38 @@ declare(strict_types=1);
 namespace App\Application\Settings;
 
 use App\Domain\Music\Contracts\SettingsRepository;
+use App\Infrastructure\Auth\UserCredentialStore;
+use App\Models\User;
+use Illuminate\Support\Facades\Schema;
 
 /**
- * Resolves provider credentials from DB settings with config/env fallbacks.
+ * Resolves provider credentials from the authenticated user, then legacy DB/env for admins.
  */
 final readonly class ProviderSettingsResolver
 {
     public function __construct(
         private SettingsRepository $settings,
+        private ?UserCredentialStore $credentials = null,
     ) {}
 
-    public function youtubeMusicCookiesPath(): ?string
+    public function youtubeMusicCookiesPath(?int $userId = null): ?string
     {
-        $stored = $this->settings->get('provider_youtube_music_cookies_path')
-            ?? $this->settings->get('cookies_path');
+        $resolvedId = $userId ?? $this->authenticatedUserId();
+
+        if ($resolvedId !== null && $this->credentials !== null) {
+            $personal = $this->credentials->cookiesPath($resolvedId);
+            if (is_string($personal) && $personal !== '') {
+                return $personal;
+            }
+
+            $user = User::query()->find($resolvedId);
+            if ($user !== null && ! $user->isAdmin()) {
+                return null;
+            }
+        }
+
+        $stored = $this->setting('provider_youtube_music_cookies_path')
+            ?? $this->setting('cookies_path');
 
         if (is_string($stored) && $stored !== '') {
             return $stored;
@@ -29,9 +47,23 @@ final readonly class ProviderSettingsResolver
         return is_string($fromConfig) && $fromConfig !== '' ? $fromConfig : null;
     }
 
-    public function deezerArl(): ?string
+    public function deezerArl(?int $userId = null): ?string
     {
-        $stored = $this->settings->get('provider_deezer_arl');
+        $resolvedId = $userId ?? $this->authenticatedUserId();
+
+        if ($resolvedId !== null && $this->credentials !== null) {
+            $personal = $this->credentials->arl($resolvedId);
+            if (is_string($personal) && $personal !== '') {
+                return $personal;
+            }
+
+            $user = User::query()->find($resolvedId);
+            if ($user !== null && ! $user->isAdmin()) {
+                return null;
+            }
+        }
+
+        $stored = $this->setting('provider_deezer_arl');
 
         if (is_string($stored) && $stored !== '') {
             return $stored;
@@ -44,7 +76,7 @@ final readonly class ProviderSettingsResolver
 
     public function deezerMode(): string
     {
-        $stored = $this->settings->get('provider_deezer_mode');
+        $stored = $this->setting('provider_deezer_mode');
 
         if (is_string($stored) && in_array($stored, ['native', 'hybrid'], true)) {
             return $stored;
@@ -60,7 +92,7 @@ final readonly class ProviderSettingsResolver
      */
     public function enabledProviders(): array
     {
-        $stored = $this->settings->get('enabled_providers');
+        $stored = $this->setting('enabled_providers');
         $raw = is_string($stored) && $stored !== ''
             ? $stored
             : (string) config('music.enabled_providers', 'youtube_music,deezer');
@@ -75,7 +107,7 @@ final readonly class ProviderSettingsResolver
 
     public function musicPath(): string
     {
-        $stored = $this->settings->get('music_path');
+        $stored = $this->setting('music_path');
 
         if (is_string($stored) && $stored !== '') {
             return $stored;
@@ -94,5 +126,21 @@ final readonly class ProviderSettingsResolver
         $value = $arl ?? $this->deezerArl();
 
         return is_string($value) && strlen($value) >= 32;
+    }
+
+    private function authenticatedUserId(): ?int
+    {
+        $id = auth()->id();
+
+        return $id !== null ? (int) $id : null;
+    }
+
+    private function setting(string $key): ?string
+    {
+        if (! Schema::hasTable('settings')) {
+            return null;
+        }
+
+        return $this->settings->get($key);
     }
 }

@@ -18,12 +18,20 @@ final class LocalMusicStorage
         return rtrim($this->basePath, '/');
     }
 
-    public function trackDirectory(Track $track): string
+    private function root(?string $basePath): string
+    {
+        $path = $basePath !== null && $basePath !== '' ? $basePath : $this->basePath;
+
+        return rtrim($path, '/');
+    }
+
+    public function trackDirectory(Track $track, ?string $basePath = null): string
     {
         $artist = Str::slug($track->artist?->name ?? 'Unknown Artist');
         $album = Str::slug($track->album?->title ?? 'Unknown Album');
+        $root = $this->root($basePath);
 
-        return "{$this->basePath()}/{$artist}/{$album}";
+        return "{$root}/{$artist}/{$album}";
     }
 
     public function trackFilename(Track $track, string $extension): string
@@ -34,11 +42,11 @@ final class LocalMusicStorage
         return "{$index} - {$title}.{$extension}";
     }
 
-    public function playlistDirectory(int $playlistId, ?string $title): string
+    public function playlistDirectory(int $playlistId, ?string $title, ?string $basePath = null): string
     {
         $slug = Str::slug((string) ($title ?: 'playlist')) ?: 'playlist';
 
-        return "{$this->basePath()}/playlists/{$playlistId}-{$slug}";
+        return $this->root($basePath)."/playlists/{$playlistId}-{$slug}";
     }
 
     public function playlistFolderName(int $playlistId, ?string $title): string
@@ -53,9 +61,9 @@ final class LocalMusicStorage
      *
      * @return list<string>
      */
-    public function playlistDirectoriesForId(int $playlistId): array
+    public function playlistDirectoriesForId(int $playlistId, ?string $basePath = null): array
     {
-        $base = $this->basePath().'/playlists';
+        $base = $this->root($basePath).'/playlists';
         if (! is_dir($base)) {
             return [];
         }

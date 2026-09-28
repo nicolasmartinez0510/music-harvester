@@ -30,6 +30,12 @@ final class SettingsResource extends JsonResource
             'provider_deezer_mode' => (string) ($settings['provider_deezer_mode'] ?? 'native'),
             'cookies_path' => $settings['cookies_path'] ?? null,
             'cookies_configured' => (bool) ($settings['cookies_configured'] ?? false),
+            'is_admin' => (bool) ($settings['is_admin'] ?? false),
+            'download_destination' => (string) ($settings['download_destination'] ?? 'direct'),
+            'server_storage_status' => (string) ($settings['server_storage_status'] ?? 'none'),
+            'effective_download_destination' => (string) ($settings['effective_download_destination'] ?? 'direct'),
+            'library_root' => (string) ($settings['library_root'] ?? $settings['music_path']),
+            'email_verification_enabled' => (bool) ($settings['email_verification_enabled'] ?? true),
         ];
     }
 }

@@ -14,6 +14,8 @@ interface DownloadJobRepository
         string $url,
         string $kind,
         AudioFormat $format,
+        ?int $userId = null,
+        string $downloadDestination = 'server',
     ): int;
 
     public function updateStatus(int $id, DownloadStatus $status, ?string $error = null): void;
@@ -27,12 +29,12 @@ interface DownloadJobRepository
     /**
      * @return list<array<string, mixed>>
      */
-    public function listRecent(int $limit = 50): array;
+    public function listRecent(int $limit = 50, ?int $userId = null, bool $includeUnowned = false): array;
 
     /**
      * @return list<array<string, mixed>>
      */
-    public function listAll(): array;
+    public function listAll(?int $userId = null, bool $includeUnowned = false): array;
 
     /**
      * @return array<string, mixed>|null

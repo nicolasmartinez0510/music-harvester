@@ -12,6 +12,8 @@ class SettingsApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected bool $authenticate = true;
+
     public function test_show_settings_returns_config_defaults(): void
     {
         $response = $this->getJson('/api/settings');

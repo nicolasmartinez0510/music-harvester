@@ -76,6 +76,11 @@
               <td>{{ job.created_at | date: 'short' }}</td>
               <td>
                 <div class="row-actions">
+                  @if (job.can_download_artifact) {
+                    <button type="button" class="btn btn-small" (click)="downloadArtifact(job)">
+                      Bajar
+                    </button>
+                  }
                   @if (job.status === 'failed') {
                     <button
                       type="button"

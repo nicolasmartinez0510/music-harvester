@@ -23,14 +23,22 @@ use App\Http\Requests\StorePlaylistRequest;
 use App\Http\Requests\UpdatePlaylistRequest;
 use App\Http\Resources\SavedPlaylistResource;
 use App\Http\Resources\SavedPlaylistTrackResource;
+use App\Models\User;
+use App\Support\OwnedResource;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 final class PlaylistController extends Controller
 {
-    public function index(ListSavedPlaylistsHandler $handler): AnonymousResourceCollection
+    public function index(Request $request, ListSavedPlaylistsHandler $handler): AnonymousResourceCollection
     {
-        return SavedPlaylistResource::collection($handler->handle(new ListSavedPlaylistsQuery));
+        $user = $this->user($request);
+
+        return SavedPlaylistResource::collection($handler->handle(new ListSavedPlaylistsQuery(
+            userId: (int) $user->id,
+            includeUnowned: $user->isAdmin(),
+        )));
     }
 
     public function store(
@@ -38,6 +46,8 @@ final class PlaylistController extends Controller
         SavePlaylistHandler $handler,
         SavedPlaylistRepository $playlists,
     ): JsonResponse {
+        $user = $this->user($request);
+
         try {
             $result = $handler->handle(new SavePlaylistCommand(
                 url: new MusicUrl($request->string('url')->toString()),
@@ -46,6 +56,7 @@ final class PlaylistController extends Controller
                 syncIntervalMinutes: $request->has('sync_interval_minutes')
                     ? (int) $request->input('sync_interval_minutes')
                     : null,
+                userId: (int) $user->id,
             ));
         } catch (UnsupportedMusicUrlException $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
@@ -59,8 +70,12 @@ final class PlaylistController extends Controller
             ->setStatusCode($result['created'] ? 201 : 200);
     }
 
-    public function show(int $id, GetSavedPlaylistHandler $handler): JsonResponse
+    public function show(int $id, GetSavedPlaylistHandler $handler, SavedPlaylistRepository $playlists): JsonResponse
     {
+        if ($this->visiblePlaylist($id, $playlists) === null) {
+            return response()->json(['message' => 'Playlist not found.'], 404);
+        }
+
         $result = $handler->handle(new GetSavedPlaylistQuery($id));
 
         if ($result === null) {
@@ -83,6 +98,10 @@ final class PlaylistController extends Controller
         UpdateSavedPlaylistHandler $handler,
         SavedPlaylistRepository $playlists,
     ): SavedPlaylistResource|JsonResponse {
+        if ($this->visiblePlaylist($id, $playlists) === null) {
+            return response()->json(['message' => 'Playlist not found.'], 404);
+        }
+
         try {
             $playlist = $handler->handle(new UpdateSavedPlaylistCommand(
                 id: $id,
@@ -101,8 +120,12 @@ final class PlaylistController extends Controller
         ]));
     }
 
-    public function destroy(int $id, DeleteSavedPlaylistHandler $handler): JsonResponse
+    public function destroy(int $id, DeleteSavedPlaylistHandler $handler, SavedPlaylistRepository $playlists): JsonResponse
     {
+        if ($this->visiblePlaylist($id, $playlists) === null) {
+            return response()->json(['message' => 'Playlist not found.'], 404);
+        }
+
         if (! $handler->handle(new DeleteSavedPlaylistCommand($id))) {
             return response()->json(['message' => 'Playlist not found.'], 404);
         }
@@ -115,6 +138,10 @@ final class PlaylistController extends Controller
         SyncSavedPlaylistHandler $handler,
         SavedPlaylistRepository $playlists,
     ): JsonResponse {
+        if ($this->visiblePlaylist($id, $playlists) === null) {
+            return response()->json(['message' => 'Playlist not found.'], 404);
+        }
+
         $result = $handler->handle(new SyncSavedPlaylistCommand($id));
 
         if ($result === null) {
@@ -132,5 +159,28 @@ final class PlaylistController extends Controller
         ])))
             ->response()
             ->setStatusCode(202);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function visiblePlaylist(int $id, SavedPlaylistRepository $playlists): ?array
+    {
+        $playlist = $playlists->find($id);
+        $user = request()->user();
+
+        if ($playlist === null || ! $user instanceof User || ! OwnedResource::visible($playlist['user_id'] ?? null, $user)) {
+            return null;
+        }
+
+        return $playlist;
+    }
+
+    private function user(Request $request): User
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        return $user;
     }
 }

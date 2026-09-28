@@ -15,6 +15,8 @@ class DownloadApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected bool $authenticate = true;
+
     public function test_create_download_returns_accepted_with_job(): void
     {
         Queue::fake();

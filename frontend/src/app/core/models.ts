@@ -18,6 +18,8 @@ export interface DownloadJob {
   destination_path: string | null;
   files_present: boolean;
   format: AudioFormat;
+  download_destination: 'direct' | 'server';
+  can_download_artifact: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -74,6 +76,12 @@ export interface Settings {
   provider_deezer_mode: DeezerMode;
   cookies_path: string | null;
   cookies_configured: boolean;
+  is_admin: boolean;
+  download_destination: 'direct' | 'server';
+  server_storage_status: 'none' | 'pending' | 'approved';
+  effective_download_destination: 'direct' | 'server';
+  library_root: string;
+  email_verification_enabled: boolean;
 }
 
 export interface ProviderInfo {
@@ -138,6 +146,19 @@ export interface CatalogPlaylist {
 
 export interface ApiResource<T> {
   data: T;
+}
+
+export interface AuthUser {
+  id: number;
+  first_name: string;
+  last_name: string;
+  username: string;
+  email: string;
+  avatar_id: string;
+  role: 'admin' | 'user';
+  server_storage_status: 'none' | 'pending' | 'approved';
+  download_destination: 'direct' | 'server';
+  email_verified_at: string | null;
 }
 
 export interface ApiValidationError {
