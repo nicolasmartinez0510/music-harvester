@@ -1,19 +1,89 @@
-<div class="layout">
-  <header class="topbar">
-    <a routerLink="/" class="brand">Music Harvester</a>
-    <nav class="nav">
-      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-        Nueva descarga
+<div class="layout" [class.sidebar-open]="sidebarOpen">
+  <aside class="sidebar" aria-label="Navegación principal">
+    <div class="sidebar-top">
+      <a routerLink="/downloads" class="brand" (click)="closeSidebar()">
+        <img src="logo.png?v=4" alt="" class="brand-logo" width="36" height="36" />
+        <span class="brand-text">Music Harvester</span>
       </a>
-      <a routerLink="/downloads" routerLinkActive="active">Cola</a>
-      <a routerLink="/playlists" routerLinkActive="active">Playlists</a>
-      <a routerLink="/settings" routerLinkActive="active">Configuración</a>
-    </nav>
-  </header>
+      <button
+        type="button"
+        class="btn-icon sidebar-close"
+        (click)="closeSidebar()"
+        aria-label="Cerrar menú"
+        title="Cerrar menú"
+      >
+        <app-icon name="x" />
+      </button>
+    </div>
 
-  <main class="content">
-    <router-outlet />
-  </main>
+    <nav class="nav">
+      <a
+        routerLink="/downloads"
+        routerLinkActive="active"
+        class="nav-item"
+        (click)="closeSidebar()"
+      >
+        <app-icon name="download" [size]="18" />
+        <span>Descargas</span>
+      </a>
+      <a
+        routerLink="/playlists"
+        routerLinkActive="active"
+        class="nav-item"
+        (click)="closeSidebar()"
+      >
+        <app-icon name="list" [size]="18" />
+        <span>Playlists</span>
+      </a>
+      <a
+        routerLink="/settings"
+        routerLinkActive="active"
+        class="nav-item"
+        (click)="closeSidebar()"
+      >
+        <app-icon name="gear" [size]="18" />
+        <span>Configuración</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button
+        type="button"
+        class="theme-toggle"
+        (click)="toggleTheme()"
+        [attr.aria-label]="theme.theme() === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+      >
+        <app-icon [name]="theme.theme() === 'dark' ? 'sun' : 'moon'" [size]="18" />
+        <span>{{ theme.theme() === 'dark' ? 'Modo claro' : 'Modo oscuro' }}</span>
+      </button>
+    </div>
+  </aside>
+
+  @if (sidebarOpen) {
+    <div class="sidebar-backdrop" (click)="closeSidebar()" aria-hidden="true"></div>
+  }
+
+  <div class="shell">
+    <header class="mobile-bar">
+      <button
+        type="button"
+        class="btn-icon"
+        (click)="openSidebar()"
+        aria-label="Abrir menú"
+        title="Abrir menú"
+      >
+        <app-icon name="menu" />
+      </button>
+      <a routerLink="/downloads" class="mobile-brand">
+        <img src="logo.png?v=4" alt="" width="28" height="28" />
+        <span>Music Harvester</span>
+      </a>
+    </header>
+
+    <main class="content">
+      <router-outlet />
+    </main>
+  </div>
 </div>
 
 <app-toast-host />

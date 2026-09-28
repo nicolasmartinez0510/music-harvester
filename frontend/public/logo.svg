@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Music Harvester">
+  <rect width="64" height="64" rx="14" fill="#008ACE"/>
+  <!-- hat brim + crown -->
+  <path d="M14 19.5h36" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M23 19.5c1-7.5 4.2-11.5 9-11.5s8 4 9 11.5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
+  <!-- feather -->
+  <path d="M41 9.5c5.5-7 12-6.2 14-1.5-4.2.6-8 4-11 9" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+  <!-- headphone band -->
+  <path d="M18.5 24c1.6-5.2 6.8-8.2 13.5-8.2S44 18.8 45.5 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
+  <!-- ear cups -->
+  <rect x="11" y="23.5" width="9.5" height="13.5" rx="3.4" fill="none" stroke="#fff" stroke-width="2.6"/>
+  <rect x="43.5" y="23.5" width="9.5" height="13.5" rx="3.4" fill="none" stroke="#fff" stroke-width="2.6"/>
+  <!-- hair -->
+  <path d="M24.5 24.2c2 2 4.4 3 7.5 3s5.5-1 7.5-3" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+  <!-- face -->
+  <path d="M21.5 28c1.1 13.5 5 21.5 10.5 21.5S41.4 41.5 42.5 28" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
+  <!-- mustache B-style -->
+  <path d="M19.8 43.2c2.2-1.4 4.4-1.6 6.6-.4 1.5.8 2.7 1.4 5.6 1.4s4.1-.6 5.6-1.4c2.2-1.2 4.4-1 6.6.4-2.8-3.8-5.8-5.4-8.8-4.2-1.4.6-2.7 1.5-3.4 2.4-.7-.9-2-1.8-3.4-2.4-3-1.2-6-.4-8.8 4.2Z" fill="#fff"/>
+  <!-- goatee -->
+  <path d="M30.4 46.6h3.2L32 51.2Z" fill="#fff"/>
+</svg>

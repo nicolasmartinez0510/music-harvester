@@ -1,7 +1,13 @@
 <section class="page">
-  <header class="page-header">
-    <h1>Cola e historial</h1>
-    <p>Estado de descargas recientes. Se actualiza cada 5 segundos.</p>
+  <header class="page-header row-between">
+    <div>
+      <h1>Descargas</h1>
+      <p>Estado de descargas recientes. Se actualiza cada 5 segundos.</p>
+    </div>
+    <button type="button" class="btn btn-primary btn-with-icon" (click)="openForm()">
+      <app-icon name="plus" class="btn-leading-icon" />
+      Nueva descarga
+    </button>
   </header>
 
   @if (loading) {
@@ -11,7 +17,10 @@
   } @else if (jobs.length === 0) {
     <div class="card empty-state">
       <p>No hay descargas todavía.</p>
-      <a routerLink="/" class="btn btn-primary">Agregar URL</a>
+      <button type="button" class="btn btn-primary btn-with-icon" (click)="openForm()">
+        <app-icon name="plus" class="btn-leading-icon" />
+        Nueva descarga
+      </button>
     </div>
   } @else {
     <div class="card table-wrap">
@@ -64,6 +73,92 @@
           }
         </tbody>
       </table>
+    </div>
+  }
+
+  @if (showForm) {
+    <div class="modal-backdrop" (click)="cancelForm()">
+      <div
+        class="modal modal-lg"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="new-download-title"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="modal-header">
+          <h2 id="new-download-title">Nueva descarga</h2>
+          <button
+            type="button"
+            class="btn-icon"
+            (click)="cancelForm()"
+            aria-label="Cerrar"
+            title="Cerrar"
+            [disabled]="submitting"
+          >
+            <app-icon name="x" />
+          </button>
+        </div>
+
+        <form class="modal-body form" [formGroup]="form" (ngSubmit)="submit()">
+          <label class="field">
+            <span>URL</span>
+            <input
+              type="url"
+              formControlName="url"
+              placeholder="https://music.youtube.com/… o https://www.deezer.com/…"
+              autocomplete="off"
+            />
+            @if (form.controls.url.touched && form.controls.url.hasError('required')) {
+              <small class="field-error">La URL es obligatoria.</small>
+            }
+          </label>
+
+          <div class="provider-row">
+            <div class="provider-badge" [class.known]="!!detectedProvider">
+              Detectado: <strong>{{ detectedLabel() }}</strong>
+            </div>
+
+            <label class="field provider-select">
+              <span>Proveedor</span>
+              <select formControlName="provider">
+                <option value="auto">Auto</option>
+                <option value="youtube_music">YouTube Music</option>
+                <option value="deezer">Deezer</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Formato</span>
+            <select formControlName="format">
+              @for (format of availableFormats; track format.value) {
+                <option [value]="format.value">{{ format.label }}</option>
+              }
+            </select>
+            @if (effectiveProviderIsDeezer()) {
+              <small class="field-hint">FLAC requiere ARL HiFi y modo nativo en Configuración.</small>
+            }
+          </label>
+
+          @if (formError) {
+            <p class="alert alert-error" role="alert">{{ formError }}</p>
+          }
+
+          <div class="modal-actions">
+            <button type="submit" class="btn btn-primary" [disabled]="submitting">
+              {{ submitting ? 'Encolando…' : 'Descargar' }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              (click)="cancelForm()"
+              [disabled]="submitting"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   }
 </section>

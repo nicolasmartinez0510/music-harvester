@@ -79,9 +79,10 @@ docker compose restart worker
 
 ## Próximos pasos (según plan)
 
-1. Épica 1 providers + Deezer FLAC ✅ (ver `.cursor/plans/v2_providers.plan.md`)
-2. Épica 2 playlists sync — `.cursor/plans/v2_playlists_sync_a9010a47.plan.md`
-3. Épica 3 content manager — `.cursor/plans/v2_content_manager.plan.md`
+1. Épica 1 providers + Deezer FLAC ✅ (`.cursor/plans/v2_providers.plan.md`)
+2. Épica 2 playlists sync + M3U + UI polish ✅ (`.cursor/plans/v2_playlists_sync_a9010a47.plan.md`)
+3. UI sidebar Trinomio ✅ (`.cursor/plans/ui_sidebar_trinomio_6ae9677b.plan.md`)
+4. Content manager — `.cursor/plans/v2_content_manager.plan.md`
 
 ## Providers (épica 1)
 

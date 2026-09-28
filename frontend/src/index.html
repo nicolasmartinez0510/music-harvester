@@ -5,7 +5,23 @@
     <title>Music Harvester</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <link rel="icon" type="image/png" href="logo.png?v=4" />
+    <link rel="icon" type="image/x-icon" href="favicon.ico?v=4" />
+    <link rel="apple-touch-icon" href="logo.png?v=4" />
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('mh-theme');
+          var theme =
+            stored === 'light' || stored === 'dark'
+              ? stored
+              : window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light';
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <app-root></app-root>

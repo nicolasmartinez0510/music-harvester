@@ -1,0 +1,14 @@
+---
+description: No verificar UI en el navegador; el usuario prueba el diseño
+alwaysApply: true
+---
+
+# Verificación de UI
+
+No abras el navegador ni uses herramientas de browser (navigate, snapshot, screenshot, CDP) para probar cambios de UI/UX o diseño.
+
+El usuario verifica el diseño por su cuenta. Tras implementar:
+
+- Podés buildar el frontend o reiniciar contenedores si hace falta que el cambio se sirva
+- Indicá brevemente qué cambió y dónde mirar
+- No recorras flujos en el browser ni tomes capturas “para verificar”
