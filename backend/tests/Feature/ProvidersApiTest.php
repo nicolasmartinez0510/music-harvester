@@ -25,8 +25,26 @@ class ProvidersApiTest extends TestCase
 
         $deezer = collect($response->json('data'))->firstWhere('name', 'deezer');
         $this->assertTrue($deezer['has_catalog']);
+        $this->assertFalse($deezer['has_library']);
         $this->assertContains('flac', $deezer['qualities']);
         $this->assertSame('native', $deezer['mode']);
+
+        $youtube = collect($response->json('data'))->firstWhere('name', 'youtube_music');
+        $this->assertFalse($youtube['has_library']);
+    }
+
+    public function test_list_providers_has_library_when_arl_configured(): void
+    {
+        DB::table('settings')->insert([
+            'key' => 'provider_deezer_arl',
+            'value' => str_repeat('a', 64),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->getJson('/api/providers');
+        $deezer = collect($response->json('data'))->firstWhere('name', 'deezer');
+        $this->assertTrue($deezer['has_library']);
     }
 
     public function test_list_providers_respects_enabled_providers_setting(): void

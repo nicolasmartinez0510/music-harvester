@@ -8,6 +8,7 @@ use App\Domain\Music\Contracts\SavedPlaylistRepository;
 use App\Domain\Music\Exceptions\UnsupportedMusicUrlException;
 use App\Domain\Music\ValueObjects\AudioFormat;
 use App\Domain\Music\ValueObjects\MusicUrl;
+use App\Domain\Music\ValueObjects\PlaylistSyncStatus;
 use App\Infrastructure\Providers\MusicProviderRegistry;
 use App\Jobs\ProcessPlaylistSyncJob;
 
@@ -38,8 +39,10 @@ final readonly class SavePlaylistHandler
         $existing = $this->playlists->findByUrl($url);
 
         if ($existing !== null) {
-            if ($command->syncNow && ($existing['last_sync_status'] ?? '') !== 'running') {
+            if ($command->syncNow && ($existing['last_sync_status'] ?? '') !== PlaylistSyncStatus::Running->value) {
+                $this->playlists->updateSyncStatus((int) $existing['id'], PlaylistSyncStatus::Running);
                 ProcessPlaylistSyncJob::dispatch((int) $existing['id']);
+                $existing = $this->playlists->find((int) $existing['id']) ?? $existing;
             }
 
             return [
@@ -67,7 +70,9 @@ final readonly class SavePlaylistHandler
         );
 
         if ($command->syncNow) {
+            $this->playlists->updateSyncStatus((int) $playlist['id'], PlaylistSyncStatus::Running);
             ProcessPlaylistSyncJob::dispatch((int) $playlist['id']);
+            $playlist = $this->playlists->find((int) $playlist['id']) ?? $playlist;
         }
 
         return [

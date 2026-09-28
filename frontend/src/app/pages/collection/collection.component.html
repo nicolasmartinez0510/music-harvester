@@ -1,0 +1,73 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <h1>{{ kindLabels[kind] }}</h1>
+      <p class="muted">{{ providerLabel(provider) }} · Mi Colección</p>
+    </div>
+  </header>
+
+  @if (loading) {
+    <app-page-loading label="Cargando colección…" />
+  } @else if (errorMessage) {
+    <p class="alert alert-error" role="alert">{{ errorMessage }}</p>
+  } @else if (hits.length === 0) {
+    <div class="card empty-state">
+      <p>No hay ítems en esta lista.</p>
+    </div>
+  } @else {
+    <div class="card hits">
+      @for (hit of hits; track hit.type + hit.id) {
+        <article class="hit">
+          @if (hit.cover_url) {
+            <img [src]="hit.cover_url" [alt]="hit.title" class="hit-cover" width="56" height="56" />
+          } @else {
+            <div class="hit-cover placeholder" aria-hidden="true"></div>
+          }
+          <div class="hit-body">
+            @if (detailLink(hit); as link) {
+              <a
+                [routerLink]="link"
+                [queryParams]="{ from: 'collection' }"
+                class="hit-title"
+              >
+                {{ hit.title }}
+              </a>
+            } @else {
+              <span class="hit-title">{{ hit.title }}</span>
+            }
+            <small class="muted">
+              @if (hit.subtitle) {
+                {{ hit.subtitle }}
+              }
+              @if (hit.nb_tracks != null) {
+                @if (hit.subtitle) {
+                  ·
+                }
+                {{ hit.nb_tracks }} tracks
+              }
+            </small>
+          </div>
+          <div class="hit-actions">
+            @if (hit.type === 'playlist') {
+              <button
+                type="button"
+                class="btn btn-small btn-with-icon"
+                [class.btn-synced]="syncState(hit) === 'done'"
+                [disabled]="!hit.canonical_url || syncState(hit) === 'syncing' || syncState(hit) === 'done'"
+                (click)="syncPlaylist(hit); $event.stopPropagation()"
+                [attr.title]="syncLabel(hit)"
+                [attr.aria-label]="syncLabel(hit)"
+              >
+                <app-icon [name]="syncIcon(hit)" class="btn-leading-icon" />
+                {{ syncLabel(hit) }}
+              </button>
+              <app-catalog-download-btn [url]="hit.canonical_url" />
+            } @else if (hit.type === 'track' || hit.type === 'album') {
+              <app-catalog-download-btn [url]="hit.canonical_url" />
+            }
+          </div>
+        </article>
+      }
+    </div>
+  }
+</section>

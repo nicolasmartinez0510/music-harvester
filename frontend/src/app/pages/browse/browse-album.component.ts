@@ -21,10 +21,12 @@ export class BrowseAlbumComponent implements OnInit {
   album: CatalogAlbum | null = null;
   loading = true;
   errorMessage: string | null = null;
+  fromCollection = false;
 
   ngOnInit(): void {
     this.provider = this.route.snapshot.paramMap.get('provider') ?? '';
     const id = this.route.snapshot.paramMap.get('id') ?? '';
+    this.fromCollection = this.route.snapshot.queryParamMap.get('from') === 'collection';
 
     if (!this.provider || !id) {
       void this.router.navigate(['/browse']);

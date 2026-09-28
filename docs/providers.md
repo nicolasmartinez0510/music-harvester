@@ -30,7 +30,9 @@ yt-dlp **no** se usa para audio Deezer (extractor removido). Solo entra en el **
 3. Copiar el valor (~192 caracteres) en Settings → Deezer → ARL
 4. Alternativa: variable de entorno `DEEZER_ARL` (no commitear)
 
-El ARL caduca o se invalida al cambiar contraseña / cerrar sesión. Re-pegar uno fresco cuando fallen las descargas nativas.
+El ARL caduca o se invalida al cambiar contraseña / cerrar sesión. Re-pegar uno fresco cuando fallen las descargas nativas o **Mi Colección**.
+
+Con ARL configurado, Deezer también alimenta **Mi Colección** (favoritos del usuario). Sin ARL, el modo hybrid permite catálogo/descargas degradadas pero **no** la biblioteca personal.
 
 ## Modos Deezer
 
@@ -45,7 +47,7 @@ Riesgos del híbrido: covers/remixes incorrectos, calidad de YouTube, rate-limit
 
 ```bash
 curl -s http://localhost:8085/api/providers | jq
-# [{ name, configured, qualities, has_catalog, mode? }, ...]
+# [{ name, configured, qualities, has_catalog, has_library, mode? }, ...]
 
 curl -s -X POST http://localhost:8085/api/downloads \
   -H 'Content-Type: application/json' \
@@ -76,12 +78,37 @@ En la ficha de playlist: **Destacar / sync automático** llama `POST /api/playli
 
 Flujo típico: Explorar → buscar → abrir playlist → Destacar → esperar sync (o forzar sync en detalle).
 
+## Mi Colección (biblioteca del usuario)
+
+Sección del sidebar **debajo de Favoritos**. Lista providers con `has_library: true` (credencial de biblioteca configurada).
+
+| Provider | Credencial | `has_library` | Qué lista |
+|----------|------------|---------------|-----------|
+| **Deezer** | ARL | Sí, si hay ARL | Favoritos: artistas, álbumes, canciones (loved), playlists del usuario |
+| **YouTube Music** | Cookies Netscape | **No** (v1) | Las cookies solo autentican yt-dlp para resolve/download de URLs conocidas; no listan liked songs / library |
+
+**Nota:** ARL es exclusivo de Deezer. Las cookies de YouTube Music **no** son un ARL ni equivalen a acceso a “Mi Colección”. Una futura biblioteca YTM requeriría un cliente autenticado aparte (p.ej. ytmusicapi).
+
+Deezer obtiene la sesión con el ARL (gateway no oficial + `api.deezer.com/user/me/…` cuando hay `access_token`). Si el ARL caduca, Mi Colección falla igual que las descargas nativas — renovar el ARL en Settings.
+
+```bash
+curl -s http://localhost:8085/api/library/deezer/artists | jq
+curl -s http://localhost:8085/api/library/deezer/tracks | jq
+curl -s http://localhost:8085/api/library/deezer/albums | jq
+curl -s http://localhost:8085/api/library/deezer/playlists | jq
+```
+
+UI: `/collection/deezer/{artists|tracks|albums|playlists}`. Los ítems deep-linkeán a las fichas de Explorar (`/browse/deezer/...`).
+
+**Favoritos** del sidebar (estrellas locales) son independientes de **Mis artistas** de Deezer.
+
 ## Agregar un provider nuevo
 
 1. Implementar `MusicProvider` (`supports` / `resolve` / `download`)
 2. Opcional: implementar `CatalogSource` para búsqueda / Explorar
-3. Registrar con tag `music.providers` (y `music.catalog_sources`) en `MusicHarvesterServiceProvider`
-4. Añadir keys de settings / env si hace falta
-5. Incluir el nombre en `enabled_providers`
+3. Opcional: implementar `UserLibrarySource` para Mi Colección (`isLibraryAvailable` + listas)
+4. Registrar con tag `music.providers` (y `music.catalog_sources` / `music.user_library_sources`) en `MusicHarvesterServiceProvider`
+5. Añadir keys de settings / env si hace falta
+6. Incluir el nombre en `enabled_providers`
 
 No hace falta tocar el código de YouTube Music ni el de Deezer.

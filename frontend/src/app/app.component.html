@@ -42,6 +42,26 @@
         <app-icon name="compass" [size]="18" />
         <span>Explorar</span>
       </a>
+      <a
+        routerLink="/playlists"
+        routerLinkActive="active"
+        class="nav-item"
+        title="Playlists"
+        (click)="closeSidebar()"
+      >
+        <app-icon name="list" [size]="18" />
+        <span>Playlists</span>
+      </a>
+      <a
+        routerLink="/settings"
+        routerLinkActive="active"
+        class="nav-item"
+        title="Configuración"
+        (click)="closeSidebar()"
+      >
+        <app-icon name="gear" [size]="18" />
+        <span>Configuración</span>
+      </a>
 
       <div class="nav-section" [class.nav-section-collapsed]="!favoritesExpanded">
         <button
@@ -85,26 +105,52 @@
         </div>
       </div>
 
-      <a
-        routerLink="/playlists"
-        routerLinkActive="active"
-        class="nav-item"
-        title="Playlists"
-        (click)="closeSidebar()"
-      >
-        <app-icon name="list" [size]="18" />
-        <span>Playlists</span>
-      </a>
-      <a
-        routerLink="/settings"
-        routerLinkActive="active"
-        class="nav-item"
-        title="Configuración"
-        (click)="closeSidebar()"
-      >
-        <app-icon name="gear" [size]="18" />
-        <span>Configuración</span>
-      </a>
+      <div class="nav-section">
+        <p class="nav-section-title nav-section-heading">Mi Colección</p>
+        @if (libraryProviders.length === 0) {
+          <p class="nav-empty">Configurá ARL en Ajustes</p>
+        } @else {
+          @for (provider of libraryProviders; track provider.name) {
+            <div
+              class="nav-provider"
+              [class.nav-provider-collapsed]="!isProviderExpanded(provider.name)"
+            >
+              <button
+                type="button"
+                class="nav-item nav-provider-toggle"
+                (click)="toggleProviderExpanded(provider.name)"
+                [attr.aria-expanded]="isProviderExpanded(provider.name)"
+                [title]="providerLabel(provider.name)"
+              >
+                <app-icon [name]="providerIcon(provider.name)" [size]="16" />
+                <span>{{ providerLabel(provider.name) }}</span>
+                <span class="nav-provider-chevron" aria-hidden="true">
+                  <app-icon name="chevron-down" [size]="12" />
+                </span>
+              </button>
+              <div
+                class="nav-provider-body"
+                [attr.aria-hidden]="!isProviderExpanded(provider.name)"
+              >
+                <div class="nav-provider-body-inner">
+                  @for (kind of libraryKinds; track kind) {
+                    <a
+                      [routerLink]="['/collection', provider.name, kind]"
+                      routerLinkActive="active"
+                      class="nav-item nav-collection-link"
+                      [title]="libraryKindLabels[kind]"
+                      [attr.tabindex]="isProviderExpanded(provider.name) ? null : -1"
+                      (click)="closeSidebar()"
+                    >
+                      <span>{{ libraryKindLabels[kind] }}</span>
+                    </a>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        }
+      </div>
     </nav>
 
     <div class="sidebar-footer">

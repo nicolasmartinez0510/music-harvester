@@ -21,7 +21,9 @@ export type IconName =
   | 'chevron-down'
   | 'star'
   | 'star-filled'
-  | 'check';
+  | 'check'
+  | 'provider-deezer'
+  | 'provider-youtube-music';
 
 @Component({
   selector: 'app-icon',
@@ -225,6 +227,20 @@ export type IconName =
             stroke-linecap="round"
             stroke-linejoin="round"
           />
+        </svg>
+      }
+      @case ('provider-deezer') {
+        <svg [attr.width]="size" [attr.height]="size" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <rect x="3" y="14" width="3.5" height="6" rx="1" />
+          <rect x="8" y="10" width="3.5" height="10" rx="1" />
+          <rect x="13" y="6" width="3.5" height="14" rx="1" />
+          <rect x="18" y="3" width="3.5" height="17" rx="1" />
+        </svg>
+      }
+      @case ('provider-youtube-music') {
+        <svg [attr.width]="size" [attr.height]="size" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
+          <path d="M10 8.5v7l6-3.5-6-3.5Z" />
         </svg>
       }
     }

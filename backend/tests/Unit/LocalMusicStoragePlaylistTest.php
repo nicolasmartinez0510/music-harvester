@@ -18,6 +18,7 @@ class LocalMusicStoragePlaylistTest extends TestCase
         $this->assertSame('/music/playlists/3-my-mix', $storage->playlistDirectory(3, 'My Mix'));
         $this->assertSame('3-my-mix', $storage->playlistFolderName(3, 'My Mix'));
         $this->assertSame('/music/playlists/9-playlist', $storage->playlistDirectory(9, null));
+        $this->assertSame([], $storage->playlistDirectoriesForId(3));
 
         $track = new Track(
             title: 'Hello World',

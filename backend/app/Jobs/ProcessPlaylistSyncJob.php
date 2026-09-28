@@ -64,6 +64,11 @@ class ProcessPlaylistSyncJob implements ShouldQueue
 
             $resolved = $provider->resolve($url);
 
+            // Playlist may have been deleted while resolve was in flight.
+            if ($playlists->find($this->savedPlaylistId) === null) {
+                return;
+            }
+
             if ($playlist['title'] === null || $playlist['title'] === '') {
                 $playlists->update($this->savedPlaylistId, ['title' => $resolved->title]);
                 $playlist = $playlists->find($this->savedPlaylistId) ?? $playlist;
@@ -109,8 +114,16 @@ class ProcessPlaylistSyncJob implements ShouldQueue
             $completed = 0;
 
             foreach ($pending as $pendingTrack) {
+                if ($playlists->find($this->savedPlaylistId) === null) {
+                    return;
+                }
+
                 if ($completed > 0) {
                     sleep(self::TRACK_DELAY_SECONDS);
+                }
+
+                if ($playlists->find($this->savedPlaylistId) === null) {
+                    return;
                 }
 
                 $resolvedItem = $this->findResolvedItem($resolved->items, (string) $pendingTrack['external_id']);

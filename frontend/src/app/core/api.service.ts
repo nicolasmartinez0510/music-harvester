@@ -177,4 +177,24 @@ export class ApiService {
       .get<ApiResource<CatalogPlaylist>>(`${this.baseUrl}/catalog/${provider}/playlists/${id}`)
       .pipe(map((response) => response.data));
   }
+
+  getLibrary(
+    provider: string,
+    kind: 'artists' | 'albums' | 'tracks' | 'playlists',
+    params?: { limit?: number; index?: number },
+  ): Observable<CatalogHit[]> {
+    const query: Record<string, string> = {};
+    if (params?.limit != null) {
+      query['limit'] = String(params.limit);
+    }
+    if (params?.index != null) {
+      query['index'] = String(params.index);
+    }
+
+    return this.http
+      .get<ApiResource<CatalogHit[]>>(`${this.baseUrl}/library/${provider}/${kind}`, {
+        params: query,
+      })
+      .pipe(map((response) => response.data));
+  }
 }

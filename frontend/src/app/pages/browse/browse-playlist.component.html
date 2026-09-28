@@ -1,6 +1,10 @@
 <section class="page">
   <p>
-    <a routerLink="/browse" class="back-link">← Explorar</a>
+    @if (fromCollection) {
+      <a [routerLink]="['/collection', provider, 'playlists']" class="back-link">← Mi Colección</a>
+    } @else {
+      <a routerLink="/browse" class="back-link">← Explorar</a>
+    }
   </p>
 
   @if (loading) {

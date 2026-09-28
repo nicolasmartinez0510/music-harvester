@@ -57,6 +57,18 @@ final class DownloadedFilesCleanup
         }
     }
 
+    /**
+     * @param  list<string>  $paths
+     */
+    public function deletePaths(array $paths): void
+    {
+        foreach ($paths as $path) {
+            if (is_string($path) && $path !== '') {
+                $this->deletePath($path);
+            }
+        }
+    }
+
     private function deletePath(string $path): void
     {
         if (! $this->isSafePath($path)) {

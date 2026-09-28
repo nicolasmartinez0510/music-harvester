@@ -3,6 +3,15 @@
     <p>
       <a routerLink="/browse" class="back-link">← Explorar</a>
     </p>
+  } @else if (showBackToCollection) {
+    <p>
+      <a
+        [routerLink]="['/collection', provider, collectionBackKind]"
+        class="back-link"
+      >
+        ← Mi Colección
+      </a>
+    </p>
   }
 
   @if (loading) {

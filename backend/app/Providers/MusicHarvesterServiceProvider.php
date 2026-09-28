@@ -36,11 +36,14 @@ use App\Infrastructure\Downloader\YtDlpDownloader;
 use App\Infrastructure\Persistence\EloquentDownloadRepository;
 use App\Infrastructure\Persistence\EloquentSavedPlaylistRepository;
 use App\Infrastructure\Persistence\EloquentSettingsRepository;
+use App\Application\Library\GetUserLibraryHandler;
 use App\Infrastructure\Providers\CatalogSourceRegistry;
 use App\Infrastructure\Providers\Deezer\DeezerApiClient;
+use App\Infrastructure\Providers\Deezer\DeezerGwClient;
 use App\Infrastructure\Providers\Deezer\DeezerProvider;
 use App\Infrastructure\Providers\Deezer\StreamripDeezerDownloader;
 use App\Infrastructure\Providers\MusicProviderRegistry;
+use App\Infrastructure\Providers\UserLibrarySourceRegistry;
 use App\Infrastructure\Providers\YoutubeMusic\YoutubeMusicMatcher;
 use App\Infrastructure\Providers\YoutubeMusic\YoutubeMusicProvider;
 use App\Infrastructure\Storage\DownloadedFilesCleanup;
@@ -67,6 +70,7 @@ class MusicHarvesterServiceProvider extends ServiceProvider
         $this->app->bind(MusicDownloader::class, YtDlpDownloader::class);
         $this->app->singleton(YoutubeMusicMatcher::class);
         $this->app->singleton(DeezerApiClient::class);
+        $this->app->singleton(DeezerGwClient::class);
 
         $this->app->singleton(StreamripDeezerDownloader::class, function () {
             return new StreamripDeezerDownloader(
@@ -89,6 +93,7 @@ class MusicHarvesterServiceProvider extends ServiceProvider
 
         $this->app->tag([YoutubeMusicProvider::class, DeezerProvider::class], 'music.providers');
         $this->app->tag([DeezerProvider::class], 'music.catalog_sources');
+        $this->app->tag([DeezerProvider::class], 'music.user_library_sources');
 
         $this->app->singleton(MusicProviderRegistry::class, function ($app) {
             return new MusicProviderRegistry(
@@ -104,10 +109,18 @@ class MusicHarvesterServiceProvider extends ServiceProvider
             );
         });
 
+        $this->app->singleton(UserLibrarySourceRegistry::class, function ($app) {
+            return new UserLibrarySourceRegistry(
+                $app->tagged('music.user_library_sources'),
+                $app->make(ProviderSettingsResolver::class),
+            );
+        });
+
         $this->app->singleton(SearchCatalogHandler::class);
         $this->app->singleton(GetCatalogArtistHandler::class);
         $this->app->singleton(GetCatalogAlbumHandler::class);
         $this->app->singleton(GetCatalogPlaylistHandler::class);
+        $this->app->singleton(GetUserLibraryHandler::class);
 
         $this->app->singleton(DownloadTrackHandler::class);
         $this->app->singleton(DownloadPlaylistHandler::class);

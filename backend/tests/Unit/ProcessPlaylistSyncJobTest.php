@@ -68,26 +68,25 @@ class ProcessPlaylistSyncJobTest extends TestCase
         $m3u = new PlaylistM3uWriter($storage);
 
         $playlists = Mockery::mock(SavedPlaylistRepository::class);
-        $playlists->shouldReceive('find')->once()->with(5)->andReturn([
-            'id' => 5,
-            'provider' => 'youtube_music',
-            'url' => 'https://music.youtube.com/playlist?list=PLx',
-            'title' => null,
-            'default_format' => 'mp3_320',
-            'last_sync_status' => PlaylistSyncStatus::Idle->value,
-        ]);
+        $findCount = 0;
+        $playlists->shouldReceive('find')->with(5)->andReturnUsing(function () use (&$findCount) {
+            $findCount++;
+
+            return [
+                'id' => 5,
+                'provider' => 'youtube_music',
+                'url' => 'https://music.youtube.com/playlist?list=PLx',
+                'title' => $findCount === 1 ? null : 'My List',
+                'default_format' => 'mp3_320',
+                'last_sync_status' => $findCount === 1
+                    ? PlaylistSyncStatus::Idle->value
+                    : PlaylistSyncStatus::Running->value,
+            ];
+        });
         $playlists->shouldReceive('updateSyncStatus')
             ->once()
             ->with(5, PlaylistSyncStatus::Running);
         $playlists->shouldReceive('update')->once()->with(5, ['title' => 'My List']);
-        $playlists->shouldReceive('find')->once()->with(5)->andReturn([
-            'id' => 5,
-            'provider' => 'youtube_music',
-            'url' => 'https://music.youtube.com/playlist?list=PLx',
-            'title' => 'My List',
-            'default_format' => 'mp3_320',
-            'last_sync_status' => PlaylistSyncStatus::Running->value,
-        ]);
         $playlists->shouldReceive('upsertTrack')
             ->once()
             ->with(5, 'vid1', 'Song', 'Artist', 1)
@@ -153,7 +152,7 @@ class ProcessPlaylistSyncJobTest extends TestCase
         $m3u = new PlaylistM3uWriter($storage);
 
         $playlists = Mockery::mock(SavedPlaylistRepository::class);
-        $playlists->shouldReceive('find')->once()->andReturn([
+        $playlists->shouldReceive('find')->andReturn([
             'id' => 7,
             'provider' => 'youtube_music',
             'url' => 'https://music.youtube.com/playlist?list=PLy',

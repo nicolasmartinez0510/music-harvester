@@ -88,6 +88,8 @@ See [docs/providers.md](docs/providers.md) for ARL setup, streamrip choice, **Ex
 
 UI **Explorar** (`/browse`): búsqueda en providers con `has_catalog` (Deezer). Desde resultados o fichas podés **Descargar ahora** (`POST /api/downloads`) o **Destacar** una playlist (`POST /api/playlists` + sync). El catálogo es API pública; el FLAC autenticado sigue necesitando ARL HiFi.
 
+**Mi Colección** (sidebar, bajo Favoritos): biblioteca del usuario en providers con `has_library` (hoy Deezer + ARL). YouTube Music cookies no listan library — solo autentican descargas por URL.
+
 ## Saved playlists (re-sync)
 
 Guardá una URL de playlist (YouTube Music o cualquier provider del registry) y sincronizala manual o periódicamente. Solo se descargan tracks **nuevos**.

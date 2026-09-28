@@ -45,6 +45,8 @@ export class BrowseArtistComponent implements OnInit {
   albumPage = 1;
   albumSort: AlbumSort = 'release_date';
   showBackToBrowse = true;
+  showBackToCollection = false;
+  collectionBackKind: 'artists' | 'albums' | 'tracks' | 'playlists' = 'artists';
 
   ngOnInit(): void {
     // Same route template for every artist; subscribe so favorites sidebar switches reload.
@@ -53,7 +55,10 @@ export class BrowseArtistComponent implements OnInit {
         switchMap(([params, query]) => {
           this.provider = params.get('provider') ?? '';
           const id = params.get('id') ?? '';
-          this.showBackToBrowse = query.get('from') !== 'favorites';
+          const from = query.get('from');
+          this.showBackToBrowse = from !== 'favorites' && from !== 'collection';
+          this.showBackToCollection = from === 'collection';
+          this.collectionBackKind = 'artists';
 
           if (!this.provider || !id) {
             void this.router.navigate(['/browse']);

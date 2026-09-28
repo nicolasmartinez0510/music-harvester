@@ -30,7 +30,7 @@ class PlaylistApiTest extends TestCase
             ->assertJsonPath('data.provider', 'youtube_music')
             ->assertJsonPath('data.url', 'https://music.youtube.com/playlist?list=PLtest123')
             ->assertJsonPath('data.sync_enabled', true)
-            ->assertJsonPath('data.last_sync_status', PlaylistSyncStatus::Idle->value);
+            ->assertJsonPath('data.last_sync_status', PlaylistSyncStatus::Running->value);
 
         $id = (int) $response->json('data.id');
         $this->assertDatabaseHas('saved_playlists', [
@@ -171,12 +171,72 @@ class PlaylistApiTest extends TestCase
 
     public function test_delete_playlist(): void
     {
-        $playlistId = $this->insertPlaylist();
+        $playlistId = $this->insertPlaylist(['title' => 'Arjona']);
 
         $response = $this->deleteJson('/api/playlists/'.$playlistId);
 
         $response->assertNoContent();
         $this->assertDatabaseMissing('saved_playlists', ['id' => $playlistId]);
+    }
+
+    public function test_delete_playlist_cancels_queue_jobs_and_removes_files(): void
+    {
+        $musicPath = storage_path('framework/testing/music-'.uniqid());
+        config(['music.path' => $musicPath]);
+
+        $playlistId = $this->insertPlaylist(['title' => 'Arjona']);
+        $dir = $musicPath.'/playlists/'.$playlistId.'-arjona';
+        mkdir($dir, 0755, true);
+        $trackPath = $dir.'/01 - artist - song.mp3';
+        file_put_contents($trackPath, 'audio');
+
+        DB::table('saved_playlist_tracks')->insert([
+            'saved_playlist_id' => $playlistId,
+            'external_id' => 't1',
+            'title' => 'Song',
+            'artist' => 'Artist',
+            'position' => 1,
+            'status' => PlaylistTrackStatus::Downloaded->value,
+            'file_path' => $trackPath,
+            'last_error' => null,
+            'first_seen_at' => now(),
+            'downloaded_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $job = new \App\Jobs\ProcessPlaylistSyncJob($playlistId);
+        DB::table('jobs')->insert([
+            'queue' => 'default',
+            'payload' => json_encode([
+                'uuid' => 'test-uuid',
+                'displayName' => \App\Jobs\ProcessPlaylistSyncJob::class,
+                'job' => 'Illuminate\\Queue\\CallQueuedHandler@call',
+                'data' => [
+                    'commandName' => \App\Jobs\ProcessPlaylistSyncJob::class,
+                    'command' => serialize($job),
+                ],
+            ]),
+            'attempts' => 0,
+            'reserved_at' => null,
+            'available_at' => time(),
+            'created_at' => time(),
+        ]);
+
+        $this->assertSame(1, DB::table('jobs')->count());
+        $this->assertFileExists($trackPath);
+
+        $response = $this->deleteJson('/api/playlists/'.$playlistId);
+
+        $response->assertNoContent();
+        $this->assertDatabaseMissing('saved_playlists', ['id' => $playlistId]);
+        $this->assertDatabaseMissing('saved_playlist_tracks', ['saved_playlist_id' => $playlistId]);
+        $this->assertSame(0, DB::table('jobs')->count());
+        $this->assertFileDoesNotExist($trackPath);
+        $this->assertDirectoryDoesNotExist($dir);
+
+        @rmdir($musicPath.'/playlists');
+        @rmdir($musicPath);
     }
 
     public function test_sync_playlist_dispatches_job(): void

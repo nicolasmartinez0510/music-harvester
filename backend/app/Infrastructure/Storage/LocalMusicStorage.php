@@ -48,6 +48,38 @@ final class LocalMusicStorage
         return "{$playlistId}-{$slug}";
     }
 
+    /**
+     * All on-disk folders for a saved playlist id (`{id}-*` under playlists/).
+     *
+     * @return list<string>
+     */
+    public function playlistDirectoriesForId(int $playlistId): array
+    {
+        $base = $this->basePath().'/playlists';
+        if (! is_dir($base)) {
+            return [];
+        }
+
+        $prefix = $playlistId.'-';
+        $items = scandir($base);
+        if ($items === false) {
+            return [];
+        }
+
+        $dirs = [];
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..' || ! str_starts_with($item, $prefix)) {
+                continue;
+            }
+            $path = $base.'/'.$item;
+            if (is_dir($path)) {
+                $dirs[] = $path;
+            }
+        }
+
+        return $dirs;
+    }
+
     public function playlistTrackFilename(Track $track, string $extension): string
     {
         $index = str_pad((string) ($track->index ?? 1), 2, '0', STR_PAD_LEFT);

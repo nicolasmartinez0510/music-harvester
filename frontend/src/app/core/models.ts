@@ -81,6 +81,7 @@ export interface ProviderInfo {
   configured: boolean;
   qualities: AudioFormat[];
   has_catalog: boolean;
+  has_library: boolean;
   mode?: DeezerMode;
 }
 
@@ -185,6 +186,15 @@ export const CATALOG_TYPE_LABELS: Record<CatalogType, string> = {
   playlist: 'Playlists',
 };
 
+export type LibraryKind = 'artists' | 'albums' | 'tracks' | 'playlists';
+
+export const LIBRARY_KIND_LABELS: Record<LibraryKind, string> = {
+  artists: 'Mis artistas',
+  tracks: 'Mis canciones',
+  albums: 'Mis álbumes',
+  playlists: 'Mis playlists',
+};
+
 export function detectProviderFromUrl(url: string): ProviderName | null {
   if (/deezer\.com|link\.deezer\.com/i.test(url)) {
     return 'deezer';
@@ -193,4 +203,15 @@ export function detectProviderFromUrl(url: string): ProviderName | null {
     return 'youtube_music';
   }
   return null;
+}
+
+/** Icon name for a catalog/download provider in the UI. */
+export function providerIconName(provider: string): 'provider-deezer' | 'provider-youtube-music' | 'list' {
+  if (provider === 'deezer') {
+    return 'provider-deezer';
+  }
+  if (provider === 'youtube_music') {
+    return 'provider-youtube-music';
+  }
+  return 'list';
 }

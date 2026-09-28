@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Providers\Deezer;
 
+use App\Application\Settings\ProviderSettingsResolver;
 use App\Domain\Music\Contracts\CatalogSource;
 use App\Domain\Music\Contracts\MusicProvider;
+use App\Domain\Music\Contracts\UserLibrarySource;
 use App\Domain\Music\Models\Album;
 use App\Domain\Music\Models\Artist;
 use App\Domain\Music\Models\Track;
@@ -24,13 +26,15 @@ use App\Infrastructure\Providers\YoutubeMusic\YoutubeMusicMatcher;
 use App\Infrastructure\Storage\LocalMusicStorage;
 use RuntimeException;
 
-final class DeezerProvider implements MusicProvider, CatalogSource
+final class DeezerProvider implements MusicProvider, CatalogSource, UserLibrarySource
 {
     public function __construct(
         private DeezerApiClient $api,
+        private DeezerGwClient $gw,
         private StreamripDeezerDownloader $nativeDownloader,
         private YoutubeMusicMatcher $youtubeMatcher,
         private LocalMusicStorage $storage,
+        private ProviderSettingsResolver $settings,
     ) {}
 
     public function name(): string
@@ -181,6 +185,43 @@ final class DeezerProvider implements MusicProvider, CatalogSource
         );
     }
 
+    public function isLibraryAvailable(): bool
+    {
+        return $this->settings->isArlConfigured();
+    }
+
+    public function favoriteArtists(int $limit = 50, int $index = 0): array
+    {
+        return $this->mapLibraryRows(
+            $this->gw->favoriteArtists($this->requireArl(), $limit, $index),
+            CatalogType::Artist,
+        );
+    }
+
+    public function favoriteAlbums(int $limit = 50, int $index = 0): array
+    {
+        return $this->mapLibraryRows(
+            $this->gw->favoriteAlbums($this->requireArl(), $limit, $index),
+            CatalogType::Album,
+        );
+    }
+
+    public function lovedTracks(int $limit = 50, int $index = 0): array
+    {
+        return $this->mapLibraryRows(
+            $this->gw->lovedTracks($this->requireArl(), $limit, $index),
+            CatalogType::Track,
+        );
+    }
+
+    public function playlists(int $limit = 50, int $index = 0): array
+    {
+        return $this->mapLibraryRows(
+            $this->gw->playlists($this->requireArl(), $limit, $index),
+            CatalogType::Playlist,
+        );
+    }
+
     public function getPlaylist(string $id): CatalogPlaylist
     {
         $playlist = $this->api->get('playlist/'.$id);
@@ -310,6 +351,32 @@ final class DeezerProvider implements MusicProvider, CatalogSource
             id: isset($data['id']) ? (string) $data['id'] : null,
             duration: $duration,
         );
+    }
+
+    private function requireArl(): string
+    {
+        $arl = $this->settings->deezerArl();
+        if ($arl === null || ! $this->settings->isArlConfigured($arl)) {
+            throw new RuntimeException(
+                'Deezer ARL is not configured. Set provider_deezer_arl in settings to access Mi Colección.',
+            );
+        }
+
+        return $arl;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<CatalogHit>
+     */
+    private function mapLibraryRows(array $rows, CatalogType $type): array
+    {
+        $hits = [];
+        foreach ($rows as $row) {
+            $hits[] = $this->mapHit($row, $type);
+        }
+
+        return $hits;
     }
 
     /**
