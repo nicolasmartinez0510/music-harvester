@@ -1,6 +1,8 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { EMPTY, catchError, combineLatest, of, switchMap } from 'rxjs';
 
 import { ApiService } from '../../core/api.service';
 import { ArtistFavoritesService } from '../../core/artist-favorites.service';
@@ -24,6 +26,7 @@ export class BrowseArtistComponent implements OnInit {
   private readonly favorites = inject(ArtistFavoritesService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly trackPageSize = 20;
   readonly albumPageSize = 15;
@@ -44,25 +47,44 @@ export class BrowseArtistComponent implements OnInit {
   showBackToBrowse = true;
 
   ngOnInit(): void {
-    this.provider = this.route.snapshot.paramMap.get('provider') ?? '';
-    const id = this.route.snapshot.paramMap.get('id') ?? '';
-    this.showBackToBrowse = this.route.snapshot.queryParamMap.get('from') !== 'favorites';
+    // Same route template for every artist; subscribe so favorites sidebar switches reload.
+    combineLatest([this.route.paramMap, this.route.queryParamMap])
+      .pipe(
+        switchMap(([params, query]) => {
+          this.provider = params.get('provider') ?? '';
+          const id = params.get('id') ?? '';
+          this.showBackToBrowse = query.get('from') !== 'favorites';
 
-    if (!this.provider || !id) {
-      void this.router.navigate(['/browse']);
-      return;
-    }
+          if (!this.provider || !id) {
+            void this.router.navigate(['/browse']);
+            return EMPTY;
+          }
 
-    this.api.getCatalogArtist(this.provider, id).subscribe({
-      next: (artist) => {
+          this.loading = true;
+          this.errorMessage = null;
+          this.artist = null;
+          this.activeTab = 'tracks';
+          this.trackPage = 1;
+          this.albumPage = 1;
+          this.albumSort = 'release_date';
+
+          return this.api.getCatalogArtist(this.provider, id).pipe(
+            catchError((error: { error?: { message?: string } }) => {
+              this.loading = false;
+              this.errorMessage = error.error?.message ?? 'No se pudo cargar el artista.';
+              return of(null);
+            }),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((artist) => {
+        if (artist === null) {
+          return;
+        }
         this.artist = artist;
         this.loading = false;
-      },
-      error: (error: { error?: { message?: string } }) => {
-        this.loading = false;
-        this.errorMessage = error.error?.message ?? 'No se pudo cargar el artista.';
-      },
-    });
+      });
   }
 
   get isFavorite(): boolean {
