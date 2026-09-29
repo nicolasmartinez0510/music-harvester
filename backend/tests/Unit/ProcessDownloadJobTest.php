@@ -19,6 +19,7 @@ use App\Domain\Music\ValueObjects\ResolvedItem;
 use App\Domain\Music\ValueObjects\ResolvedKind;
 use App\Domain\Music\ValueObjects\ResolvedMusic;
 use App\Infrastructure\Providers\MusicProviderRegistry;
+use App\Infrastructure\Storage\DownloadedFilesCleanup;
 use App\Jobs\ProcessDownloadJob;
 use Mockery;
 use Mockery\MockInterface;
@@ -90,7 +91,7 @@ class ProcessDownloadJobTest extends TestCase
             ->with(42, DownloadStatus::Done, null);
 
         $job = new ProcessDownloadJob(42);
-        $job->handle($jobs, $registry, $settings, $this->metadata());
+        $job->handle($jobs, $registry, $settings, $this->metadata(), $this->cleanup());
 
         $this->addToAssertionCount(1);
     }
@@ -133,7 +134,7 @@ class ProcessDownloadJobTest extends TestCase
         $job = new ProcessDownloadJob(7);
 
         $this->expectException(\RuntimeException::class);
-        $job->handle($jobs, $registry, $settings, $this->metadata());
+        $job->handle($jobs, $registry, $settings, $this->metadata(), $this->cleanup());
     }
 
     public function test_playlist_continues_after_individual_track_failure(): void
@@ -187,7 +188,7 @@ class ProcessDownloadJobTest extends TestCase
             ));
 
         $job = new ProcessDownloadJob(9);
-        $job->handle($jobs, $registry, $settings, $this->metadata());
+        $job->handle($jobs, $registry, $settings, $this->metadata(), $this->cleanup());
 
         $this->addToAssertionCount(1);
     }
@@ -237,7 +238,7 @@ class ProcessDownloadJobTest extends TestCase
         $jobs->shouldReceive('updateStatus')->once()->with(3, DownloadStatus::Done, null);
 
         $job = new ProcessDownloadJob(3);
-        $job->handle($jobs, $this->registry([$provider]), $this->settingsResolver(), $metadata);
+        $job->handle($jobs, $this->registry([$provider]), $this->settingsResolver(), $metadata, $this->cleanup());
 
         $this->addToAssertionCount(1);
     }
@@ -248,6 +249,11 @@ class ProcessDownloadJobTest extends TestCase
         $metadata->shouldIgnoreMissing();
 
         return $metadata;
+    }
+
+    private function cleanup(): DownloadedFilesCleanup
+    {
+        return new DownloadedFilesCleanup($this->settingsResolver());
     }
 
     private function mockProvider(): MusicProvider&MockInterface

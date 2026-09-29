@@ -80,6 +80,27 @@ class DownloadedFilesCleanupTest extends TestCase
         @rmdir($musicPath);
     }
 
+    public function test_files_present_when_exact_file_missing_but_album_dir_has_audio(): void
+    {
+        $musicPath = storage_path('framework/testing/music-'.uniqid());
+        mkdir($musicPath.'/skillet/victorious', 0777, true);
+        $file = $musicPath.'/skillet/victorious/01 - legendary.flac';
+        file_put_contents($file, 'x');
+        config(['music.path' => $musicPath]);
+
+        $cleanup = $this->cleanupWithStoredPath($musicPath);
+
+        $this->assertTrue($cleanup->filesPresent([
+            'destination_path' => $musicPath.'/skillet/victorious/99 - missing-name.flac',
+            'downloaded_paths' => json_encode([$musicPath.'/skillet/victorious/99 - missing-name.flac']),
+        ]));
+
+        @unlink($file);
+        @rmdir($musicPath.'/skillet/victorious');
+        @rmdir($musicPath.'/skillet');
+        @rmdir($musicPath);
+    }
+
     private function cleanupWithStoredPath(string $storedMusicPath): DownloadedFilesCleanup
     {
         $repo = Mockery::mock(SettingsRepository::class);

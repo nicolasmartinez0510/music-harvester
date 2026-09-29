@@ -11,6 +11,8 @@ use App\Application\Settings\ProviderSettingsResolver;
  */
 final class DownloadedFilesCleanup
 {
+    private const AUDIO_EXTENSIONS = ['flac', 'mp3', 'm4a', 'ogg', 'wav', 'aac', 'opus'];
+
     public function __construct(
         private ProviderSettingsResolver $settings,
     ) {}
@@ -23,11 +25,9 @@ final class DownloadedFilesCleanup
     {
         $paths = $this->decodePaths($job['downloaded_paths'] ?? null);
 
-        if ($paths === []) {
-            $fallback = $job['destination_path'] ?? null;
-            if (is_string($fallback) && $fallback !== '') {
-                $paths = [$fallback];
-            }
+        $fallback = $job['destination_path'] ?? null;
+        if (is_string($fallback) && $fallback !== '' && ! in_array($fallback, $paths, true)) {
+            $paths[] = $fallback;
         }
 
         return $paths;
@@ -38,15 +38,7 @@ final class DownloadedFilesCleanup
      */
     public function filesPresent(array $job): bool
     {
-        foreach ($this->pathsForJob($job) as $path) {
-            foreach ($this->candidatePaths($path) as $candidate) {
-                if ($this->isSafePath($candidate) && is_file($candidate)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        return $this->resolveExistingFiles($job) !== [];
     }
 
     /**
@@ -54,10 +46,25 @@ final class DownloadedFilesCleanup
      */
     public function deleteJobFiles(array $job): void
     {
+        $deletedDirs = [];
+
+        foreach ($this->resolveExistingFiles($job) as $path) {
+            $this->deletePath($path);
+            $parent = dirname($path);
+            if ($parent !== '' && ! in_array($parent, $deletedDirs, true)) {
+                $deletedDirs[] = $parent;
+            }
+        }
+
+        // Also try exact recorded paths (may already be gone).
         foreach ($this->pathsForJob($job) as $path) {
             foreach ($this->candidatePaths($path) as $candidate) {
                 $this->deletePath($candidate);
             }
+        }
+
+        foreach ($deletedDirs as $dir) {
+            $this->pruneEmptyParents($dir);
         }
     }
 
@@ -76,6 +83,76 @@ final class DownloadedFilesCleanup
     }
 
     /**
+     * Make a downloaded file (and its parents up to the music root) readable by php-fpm.
+     * Queue workers often run as root on Synology while the app runs as www-data.
+     */
+    public function relaxPermissions(string $path): void
+    {
+        if (is_file($path)) {
+            @chmod($path, 0664);
+        }
+
+        $current = is_dir($path) ? $path : dirname($path);
+        $roots = $this->musicRoots();
+
+        while ($current !== '' && $current !== '/' && ! in_array($current, $roots, true)) {
+            if (is_dir($current)) {
+                @chmod($current, 0775);
+            }
+            $parent = dirname($current);
+            if ($parent === $current) {
+                break;
+            }
+            $current = $parent;
+        }
+    }
+
+    /**
+     * Existing audio files for this job (exact path, remapped host path, or sibling audio in the album dir).
+     *
+     * @param  array<string, mixed>  $job
+     * @return list<string>
+     */
+    public function resolveExistingFiles(array $job): array
+    {
+        $found = [];
+
+        foreach ($this->pathsForJob($job) as $path) {
+            foreach ($this->candidatePaths($path) as $candidate) {
+                if (! $this->isSafePath($candidate)) {
+                    continue;
+                }
+
+                if (is_file($candidate)) {
+                    $found[$candidate] = true;
+                    continue;
+                }
+
+                if (is_dir($candidate)) {
+                    foreach ($this->audioFilesIn($candidate) as $audio) {
+                        $found[$audio] = true;
+                    }
+                    continue;
+                }
+
+                $parent = dirname($candidate);
+                if ($parent !== $candidate && $this->isSafePath($parent) && is_dir($parent)) {
+                    // Never treat the library root as an album folder.
+                    if (in_array($this->normalizeString($parent), $this->musicRoots(), true)
+                        || in_array($this->normalize($parent), $this->musicRoots(), true)) {
+                        continue;
+                    }
+                    foreach ($this->audioFilesIn($parent) as $audio) {
+                        $found[$audio] = true;
+                    }
+                }
+            }
+        }
+
+        return array_keys($found);
+    }
+
+    /**
      * Absolute paths to try for a stored job path (handles host vs container root mismatch).
      *
      * @return list<string>
@@ -89,13 +166,20 @@ final class DownloadedFilesCleanup
 
         $candidates = [$normalized];
 
+        // Always also try the raw string if realpath rewrote a host path.
+        $raw = $this->normalizeString($path);
+        if ($raw !== '' && ! in_array($raw, $candidates, true)) {
+            $candidates[] = $raw;
+        }
+
         foreach ($this->musicRoots() as $root) {
-            $relative = $this->relativeUnderAnyRoot($normalized);
+            $relative = $this->relativeUnderAnyRoot($normalized)
+                ?? $this->relativeUnderAnyRoot($raw);
             if ($relative === null) {
                 continue;
             }
 
-            $mapped = $root === '' ? $relative : $root.'/'.$relative;
+            $mapped = $relative === '' ? $root : $root.'/'.$relative;
             if (! in_array($mapped, $candidates, true)) {
                 $candidates[] = $mapped;
             }
@@ -113,10 +197,12 @@ final class DownloadedFilesCleanup
         foreach ([
             $this->settings->musicPath(),
             (string) config('music.path'),
+            '/music',
         ] as $root) {
-            $normalized = $this->normalize($root);
-            if ($normalized !== '' && ! in_array($normalized, $roots, true)) {
-                $roots[] = $normalized;
+            foreach ([$this->normalize($root), $this->normalizeString($root)] as $normalized) {
+                if ($normalized !== '' && ! in_array($normalized, $roots, true)) {
+                    $roots[] = $normalized;
+                }
             }
         }
 
@@ -125,6 +211,10 @@ final class DownloadedFilesCleanup
 
     private function relativeUnderAnyRoot(string $normalizedPath): ?string
     {
+        if ($normalizedPath === '') {
+            return null;
+        }
+
         foreach ($this->musicRoots() as $root) {
             if ($normalizedPath === $root) {
                 return '';
@@ -134,8 +224,7 @@ final class DownloadedFilesCleanup
             }
         }
 
-        // Host-style Synology bind source (/volume1/music, /volume2/music, …)
-        // when roots are the container mount /music.
+        // Host-style Synology bind source (/volume1/music, /volume2/music, …).
         if (preg_match('#^/volume\d+/music(?:/(.*))?$#i', $normalizedPath, $matches) === 1) {
             return isset($matches[1]) ? (string) $matches[1] : '';
         }
@@ -151,14 +240,12 @@ final class DownloadedFilesCleanup
 
         if (is_file($path)) {
             @unlink($path);
-            $this->pruneEmptyParents(dirname($path));
 
             return;
         }
 
         if (is_dir($path)) {
             $this->deleteDirectory($path);
-            $this->pruneEmptyParents(dirname($path));
         }
     }
 
@@ -192,11 +279,10 @@ final class DownloadedFilesCleanup
     private function pruneEmptyParents(string $directory): void
     {
         $bases = $this->musicRoots();
-        $current = $this->normalize($directory);
+        $current = $this->normalizeString($directory);
 
         while ($current !== '') {
-            $isBase = in_array($current, $bases, true);
-            if ($isBase) {
+            if (in_array($current, $bases, true)) {
                 break;
             }
 
@@ -229,7 +315,11 @@ final class DownloadedFilesCleanup
                 break;
             }
 
-            $current = dirname($current);
+            $parent = dirname($current);
+            if ($parent === $current) {
+                break;
+            }
+            $current = $parent;
         }
     }
 
@@ -246,28 +336,64 @@ final class DownloadedFilesCleanup
 
     private function isUnder(string $path, string $base): bool
     {
-        $normalized = $this->normalize($path);
-        $root = $this->normalize($base);
-
-        if ($normalized === '' || $root === '') {
-            return false;
+        foreach ([$this->normalize($path), $this->normalizeString($path)] as $normalized) {
+            foreach ([$this->normalize($base), $this->normalizeString($base)] as $root) {
+                if ($normalized === '' || $root === '') {
+                    continue;
+                }
+                if ($normalized === $root || str_starts_with($normalized, $root.'/')) {
+                    return true;
+                }
+            }
         }
 
-        return $normalized === $root || str_starts_with($normalized, $root.'/');
+        return false;
     }
 
     private function normalize(string $path): string
     {
-        $resolved = realpath($path);
+        $resolved = @realpath($path);
         if ($resolved !== false) {
             return rtrim(str_replace('\\', '/', $resolved), '/');
         }
 
-        // Path may not exist yet / anymore — still constrain by string prefix.
+        return $this->normalizeString($path);
+    }
+
+    private function normalizeString(string $path): string
+    {
         $clean = str_replace('\\', '/', $path);
         $clean = preg_replace('#/+#', '/', $clean) ?? $clean;
 
         return rtrim($clean, '/');
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function audioFilesIn(string $directory): array
+    {
+        $files = [];
+        $items = @scandir($directory);
+        if ($items === false) {
+            return [];
+        }
+
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+            $child = $directory.'/'.$item;
+            if (! is_file($child)) {
+                continue;
+            }
+            $ext = strtolower(pathinfo($child, PATHINFO_EXTENSION));
+            if (in_array($ext, self::AUDIO_EXTENSIONS, true)) {
+                $files[] = $child;
+            }
+        }
+
+        return $files;
     }
 
     /**

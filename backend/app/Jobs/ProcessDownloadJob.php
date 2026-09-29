@@ -17,6 +17,7 @@ use App\Domain\Music\ValueObjects\ResolvedKind;
 use App\Domain\Music\ValueObjects\ResolvedMusic;
 use App\Infrastructure\Providers\MusicProviderRegistry;
 use App\Infrastructure\Providers\YoutubeMusic\YoutubeMusicProvider;
+use App\Infrastructure\Storage\DownloadedFilesCleanup;
 use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -43,6 +44,7 @@ class ProcessDownloadJob implements ShouldQueue
         MusicProviderRegistry $providers,
         ProviderSettingsResolver $settings,
         TrackMetadataApplicator $metadata,
+        DownloadedFilesCleanup $cleanup,
     ): void {
         $job = $jobs->find($this->downloadJobId);
 
@@ -136,6 +138,7 @@ class ProcessDownloadJob implements ShouldQueue
                 $jobs->updateProgress($this->downloadJobId, $progress, $lastPath);
                 if (is_string($lastPath) && $lastPath !== '') {
                     $jobs->appendDownloadedPath($this->downloadJobId, $lastPath);
+                    $cleanup->relaxPermissions($lastPath);
                 }
             }
 
