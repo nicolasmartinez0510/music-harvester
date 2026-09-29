@@ -43,11 +43,24 @@ export class CatalogDownloadButtonComponent {
   private readonly actions = inject(CatalogActionsService);
 
   readonly url = input<string | null | undefined>();
+  readonly parentUrl = input<string | null | undefined>();
   readonly label = input('Descargar');
   readonly size = input<'small' | 'default'>('small');
   readonly variant = input<'default' | 'primary'>('default');
 
-  readonly state = computed<CatalogDownloadUiState>(() => this.actions.status(this.url()));
+  readonly state = computed<CatalogDownloadUiState>(() => {
+    const own = this.actions.status(this.url());
+    if (own !== 'idle') {
+      return own;
+    }
+
+    const parent = this.actions.status(this.parentUrl());
+    if (parent === 'queued' || parent === 'done') {
+      return parent;
+    }
+
+    return 'idle';
+  });
 
   readonly buttonLabel = computed(() => {
     const state = this.state();

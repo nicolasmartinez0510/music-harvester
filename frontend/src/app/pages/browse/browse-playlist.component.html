@@ -61,7 +61,10 @@
                 }
               </div>
               <div class="hit-actions">
-                <app-catalog-download-btn [url]="hit.canonical_url" />
+                <app-catalog-download-btn
+                  [url]="hit.canonical_url"
+                  [parentUrl]="playlist.canonical_url"
+                />
               </div>
             </article>
           }
