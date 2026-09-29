@@ -53,6 +53,8 @@ class CatalogApiTest extends TestCase
             'api.deezer.com/artist/27' => Http::response([
                 'id' => 27,
                 'name' => 'Daft Punk',
+                'picture_xl' => 'https://example.com/artist-xl.jpg',
+                'picture_big' => 'https://example.com/artist-big.jpg',
                 'picture_medium' => 'https://example.com/artist.jpg',
                 'nb_fan' => 1000,
             ]),
@@ -91,6 +93,7 @@ class CatalogApiTest extends TestCase
         $this->getJson('/api/catalog/deezer/artists/27')
             ->assertOk()
             ->assertJsonPath('data.name', 'Daft Punk')
+            ->assertJsonPath('data.cover_url', 'https://example.com/artist-xl.jpg')
             ->assertJsonPath('data.top_tracks.0.id', '3135556')
             ->assertJsonPath('data.albums.0.id', '302127')
             ->assertJsonPath('data.albums.0.release_date', '2001-03-12')
@@ -119,7 +122,8 @@ class CatalogApiTest extends TestCase
 
         $this->getJson('/api/catalog/deezer/artists/27')
             ->assertOk()
-            ->assertJsonPath('data.description', 'Daft Punk fue un dúo francés de música electrónica.');
+            ->assertJsonPath('data.description', 'Daft Punk fue un dúo francés de música electrónica.')
+            ->assertJsonPath('data.cover_url', 'https://example.com/artist.jpg');
     }
 
     public function test_get_album_returns_tracks(): void
@@ -179,5 +183,27 @@ class CatalogApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.title', 'Hits')
             ->assertJsonPath('data.tracks.0.id', '3135556');
+    }
+
+    public function test_search_artist_prefers_picture_xl(): void
+    {
+        Http::fake([
+            'api.deezer.com/search/artist*' => Http::response([
+                'data' => [
+                    [
+                        'id' => 27,
+                        'name' => 'Daft Punk',
+                        'type' => 'artist',
+                        'picture_xl' => 'https://example.com/artist-xl.jpg',
+                        'picture_medium' => 'https://example.com/artist.jpg',
+                    ],
+                ],
+                'total' => 1,
+            ]),
+        ]);
+
+        $this->getJson('/api/catalog/search?provider=deezer&q=daft+punk&type=artist')
+            ->assertOk()
+            ->assertJsonPath('data.0.cover_url', 'https://example.com/artist-xl.jpg');
     }
 }

@@ -151,7 +151,7 @@ final class DeezerProvider implements MusicProvider, CatalogSource, UserLibraryS
         return new CatalogArtist(
             id: (string) ($artist['id'] ?? $id),
             name: (string) ($artist['name'] ?? 'Unknown Artist'),
-            coverUrl: isset($artist['picture_medium']) ? (string) $artist['picture_medium'] : null,
+            coverUrl: $this->artistCoverUrl($artist),
             canonicalUrl: $this->canonical('artist', (string) ($artist['id'] ?? $id)),
             nbFans: (int) ($artist['nb_fan'] ?? 0),
             topTracks: $topHits,
@@ -380,6 +380,37 @@ final class DeezerProvider implements MusicProvider, CatalogSource, UserLibraryS
     }
 
     /**
+     * @param  array<string, mixed>  $artist
+     */
+    private function artistCoverUrl(array $artist): ?string
+    {
+        foreach (['picture_xl', 'picture_big', 'picture_medium'] as $key) {
+            if (isset($artist[$key]) && is_string($artist[$key]) && $artist[$key] !== '') {
+                return $artist[$key];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function mediaCoverUrl(array $row): ?string
+    {
+        foreach (['cover_medium', 'picture_medium', 'album'] as $key) {
+            if ($key === 'album' && isset($row['album']) && is_array($row['album'])) {
+                return isset($row['album']['cover_medium']) ? (string) $row['album']['cover_medium'] : null;
+            }
+            if (isset($row[$key]) && is_string($row[$key]) && $row[$key] !== '') {
+                return $row[$key];
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * @param  array<string, mixed>  $row
      */
     private function mapHit(array $row, CatalogType $fallbackType): CatalogHit
@@ -400,17 +431,9 @@ final class DeezerProvider implements MusicProvider, CatalogSource, UserLibraryS
             $subtitle = isset($row['user']['name']) ? (string) $row['user']['name'] : null;
         }
 
-        $cover = null;
-        foreach (['cover_medium', 'picture_medium', 'album'] as $key) {
-            if ($key === 'album' && isset($row['album']) && is_array($row['album'])) {
-                $cover = isset($row['album']['cover_medium']) ? (string) $row['album']['cover_medium'] : null;
-                break;
-            }
-            if (isset($row[$key]) && is_string($row[$key])) {
-                $cover = $row[$key];
-                break;
-            }
-        }
+        $cover = $type === CatalogType::Artist
+            ? $this->artistCoverUrl($row)
+            : $this->mediaCoverUrl($row);
 
         $kindPath = match ($type) {
             CatalogType::Track => 'track',

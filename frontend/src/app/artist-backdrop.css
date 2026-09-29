@@ -1,0 +1,45 @@
+.artist-backdrop {
+  position: fixed;
+  z-index: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: var(--sidebar-width);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.artist-backdrop-image {
+  position: absolute;
+  inset: -12%;
+  width: 124%;
+  height: 124%;
+  object-fit: cover;
+  object-position: center top;
+  filter: blur(20px);
+  transform: scale(1.06);
+}
+
+.artist-backdrop-tint {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--bg) 28%, transparent) 0%,
+    color-mix(in srgb, var(--bg) 48%, transparent) 28%,
+    color-mix(in srgb, var(--bg) 82%, transparent) 58%,
+    var(--bg) 78%
+  );
+}
+
+@media (min-width: 841px) {
+  .layout.sidebar-collapsed .artist-backdrop {
+    left: var(--sidebar-width-collapsed);
+  }
+}
+
+@media (max-width: 840px) {
+  .artist-backdrop {
+    left: 0;
+  }
+}

@@ -50,6 +50,7 @@ Plan: [`.cursor/plans/user_auth_admin_1389c0c0.plan.md`](plans/user_auth_admin_1
 
 - Registry: `youtube_music` + `deezer` (`GET /api/providers`: configured, qualities, `has_catalog`, `has_library`)
 - Deezer catalog: API pública `api.deezer.com`; hits de álbum incluyen `record_type` (`album` | `ep` | `single`)
+- Portada de artista: `picture_xl` (fallback `picture_big` / `picture_medium`) en `cover_url`
 - Deezer download nativo: streamrip + ARL → FLAC / MP3 320
 - Deezer híbrido: match YouTube → yt-dlp (no lossless)
 - Metadata post-descarga Deezer: enricher + mutagen (tags, cover, lyrics) — plan `deezer_audio_metadata` ✅
@@ -82,6 +83,7 @@ Plan: [`.cursor/plans/user_auth_admin_1389c0c0.plan.md`](plans/user_auth_admin_1
 - Deezer audio metadata (mutagen)
 - Browse UX polish, album track spinners, album back navigation
 - Discografía del artista en tabs **Álbumes discográficos** / **Sencillos y EPs** (`record_type` de Deezer en `CatalogHit`). Página de 12 por tab; el botón Descargar se alinea al fondo de la fila
+- Fondo de la ficha de artista: portada difuminada (blur 20px) solo en el área de contenido; el sidebar queda sólido. Se limpia al salir de la ruta
 
 ## Próximos / pendientes
 

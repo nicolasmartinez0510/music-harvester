@@ -6,6 +6,7 @@ import { EMPTY, catchError, of, switchMap } from 'rxjs';
 
 import { ApiService } from '../../core/api.service';
 import { ArtistFavoritesService } from '../../core/artist-favorites.service';
+import { ArtistPageBackdropService } from '../../core/artist-page-backdrop.service';
 import { CatalogArtist, CatalogHit } from '../../core/models';
 import { CatalogDownloadButtonComponent } from '../../shared/catalog-download-button.component';
 import { IconComponent } from '../../shared/icon.component';
@@ -25,6 +26,7 @@ type ReleaseTab = 'albums' | 'singles';
 export class BrowseArtistComponent implements OnInit {
   private readonly api = inject(ApiService);
   private readonly favorites = inject(ArtistFavoritesService);
+  private readonly backdrop = inject(ArtistPageBackdropService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
@@ -57,6 +59,8 @@ export class BrowseArtistComponent implements OnInit {
   collectionBackKind: 'artists' | 'albums' | 'tracks' | 'playlists' = 'artists';
 
   ngOnInit(): void {
+    this.destroyRef.onDestroy(() => this.backdrop.clear());
+
     this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((query) => {
       this.applyQuery(query);
     });
@@ -83,6 +87,7 @@ export class BrowseArtistComponent implements OnInit {
           this.loading = true;
           this.errorMessage = null;
           this.artist = null;
+          this.backdrop.clear();
           this.applyQuery(this.route.snapshot.queryParamMap);
 
           return this.api.getCatalogArtist(this.provider, id).pipe(
@@ -101,6 +106,7 @@ export class BrowseArtistComponent implements OnInit {
         }
         this.artist = artist;
         this.loading = false;
+        this.backdrop.set(artist.cover_url);
       });
   }
 

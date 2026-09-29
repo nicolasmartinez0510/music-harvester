@@ -209,6 +209,12 @@
   }
 
   @if (auth.user()) {
+  @if (backdrop.coverUrl(); as cover) {
+    <div class="artist-backdrop" aria-hidden="true">
+      <img class="artist-backdrop-image" [src]="cover" alt="" />
+      <div class="artist-backdrop-tint"></div>
+    </div>
+  }
   <div class="shell">
     <header class="mobile-bar">
       <button
