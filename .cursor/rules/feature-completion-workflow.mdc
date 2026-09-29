@@ -1,0 +1,37 @@
+---
+description: Al cerrar una feature, actualizar PROJECT_CONTEXT, incluir el plan en el commit y rebuildear contenedores
+alwaysApply: true
+---
+
+# Cierre de feature
+
+Cuando el usuario pide **commitear** o da por **terminada** una feature:
+
+## 1. Actualizar `.cursor/PROJECT_CONTEXT.md`
+
+Antes de cerrar (y siempre antes del commit), revisá y actualizá el contexto vivo:
+
+- Reflejá lo que cambió en esta feature: stack, convenciones, decisiones, proveedores, flujo Docker, endpoints relevantes, o estado de épicas.
+- Actualizá secciones existentes cuando queden viejas (progreso, próximos pasos, stack); no dejes fatos desactualizados.
+- Sé conciso: es base para épicas futuras, no un changelog largo.
+- Incluí el archivo en el staging junto al código.
+
+## 2. Incluir el plan ejecutado en el commit
+
+Si existe un plan de la feature en `.cursor/plans/` (p. ej. el `.plan.md` abierto o el que se siguió en la sesión):
+
+- Incluílo en el staging junto al código y a `PROJECT_CONTEXT.md`.
+- No inventes un plan nuevo solo para el commit; solo añadí el que ya se ejecutó.
+- Si no hay plan asociado, commiteá código + `PROJECT_CONTEXT.md` (no bloquees el commit).
+
+## 3. Rebuildear todos los contenedores al terminar
+
+Tras cerrar el desarrollo de una feature (implementación lista, o justo antes/después del commit si el usuario lo pidió):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
+
+- Hacelo siempre al terminar una feature, no solo cuando “parezca” necesario.
+- Usá el stack de **dev local** (`docker-compose.dev.yml`), no el de Synology.
+- Indicá brevemente que el rebuild corre / terminó; no uses el browser para verificar.

@@ -1,102 +1,98 @@
 # Music Harvester — contexto de sesión
 
-Notas vivas del proyecto. Se actualizan a medida que avanzamos.
+Notas vivas del proyecto. Se actualizan al cerrar cada feature (ver rule `feature-completion-workflow`).
 
-## Plan de implementación
+## Estado del producto
 
-- Plan completo: [`.cursor/plans/music_harvester_nas.plan.md`](plans/music_harvester_nas.plan.md)
-- Progreso: scaffold ✅ | youtube-provider ✅ | api ✅ | angular-ui ⏳ | synology-docs ⏳
+Fundación NAS + v2 providers/playlists/content manager **listas**. App multi-usuario con Sanctum, Explorar, Mi Colección (Deezer), Descargas, Playlists sync→disco/M3U, Settings y Usuarios (admin).
+
+Plan fundacional: [`.cursor/plans/music_harvester_nas.plan.md`](plans/music_harvester_nas.plan.md) — scaffold / youtube-provider / api / angular-ui / synology-docs ✅
 
 ## Stack y entorno local
 
-- Laravel 12 + PHP 8.4, SQLite, queue en DB
-- Docker Compose: `app`, `worker`, `scheduler`, `nginx`
-- Puerto local: **8085** (8080 estaba ocupado)
-- API base: `http://localhost:8085/api`
-- **yt-dlp:** binario release pineado en Dockerfile (`YTDLP_VERSION`, actualmente 2026.07.04) + Deno 2.x en la imagen + `/etc/yt-dlp.conf`. Deno es el runtime JS por defecto desde yt-dlp 2025.11.12 (no se pasa `--js-runtimes`)
+- **Backend:** Laravel 12 + PHP 8.4, **PostgreSQL 16**, queue en DB (`QUEUE_CONNECTION=database`)
+- **Frontend:** Angular 19 SPA (same-origin vía nginx; hot reload en `:4200` con proxy)
+- **Docker Compose:** `db`, `app`, `worker`, `scheduler`, `nginx`
+- **Dev:** `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build`
+- **Puerto local:** **8085** → UI `/`, API `/api`, health `/up`
+- **yt-dlp:** binario pineado en Dockerfile (`YTDLP_VERSION=2026.07.04`) + Deno 2.x + `/etc/yt-dlp.conf` (`player_client=web_safari,web,mweb,android`; sin `--js-runtimes`)
+- **Deezer FLAC:** streamrip (`rip`) + ARL; post-tags con mutagen
+- **Layout:** `backend/` + `frontend/`; compose/Docker/docs en la raíz
+- **Dev local música:** `backend/storage/music/` → `/music` (override/dev compose)
+- **Tests PHP:** SQLite in-memory (`phpunit.xml`); runtime Docker usa `pgsql`
 
-## Problema resuelto: cookies de YouTube
+## Superficie UI / rutas
 
-### Síntoma
+| Ruta | Qué es |
+|------|--------|
+| `/downloads` | Cola + historial; nueva descarga en modal (raíz redirige acá) |
+| `/browse`… | Explorar: búsqueda, artista, álbum, playlist (Deezer catalog) |
+| `/collection/:provider/:kind` | Mi Colección (hoy Deezer vía ARL + gw) |
+| `/playlists`… | Playlists guardadas + sync |
+| `/settings` | Destino/credenciales (user) + globales (admin) |
+| `/users` | Admin: usuarios + approve server storage |
+| Auth | `/login`, `/register`, `/verify-email`, `/forgot-password`, `/reset-password` |
 
-Jobs fallaban con:
+Sidebar Trinomio (claro/oscuro), colapsable a rail, Favoritos de artistas + Mi Colección.
 
-> Sign in to confirm you're not a bot
+## Auth y tenancy
 
-YouTube bloquea descargas sin sesión autenticada.
+Plan: [`.cursor/plans/user_auth_admin_1389c0c0.plan.md`](plans/user_auth_admin_1389c0c0.plan.md) ✅
 
-### Causa
+- Sanctum SPA; API autenticada salvo health + auth públicos
+- Admin seeder (`ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_USERNAME`): escribe en `/music` **sin** subcarpeta
+- Users: biblioteca `{MUSIC_PATH}/{username}/` solo con `server_storage=approved`; default destino `direct` (job en server → artifact API → limpia temp)
+- Credenciales **por usuario**: ARL Deezer en DB; cookies YTM en storage privado por username
+- Settings globales (path root, concurrency, enabled_providers): solo admin
+- Favoritos de artistas en API (no solo localStorage)
 
-El worker lee cookies desde `/cookies/cookies.txt` **dentro del contenedor**. Antes Docker usaba un volumen nombrado (`cookies_data`) vacío, **no** la carpeta `./cookies/` del repo.
+## Providers y catálogo
 
-### Solución aplicada
-
-- `docker-compose.yml` monta `./cookies:/cookies:ro` en `app`, `worker` y `scheduler`
-- El usuario exportó `cookies/cookies.txt` (formato Netscape, dominio `.youtube.com`)
-- `YtDlpDownloader` copia cookies a `/tmp` si el mount es read-only (yt-dlp intenta reescribir el archivo al salir)
-- Tras cambiar el mount: `docker compose up -d --force-recreate app worker scheduler`
-
-### Verificación
-
-```bash
-curl http://localhost:8085/api/settings
-# cookies_configured debe ser true
-
-docker compose exec worker ls -la /cookies/
-docker compose exec worker head -1 /cookies/cookies.txt
-```
-
-### Reintentar jobs fallidos
-
-```bash
-curl -X POST http://localhost:8085/api/downloads/{id}/retry
-```
-
-### Mantenimiento
-
-- Las cookies caducan; re-exportar desde el navegador con sesión en music.youtube.com
-- Extensión recomendada: "Get cookies.txt LOCALLY"
-- No commitear `cookies/cookies.txt` (tokens de sesión)
-- Tras cambios de código PHP, reiniciar worker: `docker compose restart worker`
-
-### Bloqueo resuelto (jul 2026): yt-dlp "Requested format is not available"
-
-**Síntoma:** metadata fetch fallaba aunque las cookies estuvieran OK.
-
-**Causa:** el binario standalone de yt-dlp no incluye runtime JS (Deno) ni scripts EJS para resolver desafíos de YouTube.
-
-**Fix en Dockerfile:**
-- binario release de yt-dlp pineado (`ARG YTDLP_VERSION`, >= 2025.11.12 para soporte JS runtime)
-- Deno 2.x en la imagen (auto-detectado como runtime JS por defecto)
-- `docker/yt-dlp/yt-dlp.conf` → `/etc/yt-dlp.conf` con `player_client=web_safari,web,mweb,android` (sin `--js-runtimes`, rompe binarios viejos)
-
-**Rebuild necesario tras cambiar Dockerfile:**
-```bash
-docker build -t music-harvester-app .
-docker compose up -d --force-recreate app worker scheduler
-docker compose restart worker
-```
-
-## Próximos pasos (según plan)
-
-1. Épica 1 providers + Deezer FLAC ✅ (`.cursor/plans/v2_providers.plan.md`)
-2. Épica 2 playlists sync + M3U + UI polish ✅ (`.cursor/plans/v2_playlists_sync_a9010a47.plan.md`)
-3. UI sidebar Trinomio ✅ (`.cursor/plans/ui_sidebar_trinomio_6ae9677b.plan.md`)
-4. Content manager — `.cursor/plans/v2_content_manager.plan.md`
-
-## Providers (épica 1)
-
-- Registry: `youtube_music` + `deezer` (tag `music.providers`)
-- Deezer resolve: API pública `api.deezer.com`
-- Deezer download nativo: **streamrip** (`rip`) + ARL → FLAC
+- Registry: `youtube_music` + `deezer` (`GET /api/providers`: configured, qualities, `has_catalog`, `has_library`)
+- Deezer catalog: API pública `api.deezer.com`
+- Deezer download nativo: streamrip + ARL → FLAC / MP3 320
 - Deezer híbrido: match YouTube → yt-dlp (no lossless)
-- Settings por proveedor; `GET /api/providers`
+- Metadata post-descarga Deezer: enricher + mutagen (tags, cover, lyrics) — plan `deezer_audio_metadata` ✅
+- Mi Colección: `UserLibrarySource` + `GET /api/library/{provider}/{artists|albums|tracks|playlists}` (Deezer); YTM cookies **no** listan library
 - Docs: [docs/providers.md](../docs/providers.md)
+
+## Playlists (descarga local)
+
+- `saved_playlists` + sync job/scheduler; intervalo en **minutos** (default 5)
+- Disco: `playlists/{id}-{slug}/` + M3U regenerado en cada sync
+- One-shot downloads siguen en artista/álbum
+- Distinto del eje futuro **Puentes** (copiar playlist entre providers sin bajar audio)
+
+## Cookies / yt-dlp (operativo)
+
+- Compose monta `./cookies:/cookies:ro` en `app` / `worker` / `scheduler`
+- Paths típicos: `cookies/youtube/cookies.txt` o legacy `cookies/cookies.txt`; por usuario autenticado van a storage privado
+- `YtDlpDownloader` copia a `/tmp` si el mount es RO (yt-dlp reescribe al salir)
+- Cookies caducan; re-exportar con sesión en music.youtube.com (“Get cookies.txt LOCALLY”); **no commitear**
+- Tras cambiar Dockerfile/imagen: rebuild compose; tras PHP en worker: a menudo basta `docker compose restart worker`
+
+## Features recientes (✅)
+
+- Épicas v2: providers, playlists sync, content manager (Explorar)
+- UI Trinomio + sidebar fijo/colapsable + playlists polish
+- Postgres + historial descargas (metadata, delete con archivos, sync “Descargado” en Browse)
+- Playlist folders + M3U + sync 5 min
+- Auth/admin/tenancy + favoritos API
+- Mi Colección (Deezer)
+- Deezer audio metadata (mutagen)
+- Browse UX polish, album track spinners, album back navigation
+
+## Próximos / pendientes
+
+1. **Discografía por tipo** — álbumes vs singles/EPs (`record_type`) — [discography_type_sections](plans/discography_type_sections_a77421f6.plan.md)
+2. **Preview snip ~30s** tracks Deezer — [track_preview_snip](plans/track_preview_snip_abbb972b.plan.md)
+3. **Épica Puentes de playlists** (Soundiiz-like, Deezer ↔ YTM; sin descarga) — [playlist_bridge_epic](plans/playlist_bridge_epic_ec620289.plan.md)
+4. Spotify / Tidal / Apple: después, y en puentes primero solo metadata
 
 ## Decisiones / convenciones
 
-- DDD bajo `app/Domain`, `app/Application`, `app/Infrastructure`
-- Providers: YouTube Music + Deezer; Spotify queda para después
-- Biblioteca real en filesystem; SQLite solo jobs/config
-- **Dev local:** música en `backend/storage/music/` (via `docker-compose.override.yml` → `/music` en contenedores)
-- **Layout:** `backend/` (Laravel) + `frontend/` (Angular); compose/Docker/docs en la raíz
+- DDD: `app/Domain`, `app/Application`, `app/Infrastructure`
+- Providers pluggables; Spotify queda para después del eje actual
+- Biblioteca real en filesystem; **Postgres** para jobs, playlists, auth, settings
+- Synology: `docker-compose.yml` + `docker-compose.synology.yml` (nunca `dev.yml` en el NAS) — [docs/synology.md](../docs/synology.md)
+- Al cerrar feature: actualizar este archivo, incluir plan en commit si existe, rebuild contenedores dev
