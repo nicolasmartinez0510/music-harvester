@@ -15,13 +15,13 @@ Guía para correr Music Harvester en un Synology con **Container Manager** (DSM 
 
 | Ubicación | Ruta en DSM | Ruta en contenedor | Uso |
 |-----------|-------------|-------------------|-----|
-| Biblioteca | `/volume1/music` | `/music` | Archivos descargados (Audio Station) |
+| Biblioteca | `/volumeN/music` (cualquier volumen DSM) | `/music` | Archivos descargados (Audio Station) |
 | Cookies YTM | `…/music-harvester/cookies/youtube/cookies.txt` | `/cookies/youtube/cookies.txt` | Sesión de YouTube Music |
 | ARL Deezer | Settings UI o `DEEZER_ARL` | — | Sesión Deezer Premium/HiFi (FLAC) |
 | Proyecto | `/volume1/docker/music-harvester` (recomendado) | — (código en imagen) | Compose, cookies, `.env` |
 | UI | `http://<ip-nas>:8085` | — | Angular + API vía nginx |
 
-En contenedores **no** uses `/volume1/...`; siempre montá la carpeta compartida del host sobre `/music` y `/cookies`.
+En contenedores **no** uses `/volumeN/...` en Settings ni en `MUSIC_PATH`; siempre montá la carpeta compartida del host sobre `/music` y `/cookies`. El volumen DSM (1, 2, 3…) solo importa en el lado host vía `MUSIC_HOST_PATH`.
 
 ---
 
@@ -33,7 +33,7 @@ Music Harvester escribe la biblioteca en el filesystem. PostgreSQL guarda jobs, 
 
 1. **Panel de control → Carpeta compartida → Crear**
 2. Nombre sugerido: `music`
-3. Ruta resultante: `/volume1/music` (o `/volume2/music` si usás otro volumen)
+3. Ruta resultante: `/volume1/music`, `/volume2/music`, etc. (cualquier volumen DSM)
 4. Permisos: el usuario que ejecuta Docker debe poder **leer y escribir** en esta carpeta
 
 ### Montaje en Docker
@@ -42,14 +42,24 @@ En Synology **no** montes el código fuente sobre `/var/www/html`: eso tapa el `
 
 ```yaml
 # docker-compose.synology.yml (incluido en el repo)
+# MUSIC_HOST_PATH viene del .env — ej. /volume2/music
 services:
   app:
     volumes: !override
-      - /volume1/music:/music
+      - ${MUSIC_HOST_PATH:-/volume1/music}:/music
       - ./cookies:/cookies:ro
       - app_storage:/var/www/html/storage
   # db (Postgres), worker, scheduler: ver docker-compose.yml + este override
 ```
+
+En el `.env` del NAS:
+
+```env
+MUSIC_PATH=/music
+MUSIC_HOST_PATH=/volume2/music
+```
+
+Podés cambiar `MUSIC_HOST_PATH` a cualquier `/volumeN/music` sin tocar Settings ni el código; dentro del contenedor sigue siendo `/music`.
 
 > **¿Por qué volúmenes nombrados y no bind mounts para storage/DB?** En Synology las carpetas del host pertenecen al usuario de DSM, no a `www-data` (uid 33) del contenedor, y el `chown` suele fallar sobre bind mounts. Eso produce errores de *permission denied* en el log. Con volúmenes nombrados, Docker los inicializa y el entrypoint puede darles permiso a `www-data`. Postgres guarda los datos en `pg_data`.
 

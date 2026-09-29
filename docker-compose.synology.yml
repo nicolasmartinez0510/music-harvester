@@ -8,19 +8,20 @@
 #
 # Do NOT use docker-compose.dev.yml on the NAS.
 #
-# Adjust the host side of the music bind to your share (volume1, volume2, …).
-# Inside the container the path MUST stay /music (see MUSIC_PATH / Settings).
+# Host library path is configurable via MUSIC_HOST_PATH in .env
+# (e.g. /volume1/music, /volume2/music, /volume3/music).
+# Inside the container the path MUST stay /music (MUSIC_PATH + Settings).
 
 services:
   app:
     volumes: !override
-      - /volume1/music:/music
+      - ${MUSIC_HOST_PATH:-/volume1/music}:/music
       - ./cookies:/cookies:ro
       - app_storage:/var/www/html/storage
 
   worker:
     volumes: !override
-      - /volume1/music:/music
+      - ${MUSIC_HOST_PATH:-/volume1/music}:/music
       - ./cookies:/cookies:ro
       - app_storage:/var/www/html/storage
 
