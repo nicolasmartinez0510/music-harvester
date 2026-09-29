@@ -134,14 +134,10 @@ final class DownloadedFilesCleanup
             }
         }
 
-        // Host-style prefix (e.g. /volume1/music/...) when roots are container /music.
-        foreach (['/volume1/music', '/volume1/Music'] as $hostRoot) {
-            if ($normalizedPath === $hostRoot) {
-                return '';
-            }
-            if (str_starts_with($normalizedPath, $hostRoot.'/')) {
-                return substr($normalizedPath, strlen($hostRoot) + 1);
-            }
+        // Host-style Synology bind source (/volume1/music, /volume2/music, …)
+        // when roots are the container mount /music.
+        if (preg_match('#^/volume\d+/music(?:/(.*))?$#i', $normalizedPath, $matches) === 1) {
+            return isset($matches[1]) ? (string) $matches[1] : '';
         }
 
         return null;

@@ -26,11 +26,11 @@ class DownloadedFilesCleanupTest extends TestCase
         file_put_contents($file, 'x');
         config(['music.path' => $musicPath]);
 
-        $cleanup = $this->cleanupWithStoredPath('/volume1/music');
+        $cleanup = $this->cleanupWithStoredPath('/volume2/music');
 
         $this->assertTrue($cleanup->filesPresent([
-            'destination_path' => '/volume1/music/artist/album/01 - song.mp3',
-            'downloaded_paths' => json_encode(['/volume1/music/artist/album/01 - song.mp3']),
+            'destination_path' => '/volume2/music/artist/album/01 - song.mp3',
+            'downloaded_paths' => json_encode(['/volume2/music/artist/album/01 - song.mp3']),
         ]));
 
         @unlink($file);
@@ -47,10 +47,10 @@ class DownloadedFilesCleanupTest extends TestCase
         file_put_contents($file, 'x');
         config(['music.path' => $musicPath]);
 
-        $cleanup = $this->cleanupWithStoredPath('/volume1/music');
+        $cleanup = $this->cleanupWithStoredPath('/volume2/music');
         $cleanup->deleteJobFiles([
-            'destination_path' => '/volume1/music/artist/album/01 - song.mp3',
-            'downloaded_paths' => json_encode(['/volume1/music/artist/album/01 - song.mp3']),
+            'destination_path' => '/volume2/music/artist/album/01 - song.mp3',
+            'downloaded_paths' => json_encode(['/volume2/music/artist/album/01 - song.mp3']),
         ]);
 
         $this->assertFileDoesNotExist($file);

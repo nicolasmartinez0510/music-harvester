@@ -120,8 +120,13 @@ final readonly class ProviderSettingsResolver
             return $stored;
         }
 
-        // Prefer the container/env mount when Settings still has a host path
-        // (e.g. Synology /volume1/music) that is not the same directory.
+        // Synology host paths (/volume1/music, /volume2/music, …) are never valid
+        // inside the container — the bind mount is always MUSIC_PATH (/music).
+        if (preg_match('#^/volume\d+/#', $stored) === 1) {
+            return $configPath;
+        }
+
+        // Prefer the container/env mount when Settings points at a missing path.
         $configReal = realpath($configPath);
         $storedReal = realpath($stored);
         if ($configReal !== false && ($storedReal === false || $storedReal !== $configReal)) {
