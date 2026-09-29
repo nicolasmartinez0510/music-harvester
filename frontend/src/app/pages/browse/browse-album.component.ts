@@ -1,5 +1,5 @@
 import { Component, OnInit, inject } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, ParamMap, Router, RouterLink } from '@angular/router';
 
 import { ApiService } from '../../core/api.service';
 import { CatalogAlbum } from '../../core/models';
@@ -22,11 +22,18 @@ export class BrowseAlbumComponent implements OnInit {
   loading = true;
   errorMessage: string | null = null;
   fromCollection = false;
+  fromArtist = false;
+  artistId = '';
+  artistBackQuery: Record<string, string> = {};
 
   ngOnInit(): void {
     this.provider = this.route.snapshot.paramMap.get('provider') ?? '';
     const id = this.route.snapshot.paramMap.get('id') ?? '';
-    this.fromCollection = this.route.snapshot.queryParamMap.get('from') === 'collection';
+    const query = this.route.snapshot.queryParamMap;
+    this.fromCollection = query.get('from') === 'collection';
+    this.artistId = query.get('artistId') ?? '';
+    this.fromArtist = query.get('from') === 'artist' && this.artistId !== '';
+    this.artistBackQuery = this.buildArtistBackQuery(query);
 
     if (!this.provider || !id) {
       void this.router.navigate(['/browse']);
@@ -43,5 +50,24 @@ export class BrowseAlbumComponent implements OnInit {
         this.errorMessage = error.error?.message ?? 'No se pudo cargar el álbum.';
       },
     });
+  }
+
+  get backLabel(): string {
+    return this.album?.artist_name || 'Artista';
+  }
+
+  private buildArtistBackQuery(query: ParamMap): Record<string, string> {
+    const back: Record<string, string> = {};
+    for (const key of ['tab', 'albumPage', 'trackPage', 'albumSort'] as const) {
+      const value = query.get(key);
+      if (value) {
+        back[key] = value;
+      }
+    }
+    const artistFrom = query.get('artistFrom');
+    if (artistFrom === 'favorites' || artistFrom === 'collection') {
+      back['from'] = artistFrom;
+    }
+    return back;
   }
 }

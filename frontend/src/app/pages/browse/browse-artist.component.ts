@@ -1,8 +1,8 @@
 import { DecimalPipe } from '@angular/common';
 import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { EMPTY, catchError, combineLatest, of, switchMap } from 'rxjs';
+import { ActivatedRoute, ParamMap, Router, RouterLink } from '@angular/router';
+import { EMPTY, catchError, of, switchMap } from 'rxjs';
 
 import { ApiService } from '../../core/api.service';
 import { ArtistFavoritesService } from '../../core/artist-favorites.service';
@@ -27,6 +27,7 @@ export class BrowseArtistComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private artistKey = '';
 
   readonly trackPageSize = 20;
   readonly albumPageSize = 15;
@@ -49,29 +50,33 @@ export class BrowseArtistComponent implements OnInit {
   collectionBackKind: 'artists' | 'albums' | 'tracks' | 'playlists' = 'artists';
 
   ngOnInit(): void {
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((query) => {
+      this.applyQuery(query);
+    });
+
     // Same route template for every artist; subscribe so favorites sidebar switches reload.
-    combineLatest([this.route.paramMap, this.route.queryParamMap])
+    // View state lives in the query string, so only a new artist refetches.
+    this.route.paramMap
       .pipe(
-        switchMap(([params, query]) => {
+        switchMap((params) => {
           this.provider = params.get('provider') ?? '';
           const id = params.get('id') ?? '';
-          const from = query.get('from');
-          this.showBackToBrowse = from !== 'favorites' && from !== 'collection';
-          this.showBackToCollection = from === 'collection';
-          this.collectionBackKind = 'artists';
 
           if (!this.provider || !id) {
             void this.router.navigate(['/browse']);
             return EMPTY;
           }
 
+          const key = `${this.provider}:${id}`;
+          if (key === this.artistKey && this.artist) {
+            return EMPTY;
+          }
+
+          this.artistKey = key;
           this.loading = true;
           this.errorMessage = null;
           this.artist = null;
-          this.activeTab = 'tracks';
-          this.trackPage = 1;
-          this.albumPage = 1;
-          this.albumSort = 'release_date';
+          this.applyQuery(this.route.snapshot.queryParamMap);
 
           return this.api.getCatalogArtist(this.provider, id).pipe(
             catchError((error: { error?: { message?: string } }) => {
@@ -118,7 +123,11 @@ export class BrowseArtistComponent implements OnInit {
   }
 
   setTab(tab: ArtistTab): void {
+    if (this.activeTab === tab) {
+      return;
+    }
     this.activeTab = tab;
+    this.syncViewState();
   }
 
   setAlbumSort(sort: AlbumSort): void {
@@ -127,14 +136,23 @@ export class BrowseArtistComponent implements OnInit {
     }
     this.albumSort = sort;
     this.albumPage = 1;
+    this.syncViewState();
   }
 
   onTrackPageChange(page: number): void {
+    if (this.trackPage === page) {
+      return;
+    }
     this.trackPage = page;
+    this.syncViewState();
   }
 
   onAlbumPageChange(page: number): void {
+    if (this.albumPage === page) {
+      return;
+    }
     this.albumPage = page;
+    this.syncViewState();
   }
 
   toggleFavorite(): void {
@@ -153,12 +171,64 @@ export class BrowseArtistComponent implements OnInit {
     return ['/browse', this.provider, 'albums', hit.id];
   }
 
+  get albumQueryParams(): Record<string, string | number> {
+    const params: Record<string, string | number> = {
+      from: 'artist',
+      artistId: this.artist?.id ?? '',
+      tab: this.activeTab,
+      albumPage: this.albumPage,
+      trackPage: this.trackPage,
+      albumSort: this.albumSort,
+    };
+    const origin = this.route.snapshot.queryParamMap.get('from');
+    if (origin === 'favorites' || origin === 'collection') {
+      params['artistFrom'] = origin;
+    }
+    return params;
+  }
+
   albumYear(hit: CatalogHit): string | null {
     const date = hit.release_date;
     if (!date || date.length < 4) {
       return null;
     }
     return date.slice(0, 4);
+  }
+
+  private applyQuery(query: ParamMap): void {
+    const from = query.get('from');
+    this.showBackToBrowse = from !== 'favorites' && from !== 'collection';
+    this.showBackToCollection = from === 'collection';
+    this.collectionBackKind = 'artists';
+
+    const tab = query.get('tab');
+    this.activeTab = tab === 'albums' || tab === 'tracks' ? tab : 'tracks';
+
+    const sort = query.get('albumSort');
+    this.albumSort =
+      sort === 'title' || sort === 'release_date' || sort === 'popularity' ? sort : 'release_date';
+
+    this.trackPage = this.parsePage(query.get('trackPage'));
+    this.albumPage = this.parsePage(query.get('albumPage'));
+  }
+
+  private parsePage(value: string | null): number {
+    const page = Number(value);
+    return Number.isInteger(page) && page >= 1 ? page : 1;
+  }
+
+  private syncViewState(): void {
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        tab: this.activeTab,
+        trackPage: this.trackPage,
+        albumPage: this.albumPage,
+        albumSort: this.albumSort,
+      },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   private compareAlbums(a: CatalogHit, b: CatalogHit): number {

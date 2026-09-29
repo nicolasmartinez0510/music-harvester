@@ -129,14 +129,14 @@
           <div class="album-grid">
             @for (hit of pagedAlbums; track hit.id) {
               <article class="album-card">
-                <a [routerLink]="albumLink(hit)" class="album-cover-link">
+                <a [routerLink]="albumLink(hit)" [queryParams]="albumQueryParams" class="album-cover-link">
                   @if (hit.cover_url) {
                     <img [src]="hit.cover_url" [alt]="hit.title" class="album-cover" />
                   } @else {
                     <div class="album-cover placeholder" aria-hidden="true"></div>
                   }
                 </a>
-                <a [routerLink]="albumLink(hit)" class="album-title">{{ hit.title }}</a>
+                <a [routerLink]="albumLink(hit)" [queryParams]="albumQueryParams" class="album-title">{{ hit.title }}</a>
                 <small class="muted">
                   @if (albumYear(hit); as year) {
                     {{ year }}
