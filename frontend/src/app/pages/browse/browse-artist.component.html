@@ -126,40 +126,56 @@
         @if (artist.albums.length === 0) {
           <p class="muted">Sin álbumes.</p>
         } @else {
-          <div class="album-grid">
-            @for (hit of pagedAlbums; track hit.id) {
-              <article class="album-card">
-                <a [routerLink]="albumLink(hit)" [queryParams]="albumQueryParams" class="album-cover-link">
-                  @if (hit.cover_url) {
-                    <img [src]="hit.cover_url" [alt]="hit.title" class="album-cover" />
-                  } @else {
-                    <div class="album-cover placeholder" aria-hidden="true"></div>
-                  }
-                </a>
-                <a [routerLink]="albumLink(hit)" [queryParams]="albumQueryParams" class="album-title">{{ hit.title }}</a>
-                <small class="muted">
-                  @if (albumYear(hit); as year) {
-                    {{ year }}
-                    @if (hit.nb_tracks != null) {
-                      ·
-                    }
-                  }
-                  @if (hit.nb_tracks != null) {
-                    {{ hit.nb_tracks }} tracks
-                  }
-                </small>
-                <app-catalog-download-btn [url]="hit.canonical_url" />
-              </article>
+          <div class="type-chips release-chips" role="tablist" aria-label="Tipo de lanzamiento">
+            @for (option of releaseTabs; track option.id) {
+              <button
+                type="button"
+                class="chip"
+                role="tab"
+                [class.active]="releaseTab === option.id"
+                (click)="setReleaseTab(option.id)"
+              >
+                {{ option.label }}
+              </button>
             }
           </div>
-
-          <app-pagination
-            [total]="sortedAlbums.length"
-            [page]="albumPage"
-            [pageSize]="albumPageSize"
-            [showPageSize]="false"
-            (pageChange)="onAlbumPageChange($event)"
-          />
+          @if (activeReleaseList.length === 0) {
+            <p class="muted">{{ releaseEmptyMessage }}</p>
+          } @else {
+            <div class="album-grid">
+              @for (hit of pagedRelease; track hit.id) {
+                <article class="album-card">
+                  <a [routerLink]="albumLink(hit)" [queryParams]="albumQueryParams" class="album-cover-link">
+                    @if (hit.cover_url) {
+                      <img [src]="hit.cover_url" [alt]="hit.title" class="album-cover" />
+                    } @else {
+                      <div class="album-cover placeholder" aria-hidden="true"></div>
+                    }
+                  </a>
+                  <a [routerLink]="albumLink(hit)" [queryParams]="albumQueryParams" class="album-title">{{ hit.title }}</a>
+                  <small class="muted">
+                    @if (albumYear(hit); as year) {
+                      {{ year }}
+                      @if (hit.nb_tracks != null) {
+                        ·
+                      }
+                    }
+                    @if (hit.nb_tracks != null) {
+                      {{ hit.nb_tracks }} tracks
+                    }
+                  </small>
+                  <app-catalog-download-btn [url]="hit.canonical_url" />
+                </article>
+              }
+            </div>
+            <app-pagination
+              [total]="activeReleaseList.length"
+              [page]="releasePage"
+              [pageSize]="albumPageSize"
+              [showPageSize]="false"
+              (pageChange)="onReleasePageChange($event)"
+            />
+          }
         }
       </section>
     }

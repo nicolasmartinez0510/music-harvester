@@ -58,7 +58,7 @@ export class BrowseAlbumComponent implements OnInit {
 
   private buildArtistBackQuery(query: ParamMap): Record<string, string> {
     const back: Record<string, string> = {};
-    for (const key of ['tab', 'albumPage', 'trackPage', 'albumSort'] as const) {
+    for (const key of ['tab', 'release', 'albumPage', 'singlePage', 'trackPage', 'albumSort'] as const) {
       const value = query.get(key);
       if (value) {
         back[key] = value;

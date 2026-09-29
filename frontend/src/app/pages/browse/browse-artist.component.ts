@@ -14,6 +14,7 @@ import { PaginationComponent } from '../../shared/pagination.component';
 
 type ArtistTab = 'tracks' | 'albums';
 type AlbumSort = 'title' | 'release_date' | 'popularity';
+type ReleaseTab = 'albums' | 'singles';
 
 @Component({
   selector: 'app-browse-artist',
@@ -30,7 +31,11 @@ export class BrowseArtistComponent implements OnInit {
   private artistKey = '';
 
   readonly trackPageSize = 20;
-  readonly albumPageSize = 15;
+  readonly albumPageSize = 12;
+  readonly releaseTabs: { id: ReleaseTab; label: string }[] = [
+    { id: 'albums', label: 'Álbumes discográficos' },
+    { id: 'singles', label: 'Sencillos y EPs' },
+  ];
   readonly albumSortOptions: { id: AlbumSort; label: string }[] = [
     { id: 'title', label: 'Alfabético' },
     { id: 'release_date', label: 'Fecha' },
@@ -42,8 +47,10 @@ export class BrowseArtistComponent implements OnInit {
   loading = true;
   errorMessage: string | null = null;
   activeTab: ArtistTab = 'tracks';
+  releaseTab: ReleaseTab = 'albums';
   trackPage = 1;
   albumPage = 1;
+  singlePage = 1;
   albumSort: AlbumSort = 'release_date';
   showBackToBrowse = true;
   showBackToCollection = false;
@@ -116,10 +123,31 @@ export class BrowseArtistComponent implements OnInit {
     return albums;
   }
 
-  get pagedAlbums(): CatalogHit[] {
-    const albums = this.sortedAlbums;
-    const start = (this.albumPage - 1) * this.albumPageSize;
-    return albums.slice(start, start + this.albumPageSize);
+  get discographyAlbums(): CatalogHit[] {
+    return this.sortedAlbums.filter((hit) => !this.isSingleOrEp(hit));
+  }
+
+  get singlesAndEps(): CatalogHit[] {
+    return this.sortedAlbums.filter((hit) => this.isSingleOrEp(hit));
+  }
+
+  get activeReleaseList(): CatalogHit[] {
+    return this.releaseTab === 'singles' ? this.singlesAndEps : this.discographyAlbums;
+  }
+
+  get releasePage(): number {
+    const page = this.releaseTab === 'singles' ? this.singlePage : this.albumPage;
+    const pages = Math.max(1, Math.ceil(this.activeReleaseList.length / this.albumPageSize));
+    return Math.min(page, pages);
+  }
+
+  get pagedRelease(): CatalogHit[] {
+    const start = (this.releasePage - 1) * this.albumPageSize;
+    return this.activeReleaseList.slice(start, start + this.albumPageSize);
+  }
+
+  get releaseEmptyMessage(): string {
+    return this.releaseTab === 'singles' ? 'Sin sencillos ni EPs.' : 'Sin álbumes discográficos.';
   }
 
   setTab(tab: ArtistTab): void {
@@ -130,12 +158,21 @@ export class BrowseArtistComponent implements OnInit {
     this.syncViewState();
   }
 
+  setReleaseTab(tab: ReleaseTab): void {
+    if (this.releaseTab === tab) {
+      return;
+    }
+    this.releaseTab = tab;
+    this.syncViewState();
+  }
+
   setAlbumSort(sort: AlbumSort): void {
     if (this.albumSort === sort) {
       return;
     }
     this.albumSort = sort;
     this.albumPage = 1;
+    this.singlePage = 1;
     this.syncViewState();
   }
 
@@ -147,11 +184,15 @@ export class BrowseArtistComponent implements OnInit {
     this.syncViewState();
   }
 
-  onAlbumPageChange(page: number): void {
-    if (this.albumPage === page) {
+  onReleasePageChange(page: number): void {
+    if (this.releasePage === page) {
       return;
     }
-    this.albumPage = page;
+    if (this.releaseTab === 'singles') {
+      this.singlePage = page;
+    } else {
+      this.albumPage = page;
+    }
     this.syncViewState();
   }
 
@@ -176,8 +217,10 @@ export class BrowseArtistComponent implements OnInit {
       from: 'artist',
       artistId: this.artist?.id ?? '',
       tab: this.activeTab,
-      albumPage: this.albumPage,
+      release: this.releaseTab,
       trackPage: this.trackPage,
+      albumPage: this.albumPage,
+      singlePage: this.singlePage,
       albumSort: this.albumSort,
     };
     const origin = this.route.snapshot.queryParamMap.get('from');
@@ -185,6 +228,11 @@ export class BrowseArtistComponent implements OnInit {
       params['artistFrom'] = origin;
     }
     return params;
+  }
+
+  private isSingleOrEp(hit: CatalogHit): boolean {
+    const type = hit.record_type?.toLowerCase();
+    return type === 'single' || type === 'ep';
   }
 
   albumYear(hit: CatalogHit): string | null {
@@ -204,12 +252,16 @@ export class BrowseArtistComponent implements OnInit {
     const tab = query.get('tab');
     this.activeTab = tab === 'albums' || tab === 'tracks' ? tab : 'tracks';
 
+    const release = query.get('release');
+    this.releaseTab = release === 'singles' || release === 'albums' ? release : 'albums';
+
     const sort = query.get('albumSort');
     this.albumSort =
       sort === 'title' || sort === 'release_date' || sort === 'popularity' ? sort : 'release_date';
 
     this.trackPage = this.parsePage(query.get('trackPage'));
     this.albumPage = this.parsePage(query.get('albumPage'));
+    this.singlePage = this.parsePage(query.get('singlePage'));
   }
 
   private parsePage(value: string | null): number {
@@ -222,8 +274,10 @@ export class BrowseArtistComponent implements OnInit {
       relativeTo: this.route,
       queryParams: {
         tab: this.activeTab,
+        release: this.releaseTab,
         trackPage: this.trackPage,
         albumPage: this.albumPage,
+        singlePage: this.singlePage,
         albumSort: this.albumSort,
       },
       queryParamsHandling: 'merge',

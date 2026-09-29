@@ -154,6 +154,10 @@
   gap: 0.35rem;
 }
 
+.release-chips {
+  margin-bottom: 0.9rem;
+}
+
 .album-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
@@ -161,9 +165,15 @@
 }
 
 .album-card {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.4rem;
-  align-content: start;
+  height: 100%;
+}
+
+.album-card app-catalog-download-btn {
+  align-self: flex-start;
+  margin-top: auto;
 }
 
 .album-cover-link {

@@ -16,5 +16,6 @@ final readonly class CatalogHit
         public ?int $nbTracks = null,
         public ?string $releaseDate = null,
         public ?int $fans = null,
+        public ?string $recordType = null,
     ) {}
 }

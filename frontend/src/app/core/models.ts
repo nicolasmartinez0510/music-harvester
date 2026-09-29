@@ -108,6 +108,7 @@ export interface CatalogHit {
   nb_tracks: number | null;
   release_date?: string | null;
   fans?: number | null;
+  record_type?: string | null;
 }
 
 export interface CatalogArtist {

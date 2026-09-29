@@ -76,6 +76,13 @@ class CatalogApiTest extends TestCase
                         'cover_medium' => 'https://example.com/album.jpg',
                         'release_date' => '2001-03-12',
                         'fans' => 900000,
+                        'record_type' => 'album',
+                    ],
+                    [
+                        'id' => 999001,
+                        'title' => 'One More Time',
+                        'type' => 'album',
+                        'record_type' => 'single',
                     ],
                 ],
             ]),
@@ -87,7 +94,10 @@ class CatalogApiTest extends TestCase
             ->assertJsonPath('data.top_tracks.0.id', '3135556')
             ->assertJsonPath('data.albums.0.id', '302127')
             ->assertJsonPath('data.albums.0.release_date', '2001-03-12')
-            ->assertJsonPath('data.albums.0.fans', 900000);
+            ->assertJsonPath('data.albums.0.fans', 900000)
+            ->assertJsonPath('data.albums.0.record_type', 'album')
+            ->assertJsonPath('data.albums.1.record_type', 'single')
+            ->assertJsonPath('data.top_tracks.0.record_type', null);
     }
 
     public function test_get_artist_includes_wikipedia_description(): void

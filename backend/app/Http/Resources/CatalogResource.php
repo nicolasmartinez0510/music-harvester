@@ -26,6 +26,7 @@ final class CatalogResource
             'nb_tracks' => $hit->nbTracks,
             'release_date' => $hit->releaseDate,
             'fans' => $hit->fans,
+            'record_type' => $hit->recordType,
         ];
     }
 

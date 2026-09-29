@@ -432,6 +432,9 @@ final class DeezerProvider implements MusicProvider, CatalogSource, UserLibraryS
                 ? $row['release_date']
                 : null,
             fans: isset($row['fans']) ? (int) $row['fans'] : (isset($row['rank']) ? (int) $row['rank'] : null),
+            recordType: isset($row['record_type']) && is_string($row['record_type']) && $row['record_type'] !== ''
+                ? $row['record_type']
+                : null,
         );
     }
 
