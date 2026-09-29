@@ -87,6 +87,21 @@
               <option value="hybrid">Híbrido (match YouTube → yt-dlp)</option>
             </select>
           </label>
+          <label class="check-field">
+            <input type="checkbox" formControlName="metadata_enrich_enabled" />
+            <span>Escribir metadata Deezer en el archivo</span>
+          </label>
+          <label class="check-field">
+            <input type="checkbox" formControlName="metadata_embed_cover" />
+            <span>Embeber carátula del álbum</span>
+          </label>
+          <label class="check-field">
+            <input type="checkbox" formControlName="metadata_embed_lyrics" />
+            <span>Embeber letras (si la cuenta ARL las tiene)</span>
+          </label>
+          <small class="field-hint">
+            Después de cada descarga Deezer (nativa o híbrida) se reescriben título, artista, álbum, pista, género, compositores, carátula y letras.
+          </small>
         }
       }
 

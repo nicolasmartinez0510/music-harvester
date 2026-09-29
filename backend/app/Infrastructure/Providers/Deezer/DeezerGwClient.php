@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Providers\Deezer;
 
+use App\Domain\Music\ValueObjects\LyricsPayload;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
+use Throwable;
 
 /**
  * Authenticated Deezer client using ARL cookie (access_token and/or gw-light).
@@ -17,6 +19,10 @@ final class DeezerGwClient
     private ?array $sessionCache = null;
 
     private ?string $cachedArl = null;
+
+    private ?string $tokenArl = null;
+
+    private ?string $cachedApiToken = null;
 
     public function __construct(
         private DeezerApiClient $api,
@@ -117,7 +123,7 @@ final class DeezerGwClient
 
                     return $this->sessionCache;
                 }
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 // Fall through to gw-light.
             }
         }
@@ -149,7 +155,7 @@ final class DeezerGwClient
             $token = $response->json('access_token');
 
             return is_string($token) && $token !== '' ? $token : null;
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null;
         }
     }
@@ -189,5 +195,112 @@ final class DeezerGwClient
         }
 
         return $userId;
+    }
+
+    public function trackLyrics(string $arl, string $trackId): ?LyricsPayload
+    {
+        if ($arl === '' || $trackId === '') {
+            return null;
+        }
+
+        try {
+            $token = $this->gwApiToken($arl);
+            $songId = ctype_digit($trackId) ? (int) $trackId : $trackId;
+            $response = Http::timeout(20)
+                ->withCookies(['arl' => $arl], 'deezer.com')
+                ->acceptJson()
+                ->withBody(json_encode(['sng_id' => $songId], JSON_THROW_ON_ERROR), 'application/json')
+                ->post('https://www.deezer.com/ajax/gw-light.php?'.http_build_query([
+                    'method' => 'song.getLyrics',
+                    'input' => '3',
+                    'api_version' => '1.0',
+                    'api_token' => $token,
+                ]));
+
+            if (! $response->successful()) {
+                return null;
+            }
+
+            /** @var array<string, mixed> $json */
+            $json = $response->json() ?? [];
+            $results = $json['results'] ?? null;
+            if (! is_array($results)) {
+                return null;
+            }
+
+            $plain = isset($results['LYRICS_TEXT']) && is_string($results['LYRICS_TEXT'])
+                ? trim($results['LYRICS_TEXT'])
+                : '';
+            $synced = $this->syncToLrc($results['LYRICS_SYNC_JSON'] ?? null);
+            if ($plain === '' && $synced === null) {
+                return null;
+            }
+
+            return new LyricsPayload($plain !== '' ? $plain : null, $synced);
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    private function gwApiToken(string $arl): string
+    {
+        if ($this->tokenArl === $arl && $this->cachedApiToken !== null) {
+            return $this->cachedApiToken;
+        }
+
+        $response = Http::timeout(20)
+            ->withCookies(['arl' => $arl], 'deezer.com')
+            ->acceptJson()
+            ->get('https://www.deezer.com/ajax/gw-light.php', [
+                'method' => 'deezer.getUserData',
+                'input' => '3',
+                'api_version' => '1.0',
+                'api_token' => '',
+            ]);
+
+        $token = '';
+        if ($response->successful()) {
+            /** @var array<string, mixed> $json */
+            $json = $response->json() ?? [];
+            $results = $json['results'] ?? null;
+            if (is_array($results) && isset($results['checkForm']) && is_string($results['checkForm'])) {
+                $token = $results['checkForm'];
+            }
+        }
+
+        $this->tokenArl = $arl;
+        $this->cachedApiToken = $token;
+
+        return $token;
+    }
+
+    private function syncToLrc(mixed $sync): ?string
+    {
+        if (is_string($sync) && $sync !== '') {
+            $decoded = json_decode($sync, true);
+            $sync = is_array($decoded) ? $decoded : null;
+        }
+
+        if (! is_array($sync) || $sync === []) {
+            return null;
+        }
+
+        $lines = [];
+        foreach ($sync as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $text = trim((string) ($row['line'] ?? ''));
+            if ($text === '') {
+                continue;
+            }
+            $ms = (int) ($row['milliseconds'] ?? 0);
+            $minutes = intdiv($ms, 60000);
+            $seconds = intdiv($ms % 60000, 1000);
+            $hundredths = intdiv($ms % 1000, 10);
+            $lines[] = sprintf('[%02d:%02d.%02d]%s', $minutes, $seconds, $hundredths, $text);
+        }
+
+        return $lines === [] ? null : implode("\n", $lines);
     }
 }

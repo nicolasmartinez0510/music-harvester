@@ -82,6 +82,9 @@ export interface Settings {
   effective_download_destination: 'direct' | 'server';
   library_root: string;
   email_verification_enabled: boolean;
+  metadata_enrich_enabled: boolean;
+  metadata_embed_cover: boolean;
+  metadata_embed_lyrics: boolean;
 }
 
 export interface ProviderInfo {

@@ -16,27 +16,34 @@ use App\Application\DownloadPlaylist\DownloadPlaylistHandler;
 use App\Application\DownloadTrack\DownloadTrackHandler;
 use App\Application\GetSavedPlaylist\GetSavedPlaylistHandler;
 use App\Application\GetSettings\GetSettingsHandler;
+use App\Application\Library\GetUserLibraryHandler;
 use App\Application\ListDownloads\ListDownloadsHandler;
 use App\Application\ListProviders\ListProvidersHandler;
 use App\Application\ListSavedPlaylists\ListSavedPlaylistsHandler;
+use App\Application\Metadata\ApplyTrackMetadataHandler;
 use App\Application\RetryDownload\RetryDownloadHandler;
 use App\Application\SavePlaylist\SavePlaylistHandler;
 use App\Application\Settings\ProviderSettingsResolver;
 use App\Application\SyncSavedPlaylist\SyncSavedPlaylistHandler;
 use App\Application\UpdateSavedPlaylist\UpdateSavedPlaylistHandler;
 use App\Application\UpdateSettings\UpdateSettingsHandler;
-use App\Domain\Music\Contracts\DownloadJobRepository;
 use App\Domain\Music\Contracts\ArtistBiographyLookup;
+use App\Domain\Music\Contracts\AudioTagWriter;
+use App\Domain\Music\Contracts\DownloadJobRepository;
 use App\Domain\Music\Contracts\MusicDownloader;
 use App\Domain\Music\Contracts\MusicProvider;
 use App\Domain\Music\Contracts\SavedPlaylistRepository;
 use App\Domain\Music\Contracts\SettingsRepository;
+use App\Domain\Music\Contracts\TrackMetadataApplicator;
+use App\Domain\Music\Contracts\TrackMetadataEnricher;
 use App\Infrastructure\Biography\WikipediaArtistBiographyLookup;
 use App\Infrastructure\Downloader\YtDlpDownloader;
+use App\Infrastructure\Metadata\Deezer\DeezerAudioMetadataEnricher;
+use App\Infrastructure\Metadata\Deezer\DeezerMetadataMapper;
+use App\Infrastructure\Metadata\MutagenAudioTagWriter;
 use App\Infrastructure\Persistence\EloquentDownloadRepository;
 use App\Infrastructure\Persistence\EloquentSavedPlaylistRepository;
 use App\Infrastructure\Persistence\EloquentSettingsRepository;
-use App\Application\Library\GetUserLibraryHandler;
 use App\Infrastructure\Providers\CatalogSourceRegistry;
 use App\Infrastructure\Providers\Deezer\DeezerApiClient;
 use App\Infrastructure\Providers\Deezer\DeezerGwClient;
@@ -71,6 +78,17 @@ class MusicHarvesterServiceProvider extends ServiceProvider
         $this->app->singleton(YoutubeMusicMatcher::class);
         $this->app->singleton(DeezerApiClient::class);
         $this->app->singleton(DeezerGwClient::class);
+        $this->app->singleton(DeezerMetadataMapper::class);
+        $this->app->singleton(DeezerAudioMetadataEnricher::class);
+        $this->app->singleton(TrackMetadataEnricher::class, function ($app) {
+            return $app->make(DeezerAudioMetadataEnricher::class);
+        });
+        $this->app->singleton(MutagenAudioTagWriter::class);
+        $this->app->singleton(AudioTagWriter::class, MutagenAudioTagWriter::class);
+        $this->app->singleton(ApplyTrackMetadataHandler::class);
+        $this->app->singleton(TrackMetadataApplicator::class, function ($app) {
+            return $app->make(ApplyTrackMetadataHandler::class);
+        });
 
         $this->app->singleton(StreamripDeezerDownloader::class, function () {
             return new StreamripDeezerDownloader(

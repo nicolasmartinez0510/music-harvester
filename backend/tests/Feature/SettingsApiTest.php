@@ -24,6 +24,9 @@ class SettingsApiTest extends TestCase
             ->assertJsonPath('data.default_format', config('music.default_format'))
             ->assertJsonPath('data.max_concurrency', config('music.max_concurrency'))
             ->assertJsonPath('data.provider_deezer_mode', 'native')
+            ->assertJsonPath('data.metadata_enrich_enabled', true)
+            ->assertJsonPath('data.metadata_embed_cover', true)
+            ->assertJsonPath('data.metadata_embed_lyrics', true)
             ->assertJsonStructure([
                 'data' => [
                     'enabled_providers',
@@ -126,6 +129,30 @@ class SettingsApiTest extends TestCase
         $this->assertDatabaseHas('settings', [
             'key' => 'provider_deezer_arl',
             'value' => str_repeat('a', 64),
+        ]);
+    }
+
+    public function test_update_settings_persists_metadata_flags(): void
+    {
+        $response = $this->putJson('/api/settings', [
+            'metadata_enrich_enabled' => false,
+            'metadata_embed_cover' => true,
+            'metadata_embed_lyrics' => false,
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.metadata_enrich_enabled', false)
+            ->assertJsonPath('data.metadata_embed_cover', true)
+            ->assertJsonPath('data.metadata_embed_lyrics', false);
+
+        $this->assertDatabaseHas('settings', [
+            'key' => 'metadata_enrich_enabled',
+            'value' => '0',
+        ]);
+        $this->assertDatabaseHas('settings', [
+            'key' => 'metadata_embed_lyrics',
+            'value' => '0',
         ]);
     }
 }

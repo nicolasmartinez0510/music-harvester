@@ -7,10 +7,12 @@ namespace App\Jobs;
 use App\Application\Auth\LibraryPathResolver;
 use App\Application\Settings\ProviderSettingsResolver;
 use App\Domain\Music\Contracts\DownloadJobRepository;
+use App\Domain\Music\Contracts\TrackMetadataApplicator;
 use App\Domain\Music\Models\Track;
 use App\Domain\Music\ValueObjects\AudioFormat;
 use App\Domain\Music\ValueObjects\DownloadOptions;
 use App\Domain\Music\ValueObjects\DownloadStatus;
+use App\Domain\Music\ValueObjects\MetadataEnrichContext;
 use App\Domain\Music\ValueObjects\ResolvedKind;
 use App\Domain\Music\ValueObjects\ResolvedMusic;
 use App\Infrastructure\Providers\MusicProviderRegistry;
@@ -18,6 +20,7 @@ use App\Infrastructure\Providers\YoutubeMusic\YoutubeMusicProvider;
 use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
 
@@ -39,6 +42,7 @@ class ProcessDownloadJob implements ShouldQueue
         DownloadJobRepository $jobs,
         MusicProviderRegistry $providers,
         ProviderSettingsResolver $settings,
+        TrackMetadataApplicator $metadata,
     ): void {
         $job = $jobs->find($this->downloadJobId);
 
@@ -107,6 +111,25 @@ class ProcessDownloadJob implements ShouldQueue
 
                 $completed++;
                 $lastPath = $result->destinationPath;
+                if ($provider->name() === 'deezer' && $item->item instanceof Track && is_string($lastPath) && $lastPath !== '') {
+                    try {
+                        $metadata->handle(
+                            $lastPath,
+                            $item->item,
+                            'deezer',
+                            new MetadataEnrichContext(
+                                arl: $options->deezerArl,
+                                kind: $resolved->kind,
+                                trackTotal: $resolved->kind === ResolvedKind::Playlist ? $total : null,
+                            ),
+                        );
+                    } catch (Throwable $exception) {
+                        Log::warning('audio metadata enrich failed', [
+                            'path' => $lastPath,
+                            'error' => $exception->getMessage(),
+                        ]);
+                    }
+                }
                 $progress = (int) round(($completed / $total) * 100);
                 $jobs->updateProgress($this->downloadJobId, $progress, $lastPath);
                 if (is_string($lastPath) && $lastPath !== '') {

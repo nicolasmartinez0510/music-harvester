@@ -48,7 +48,12 @@ final readonly class UpdateSettingsHandler
                 $value = (string) max(1, (int) $value);
             }
 
-            if ($key === 'email_verification_enabled') {
+            if (in_array($key, [
+                'email_verification_enabled',
+                'metadata_enrich_enabled',
+                'metadata_embed_cover',
+                'metadata_embed_lyrics',
+            ], true)) {
                 $this->settings->set($key, filter_var($value, FILTER_VALIDATE_BOOLEAN) ? '1' : '0');
 
                 continue;

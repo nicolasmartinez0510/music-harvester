@@ -7,9 +7,11 @@ namespace App\Jobs;
 use App\Application\Auth\LibraryPathResolver;
 use App\Application\Settings\ProviderSettingsResolver;
 use App\Domain\Music\Contracts\SavedPlaylistRepository;
+use App\Domain\Music\Contracts\TrackMetadataApplicator;
 use App\Domain\Music\Models\Track;
 use App\Domain\Music\ValueObjects\AudioFormat;
 use App\Domain\Music\ValueObjects\DownloadOptions;
+use App\Domain\Music\ValueObjects\MetadataEnrichContext;
 use App\Domain\Music\ValueObjects\PlaylistSyncStatus;
 use App\Domain\Music\ValueObjects\PlaylistTrackStatus;
 use App\Domain\Music\ValueObjects\ResolvedItem;
@@ -21,6 +23,7 @@ use App\Infrastructure\Storage\PlaylistM3uWriter;
 use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
 
@@ -44,6 +47,7 @@ class ProcessPlaylistSyncJob implements ShouldQueue
         ProviderSettingsResolver $settings,
         LocalMusicStorage $storage,
         PlaylistM3uWriter $m3uWriter,
+        TrackMetadataApplicator $metadata,
     ): void {
         $playlist = $playlists->find($this->savedPlaylistId);
 
@@ -167,6 +171,31 @@ class ProcessPlaylistSyncJob implements ShouldQueue
                     );
 
                     continue;
+                }
+
+                if (
+                    $provider->name() === 'deezer'
+                    && $downloadItem->item instanceof Track
+                    && is_string($result->destinationPath)
+                    && $result->destinationPath !== ''
+                ) {
+                    try {
+                        $metadata->handle(
+                            $result->destinationPath,
+                            $downloadItem->item,
+                            'deezer',
+                            new MetadataEnrichContext(
+                                arl: $options->deezerArl,
+                                kind: $resolved->kind,
+                                trackTotal: count($resolved->items),
+                            ),
+                        );
+                    } catch (Throwable $exception) {
+                        Log::warning('audio metadata enrich failed', [
+                            'path' => $result->destinationPath,
+                            'error' => $exception->getMessage(),
+                        ]);
+                    }
                 }
 
                 $playlists->updateTrackStatus(

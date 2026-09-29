@@ -36,6 +36,9 @@ final class SettingsResource extends JsonResource
             'effective_download_destination' => (string) ($settings['effective_download_destination'] ?? 'direct'),
             'library_root' => (string) ($settings['library_root'] ?? $settings['music_path']),
             'email_verification_enabled' => (bool) ($settings['email_verification_enabled'] ?? true),
+            'metadata_enrich_enabled' => (bool) ($settings['metadata_enrich_enabled'] ?? true),
+            'metadata_embed_cover' => (bool) ($settings['metadata_embed_cover'] ?? true),
+            'metadata_embed_lyrics' => (bool) ($settings['metadata_embed_lyrics'] ?? true),
         ];
     }
 }

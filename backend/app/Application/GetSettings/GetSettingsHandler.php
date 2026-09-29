@@ -48,6 +48,9 @@ final readonly class GetSettingsHandler
             'cookies_path' => $youtubeCookies,
             'cookies_configured' => $youtubeConfigured,
             'email_verification_enabled' => $this->emailVerificationEnabled($stored['email_verification_enabled'] ?? null),
+            'metadata_enrich_enabled' => $this->boolSetting($stored['metadata_enrich_enabled'] ?? null, (bool) config('music.metadata_enrich_enabled', true)),
+            'metadata_embed_cover' => $this->boolSetting($stored['metadata_embed_cover'] ?? null, (bool) config('music.metadata_embed_cover', true)),
+            'metadata_embed_lyrics' => $this->boolSetting($stored['metadata_embed_lyrics'] ?? null, (bool) config('music.metadata_embed_lyrics', true)),
         ];
     }
 
@@ -58,5 +61,14 @@ final readonly class GetSettingsHandler
         }
 
         return ! in_array(strtolower((string) $value), ['0', 'false', 'off'], true);
+    }
+
+    private function boolSetting(mixed $value, bool $default): bool
+    {
+        if ($value === null || $value === '') {
+            return $default;
+        }
+
+        return ! in_array(strtolower((string) $value), ['0', 'false', 'off', 'no'], true);
     }
 }

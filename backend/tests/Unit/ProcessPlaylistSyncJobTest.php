@@ -8,6 +8,7 @@ use App\Application\Settings\ProviderSettingsResolver;
 use App\Domain\Music\Contracts\MusicProvider;
 use App\Domain\Music\Contracts\SavedPlaylistRepository;
 use App\Domain\Music\Contracts\SettingsRepository;
+use App\Domain\Music\Contracts\TrackMetadataApplicator;
 use App\Domain\Music\Models\Artist;
 use App\Domain\Music\Models\Track;
 use App\Domain\Music\ValueObjects\DownloadOptions;
@@ -22,6 +23,7 @@ use App\Infrastructure\Storage\LocalMusicStorage;
 use App\Infrastructure\Storage\PlaylistM3uWriter;
 use App\Jobs\ProcessPlaylistSyncJob;
 use Mockery;
+use Mockery\MockInterface;
 use Tests\TestCase;
 
 class ProcessPlaylistSyncJobTest extends TestCase
@@ -114,7 +116,7 @@ class ProcessPlaylistSyncJobTest extends TestCase
             ->with(5, PlaylistSyncStatus::Done, null, true);
 
         $job = new ProcessPlaylistSyncJob(5);
-        $job->handle($playlists, $registry, $settings, $storage, $m3u);
+        $job->handle($playlists, $registry, $settings, $storage, $m3u, $this->metadata());
 
         $this->assertFileExists($base.'/playlists/5-my-list/5-my-list.m3u');
         $this->rmTree($base);
@@ -185,13 +187,13 @@ class ProcessPlaylistSyncJobTest extends TestCase
             ->with(7, PlaylistSyncStatus::Done, null, true);
 
         $job = new ProcessPlaylistSyncJob(7);
-        $job->handle($playlists, $registry, $settings, $storage, $m3u);
+        $job->handle($playlists, $registry, $settings, $storage, $m3u, $this->metadata());
 
         $this->assertFileExists($base.'/playlists/7-list/7-list.m3u');
         $this->rmTree($base);
     }
 
-    private function mockProvider(): MusicProvider&\Mockery\MockInterface
+    private function mockProvider(): MusicProvider&MockInterface
     {
         $provider = Mockery::mock(MusicProvider::class);
         $provider->shouldReceive('name')->andReturn('youtube_music');
@@ -214,6 +216,14 @@ class ProcessPlaylistSyncJobTest extends TestCase
         $repo->shouldReceive('get')->andReturn(null);
 
         return new ProviderSettingsResolver($repo);
+    }
+
+    private function metadata(): TrackMetadataApplicator&MockInterface
+    {
+        $metadata = Mockery::mock(TrackMetadataApplicator::class);
+        $metadata->shouldIgnoreMissing();
+
+        return $metadata;
     }
 
     private function rmTree(string $dir): void

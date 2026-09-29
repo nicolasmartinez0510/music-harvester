@@ -36,6 +36,9 @@ export interface UpdateSettingsPayload {
   provider_deezer_mode?: DeezerMode;
   cookies_path?: string | null;
   email_verification_enabled?: boolean;
+  metadata_enrich_enabled?: boolean;
+  metadata_embed_cover?: boolean;
+  metadata_embed_lyrics?: boolean;
 }
 
 export interface CreatePlaylistPayload {

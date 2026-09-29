@@ -47,6 +47,9 @@ export class SettingsComponent implements OnInit {
     provider_deezer_mode: ['native' as DeezerMode, Validators.required],
     download_destination: ['direct' as 'direct' | 'server', Validators.required],
     email_verification_enabled: [true],
+    metadata_enrich_enabled: [true],
+    metadata_embed_cover: [true],
+    metadata_embed_lyrics: [true],
   });
 
   get tabs(): { id: SettingsTab; label: string }[] {
@@ -82,6 +85,9 @@ export class SettingsComponent implements OnInit {
           provider_deezer_mode: settings.provider_deezer_mode ?? 'native',
           download_destination: settings.download_destination,
           email_verification_enabled: settings.email_verification_enabled,
+          metadata_enrich_enabled: settings.metadata_enrich_enabled,
+          metadata_embed_cover: settings.metadata_embed_cover,
+          metadata_embed_lyrics: settings.metadata_embed_lyrics,
         });
         this.auth.emailVerificationEnabled.set(settings.email_verification_enabled);
         this.loading = false;
@@ -137,6 +143,9 @@ export class SettingsComponent implements OnInit {
         this.api
           .updateSettings({
             provider_deezer_mode: raw.provider_deezer_mode,
+            metadata_enrich_enabled: raw.metadata_enrich_enabled,
+            metadata_embed_cover: raw.metadata_embed_cover,
+            metadata_embed_lyrics: raw.metadata_embed_lyrics,
             ...(arl !== '' ? { provider_deezer_arl: arl } : {}),
           })
           .subscribe({

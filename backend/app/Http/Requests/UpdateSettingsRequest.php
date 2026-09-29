@@ -30,6 +30,9 @@ final class UpdateSettingsRequest extends FormRequest
             'provider_deezer_mode' => ['sometimes', 'string', Rule::in(['native', 'hybrid'])],
             'cookies_path' => ['sometimes', 'nullable', 'string', 'max:500'],
             'email_verification_enabled' => ['sometimes', 'boolean'],
+            'metadata_enrich_enabled' => ['sometimes', 'boolean'],
+            'metadata_embed_cover' => ['sometimes', 'boolean'],
+            'metadata_embed_lyrics' => ['sometimes', 'boolean'],
         ];
     }
 }

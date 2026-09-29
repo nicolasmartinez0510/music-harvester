@@ -40,7 +40,7 @@ RUN apt-get update \
     && docker-php-ext-install -j"$(nproc)" pdo_pgsql pdo_sqlite pcntl \
     && apt-get purge -y --auto-remove libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/* \
-    && python3 -m pip install --break-system-packages --no-cache-dir "streamrip>=2.0.0" \
+    && python3 -m pip install --break-system-packages --no-cache-dir "streamrip>=2.0.0" "mutagen>=1.47" \
     && rip --version
 
 # Static binaries — avoids heavy apt dependency trees (ffmpeg pulls 100+ packages).
@@ -66,6 +66,8 @@ RUN set -eux; \
     yt-dlp --version
 
 COPY docker/yt-dlp/yt-dlp.conf /etc/yt-dlp.conf
+COPY docker/scripts/apply-audio-metadata.py /usr/local/bin/apply-audio-metadata.py
+RUN chmod +x /usr/local/bin/apply-audio-metadata.py
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
