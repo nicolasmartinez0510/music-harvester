@@ -237,8 +237,8 @@ class ProcessPlaylistSyncJob implements ShouldQueue
         string $targetDirectory,
         ?int $userId = null,
     ): DownloadOptions {
-        $formatValue = $playlist['default_format'] ?? config('music.default_format');
-        $format = AudioFormat::tryFrom((string) $formatValue) ?? AudioFormat::Mp3_320;
+        $formatValue = $playlist['default_format'] ?? $settings->defaultFormat()->value;
+        $format = AudioFormat::tryFrom((string) $formatValue) ?? $settings->defaultFormat();
 
         return new DownloadOptions(
             format: $format,

@@ -63,6 +63,7 @@ export class DownloadsComponent implements OnInit, OnDestroy {
 
   page = 1;
   pageSize = 10;
+  private defaultFormat: AudioFormat = 'mp3_320';
 
   readonly form = this.fb.nonNullable.group({
     url: ['', [Validators.required, Validators.maxLength(2048)]],
@@ -74,6 +75,14 @@ export class DownloadsComponent implements OnInit, OnDestroy {
     this.api.getProviders().subscribe({
       next: (providers) => {
         this.providers = providers;
+        this.syncFormats();
+      },
+    });
+
+    this.api.getSettings().subscribe({
+      next: (settings) => {
+        this.defaultFormat = settings.default_format;
+        this.form.controls.format.setValue(settings.default_format);
         this.syncFormats();
       },
     });
@@ -167,7 +176,7 @@ export class DownloadsComponent implements OnInit, OnDestroy {
     }
     this.showForm = false;
     this.formError = null;
-    this.form.reset({ url: '', format: 'mp3_320', provider: 'auto' });
+    this.form.reset({ url: '', format: this.defaultFormat, provider: 'auto' });
     this.detectedProvider = null;
   }
 
@@ -192,7 +201,7 @@ export class DownloadsComponent implements OnInit, OnDestroy {
         next: (job) => {
           this.submitting = false;
           this.showForm = false;
-          this.form.reset({ url: '', format: 'mp3_320', provider: 'auto' });
+          this.form.reset({ url: '', format: this.defaultFormat, provider: 'auto' });
           this.detectedProvider = null;
           this.jobs = [job, ...this.jobs.filter((item) => item.id !== job.id)];
           this.catalogActions.applyJobsSnapshot(this.jobs);

@@ -6,7 +6,6 @@ namespace App\Application\GetSettings;
 
 use App\Application\Settings\ProviderSettingsResolver;
 use App\Domain\Music\Contracts\SettingsRepository;
-use App\Domain\Music\ValueObjects\AudioFormat;
 
 final readonly class GetSettingsHandler
 {
@@ -22,8 +21,8 @@ final readonly class GetSettingsHandler
     {
         $stored = $this->settings->all();
 
-        $musicPath = $stored['music_path'] ?? config('music.path');
-        $defaultFormat = $stored['default_format'] ?? config('music.default_format');
+        $musicPath = $this->providerSettings->musicPath();
+        $defaultFormat = $this->providerSettings->defaultFormat()->value;
         $maxConcurrency = $stored['max_concurrency'] ?? (string) config('music.max_concurrency');
 
         $youtubeCookies = $this->providerSettings->youtubeMusicCookiesPath();
@@ -31,13 +30,12 @@ final readonly class GetSettingsHandler
         $deezerMode = $this->providerSettings->deezerMode();
         $enabledProviders = implode(',', $this->providerSettings->enabledProviders());
 
-        $format = AudioFormat::tryFrom((string) $defaultFormat) ?? AudioFormat::Mp3_320;
         $youtubeConfigured = $this->providerSettings->isFileConfigured($youtubeCookies);
         $arlConfigured = $this->providerSettings->isArlConfigured($deezerArl);
 
         return [
-            'music_path' => is_string($musicPath) ? $musicPath : (string) config('music.path'),
-            'default_format' => $format->value,
+            'music_path' => $musicPath,
+            'default_format' => $defaultFormat,
             'max_concurrency' => max(1, (int) $maxConcurrency),
             'enabled_providers' => $enabledProviders,
             'provider_youtube_music_cookies_path' => $youtubeCookies,

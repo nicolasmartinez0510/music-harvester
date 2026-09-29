@@ -146,6 +146,7 @@ export class CatalogActionsService {
   private replaceFromJobs(jobs: DownloadJob[]): void {
     const next: Record<string, CatalogDownloadUiState> = {};
     const previous = this.statesSignal();
+    const urlsOnServer = new Set(jobs.map((job) => job.url));
 
     for (const job of jobs) {
       const mapped = this.mapJobStatus(job);
@@ -159,9 +160,10 @@ export class CatalogActionsService {
       }
     }
 
-    // Keep optimistic local "queued" until the server lists the job.
+    // Keep optimistic local "queued" only until the server lists that URL.
+    // Once the job appears (even done without files), never leave sticky queued.
     for (const [url, state] of Object.entries(previous)) {
-      if (state === 'queued' && next[url] === undefined) {
+      if (state === 'queued' && next[url] === undefined && !urlsOnServer.has(url)) {
         next[url] = 'queued';
       }
     }
@@ -172,6 +174,14 @@ export class CatalogActionsService {
   private mergeJob(job: DownloadJob): void {
     const mapped = this.mapJobStatus(job);
     if (!mapped) {
+      // Terminal job without present files: clear optimistic queued.
+      if (job.status === 'done') {
+        this.statesSignal.update((current) => {
+          const next = { ...current };
+          delete next[job.url];
+          return next;
+        });
+      }
       return;
     }
     this.patchState(job.url, mapped);
@@ -179,7 +189,7 @@ export class CatalogActionsService {
 
   private mapJobStatus(job: DownloadJob): CatalogDownloadUiState | null {
     if (job.status === 'done') {
-      return job.files_present ? 'done' : null;
+      return job.files_present ? 'done' : 'failed';
     }
     if (job.status === 'pending' || job.status === 'running') {
       return 'queued';

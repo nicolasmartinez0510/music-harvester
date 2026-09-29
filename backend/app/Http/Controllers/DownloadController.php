@@ -15,6 +15,7 @@ use App\Application\ListDownloads\ListDownloadsHandler;
 use App\Application\ListDownloads\ListDownloadsQuery;
 use App\Application\RetryDownload\RetryDownloadCommand;
 use App\Application\RetryDownload\RetryDownloadHandler;
+use App\Application\Settings\ProviderSettingsResolver;
 use App\Domain\Music\Contracts\DownloadJobRepository;
 use App\Domain\Music\Exceptions\UnsupportedMusicUrlException;
 use App\Domain\Music\ValueObjects\AudioFormat;
@@ -61,9 +62,10 @@ final class DownloadController extends Controller
     public function store(
         StoreDownloadRequest $request,
         CreateDownloadHandler $handler,
+        ProviderSettingsResolver $settings,
     ): JsonResponse {
-        $formatValue = $request->input('format', config('music.default_format'));
-        $format = AudioFormat::tryFrom((string) $formatValue) ?? AudioFormat::Mp3_320;
+        $formatValue = $request->input('format', $settings->defaultFormat()->value);
+        $format = AudioFormat::tryFrom((string) $formatValue) ?? $settings->defaultFormat();
         $provider = $request->input('provider');
         $providerName = is_string($provider) && $provider !== '' ? $provider : null;
 

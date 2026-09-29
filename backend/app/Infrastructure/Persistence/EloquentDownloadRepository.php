@@ -153,6 +153,9 @@ final class EloquentDownloadRepository implements DownloadJobRepository
         }
 
         $decoded = json_decode($raw, true);
+        if (is_string($decoded)) {
+            $decoded = json_decode($decoded, true);
+        }
         if (! is_array($decoded)) {
             return [];
         }

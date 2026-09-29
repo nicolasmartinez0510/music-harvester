@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\Settings;
 
 use App\Domain\Music\Contracts\SettingsRepository;
+use App\Domain\Music\ValueObjects\AudioFormat;
 use App\Infrastructure\Auth\UserCredentialStore;
 use App\Models\User;
 use Illuminate\Support\Facades\Schema;
@@ -107,13 +108,35 @@ final readonly class ProviderSettingsResolver
 
     public function musicPath(): string
     {
+        $configPath = rtrim((string) config('music.path'), '/') ?: '/music';
         $stored = $this->setting('music_path');
 
-        if (is_string($stored) && $stored !== '') {
+        if (! is_string($stored) || trim($stored) === '') {
+            return $configPath;
+        }
+
+        $stored = rtrim($stored, '/');
+        if ($stored === $configPath) {
             return $stored;
         }
 
-        return (string) config('music.path');
+        // Prefer the container/env mount when Settings still has a host path
+        // (e.g. Synology /volume1/music) that is not the same directory.
+        $configReal = realpath($configPath);
+        $storedReal = realpath($stored);
+        if ($configReal !== false && ($storedReal === false || $storedReal !== $configReal)) {
+            return $configPath;
+        }
+
+        return $stored;
+    }
+
+    public function defaultFormat(): AudioFormat
+    {
+        $stored = $this->setting('default_format');
+        $format = AudioFormat::tryFrom((string) ($stored ?? config('music.default_format')));
+
+        return $format ?? AudioFormat::Mp3_320;
     }
 
     public function isFileConfigured(?string $path): bool

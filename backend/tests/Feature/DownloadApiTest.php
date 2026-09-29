@@ -55,6 +55,26 @@ class DownloadApiTest extends TestCase
             ->assertJsonPath('data.kind', 'playlist');
     }
 
+    public function test_create_download_uses_settings_default_format_when_omitted(): void
+    {
+        Queue::fake();
+
+        DB::table('settings')->insert([
+            'key' => 'default_format',
+            'value' => 'flac',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->postJson('/api/downloads', [
+            'url' => 'https://www.deezer.com/track/3135556',
+        ]);
+
+        $response
+            ->assertAccepted()
+            ->assertJsonPath('data.format', 'flac');
+    }
+
     public function test_create_download_rejects_unsupported_url(): void
     {
         Queue::fake();

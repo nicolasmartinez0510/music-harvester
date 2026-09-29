@@ -47,7 +47,6 @@ class SettingsApiTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('data.music_path', '/volume1/music')
             ->assertJsonPath('data.default_format', 'm4a')
             ->assertJsonPath('data.max_concurrency', 2);
 
@@ -63,20 +62,55 @@ class SettingsApiTest extends TestCase
             'key' => 'max_concurrency',
             'value' => '2',
         ]);
+
+        // API reports the effective library root (container/env mount wins over a
+        // missing host-style path like /volume1/music).
+        $effective = rtrim((string) config('music.path'), '/') ?: '/music';
+        if (realpath($effective) !== false) {
+            $response->assertJsonPath('data.music_path', $effective);
+        } else {
+            $response->assertJsonPath('data.music_path', '/volume1/music');
+        }
     }
 
     public function test_show_settings_prefers_database_over_config(): void
     {
+        $custom = storage_path('framework/testing/custom-music-'.uniqid());
+        mkdir($custom, 0777, true);
+        config(['music.path' => storage_path('framework/testing/other-'.uniqid())]);
+
         DB::table('settings')->insert([
             'key' => 'music_path',
-            'value' => '/custom/music',
+            'value' => $custom,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         $response = $this->getJson('/api/settings');
 
-        $response->assertOk()->assertJsonPath('data.music_path', '/custom/music');
+        $response->assertOk()->assertJsonPath('data.music_path', $custom);
+
+        @rmdir($custom);
+    }
+
+    public function test_show_settings_prefers_config_mount_over_missing_host_path(): void
+    {
+        $mount = storage_path('framework/testing/mount-'.uniqid());
+        mkdir($mount, 0777, true);
+        config(['music.path' => $mount]);
+
+        DB::table('settings')->insert([
+            'key' => 'music_path',
+            'value' => '/volume1/music',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->getJson('/api/settings');
+
+        $response->assertOk()->assertJsonPath('data.music_path', $mount);
+
+        @rmdir($mount);
     }
 
     public function test_update_settings_validates_format(): void

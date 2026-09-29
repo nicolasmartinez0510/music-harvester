@@ -50,7 +50,9 @@ class ProcessDownloadJob implements ShouldQueue
             return;
         }
 
-        if (in_array($job['status'], [DownloadStatus::Done->value, DownloadStatus::Running->value], true)) {
+        // Only skip completed jobs. Allow re-entry when status is still "running"
+        // (worker crash/timeout left the row stuck and queue retries would no-op).
+        if ($job['status'] === DownloadStatus::Done->value) {
             return;
         }
 
@@ -157,8 +159,8 @@ class ProcessDownloadJob implements ShouldQueue
     {
         $optionsJson = json_decode((string) ($job['options_json'] ?? '{}'), true);
         $formatValue = is_array($optionsJson) ? ($optionsJson['format'] ?? null) : null;
-        $format = AudioFormat::tryFrom((string) ($formatValue ?? config('music.default_format')))
-            ?? AudioFormat::Mp3_320;
+        $format = AudioFormat::tryFrom((string) ($formatValue ?? $settings->defaultFormat()->value))
+            ?? $settings->defaultFormat();
 
         $userId = isset($job['user_id']) && $job['user_id'] !== null ? (int) $job['user_id'] : null;
         $destination = is_string($job['download_destination'] ?? null) && $job['download_destination'] !== ''

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Domain\Music\ValueObjects\AudioFormat;
+use App\Application\Settings\ProviderSettingsResolver;
 use App\Infrastructure\Storage\DownloadedFilesCleanup;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -51,7 +52,7 @@ final class DownloadJobResource extends JsonResource
     {
         $optionsJson = json_decode((string) ($job['options_json'] ?? '{}'), true);
         $formatValue = is_array($optionsJson) ? ($optionsJson['format'] ?? null) : null;
-        $format = AudioFormat::tryFrom((string) ($formatValue ?? config('music.default_format')));
+        $format = AudioFormat::tryFrom((string) ($formatValue ?? app(ProviderSettingsResolver::class)->defaultFormat()->value));
 
         return ($format ?? AudioFormat::Mp3_320)->value;
     }
