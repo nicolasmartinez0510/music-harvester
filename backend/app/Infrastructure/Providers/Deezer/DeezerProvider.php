@@ -398,13 +398,23 @@ final class DeezerProvider implements MusicProvider, CatalogSource, UserLibraryS
      */
     private function mediaCoverUrl(array $row): ?string
     {
-        foreach (['cover_medium', 'picture_medium', 'album'] as $key) {
-            if ($key === 'album' && isset($row['album']) && is_array($row['album'])) {
-                return isset($row['album']['cover_medium']) ? (string) $row['album']['cover_medium'] : null;
-            }
+        foreach (['cover_medium', 'picture_medium'] as $key) {
             if (isset($row[$key]) && is_string($row[$key]) && $row[$key] !== '') {
                 return $row[$key];
             }
+        }
+
+        if (isset($row['album']) && is_array($row['album'])) {
+            $albumCover = $row['album']['cover_medium'] ?? null;
+            if (is_string($albumCover) && $albumCover !== '') {
+                return $albumCover;
+            }
+        }
+
+        // Album tracklists omit cover_* and only send the artwork hash.
+        $md5 = $row['md5_image'] ?? null;
+        if (is_string($md5) && preg_match('/^[a-f0-9]{32}$/i', $md5) === 1) {
+            return 'https://e-cdns-images.dzcdn.net/images/cover/'.$md5.'/250x250-000000-80-0-0.jpg';
         }
 
         return null;

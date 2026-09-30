@@ -49,7 +49,7 @@ Plan: [`.cursor/plans/user_auth_admin_1389c0c0.plan.md`](plans/user_auth_admin_1
 ## Providers y catálogo
 
 - Registry: `youtube_music` + `deezer` (`GET /api/providers`: configured, qualities, `has_catalog`, `has_library`)
-- Deezer catalog: API pública `api.deezer.com`; hits de álbum incluyen `record_type` (`album` | `ep` | `single`); hits de track incluyen `preview_url` (snip ~30s de Deezer, o null)
+- Deezer catalog: API pública `api.deezer.com`; hits de álbum incluyen `record_type` (`album` | `ep` | `single`); hits de track incluyen `preview_url` (snip ~30s de Deezer, o null). El tracklist de un álbum no trae `cover_*`: la miniatura sale de `md5_image` (`e-cdns-images.dzcdn.net`, 250×250)
 - Portada de artista: `picture_xl` (fallback `picture_big` / `picture_medium`) en `cover_url`
 - Bio de artista: Wikipedia (es → en). User-Agent con URL del repo; un 403/429 no se cachea como “sin bio”
 - Deezer download nativo: streamrip + ARL → FLAC / MP3 320
@@ -89,6 +89,7 @@ Plan: [`.cursor/plans/user_auth_admin_1389c0c0.plan.md`](plans/user_auth_admin_1
 - Bio de Wikipedia vuelve a mostrarse: el User-Agent anterior recibía 403/429 y el fallo quedaba cacheado 24 h
 - Preview snip ~30s en tracks Deezer (Explorar + Mi Colección): play sobre la portada (hover en desktop; en móvil siempre visible, con la portada atenuada). Spinner mientras carga y anillo de progreso de la duración del clip. Un solo `Audio`, sin barra. Plan: [track_preview_snip](plans/track_preview_snip_abbb972b.plan.md)
 - Portadas de descarga Deezer: el enricher reintenta `cover_xl`, valida JPEG/PNG, cachea bytes por álbum y loguea el fallo. Mutagen ya no borra la carátula embebida si el fetch no trae reemplazo (streamrip o thumb de hybrid se conservan). Lo ya descargado se corrige con `php artisan downloads:repair-covers` (solo archivos indexados sin portada; `--dry-run` primero). Plan: [fix_download_covers](plans/fix_download_covers_f3288b6b.plan.md)
+- Miniaturas de tracks en la ficha de álbum: Deezer manda `md5_image` en vez de `cover_medium`; `cover_url` se arma con esa hash para que el listado no quede en el placeholder
 - UI responsive (tablas y hits en ≤640px, safe-area, acciones como iconos) + PWA instalable (shell cacheado; sin offline de catálogo ni descargas). Nueva versión avisa con toast “Recargar”. Plan: [responsive_pwa](plans/responsive_pwa_38f12cec.plan.md)
 
 ## Próximos / pendientes

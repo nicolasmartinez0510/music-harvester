@@ -148,6 +148,7 @@ class CatalogApiTest extends TestCase
                         'type' => 'track',
                         'artist' => ['name' => 'Daft Punk'],
                         'preview' => 'https://cdns-preview.dzcdn.net/stream/c-3135556.mp3',
+                        'md5_image' => '2e018122cb56986277102d2041a592c8',
                     ],
                 ],
                 'total' => 1,
@@ -159,6 +160,10 @@ class CatalogApiTest extends TestCase
             ->assertJsonPath('data.title', 'Discovery')
             ->assertJsonPath('data.tracks.0.id', '3135556')
             ->assertJsonPath('data.tracks.0.preview_url', 'https://cdns-preview.dzcdn.net/stream/c-3135556.mp3')
+            ->assertJsonPath(
+                'data.tracks.0.cover_url',
+                'https://e-cdns-images.dzcdn.net/images/cover/2e018122cb56986277102d2041a592c8/250x250-000000-80-0-0.jpg',
+            )
             ->assertJsonPath('data.canonical_url', 'https://www.deezer.com/album/302127');
     }
 
