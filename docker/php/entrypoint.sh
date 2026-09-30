@@ -28,6 +28,19 @@ if ! chown -R www-data:www-data storage bootstrap/cache; then
     chmod -R a+rw storage bootstrap/cache || true
 fi
 
+relax_music_permissions() {
+    music="${MUSIC_PATH:-/music}"
+    if [ ! -d "$music" ]; then
+        return 0
+    fi
+
+    echo "Relaxing directory permissions under ${music} so www-data can delete downloads..."
+    # Only directories. Unlink needs write on the parent, not on the audio file.
+    # Skip dirs that are already writable by "other" so repeat starts stay cheap.
+    find "$music" -type d ! -perm -o+w -exec chmod o+rwx {} + \
+        || echo "WARNING: chmod under ${music} failed. The download manager may not be able to delete files."
+}
+
 wait_for_db() {
     if [ "${DB_CONNECTION:-pgsql}" != "pgsql" ]; then
         return 0
@@ -61,6 +74,30 @@ if [ "$1" = "php-fpm" ]; then
     php artisan migrate --force
     php artisan db:seed --class=AdminUserSeeder --force
     mkdir -p storage/app/private/cookies storage/app/private/tmp-downloads
+    chown -R www-data:www-data storage/app/private || true
+fi
+
+# Directories under the library must be writable by www-data. Downloads used to
+# be created by a root queue worker; php-fpm (www-data) then could not unlink them.
+if [ "$(id -u)" = "0" ]; then
+    relax_music_permissions
+fi
+
+# The queue worker creates the files the API later deletes. It has to be the
+# same user as php-fpm. php-fpm itself stays root so the master process can start.
+if [ "$1" = "php" ] && [ "${2:-}" = "artisan" ] && [ "${3:-}" = "queue:work" ]; then
+    if [ "$(id -u)" = "0" ]; then
+        if ! command -v setpriv >/dev/null 2>&1; then
+            echo "ERROR: setpriv is required so the queue worker can run as www-data." >&2
+            exit 1
+        fi
+        echo "Starting queue worker as www-data..."
+        # www-data cannot write /root. Keep tool caches (yt-dlp, deno) in /tmp.
+        case "${HOME:-/root}" in
+            /root) export HOME=/tmp ;;
+        esac
+        exec setpriv --reuid=www-data --regid=www-data --init-groups "$@"
+    fi
 fi
 
 exec "$@"

@@ -12,7 +12,7 @@ Plan fundacional: [`.cursor/plans/music_harvester_nas.plan.md`](plans/music_harv
 
 - **Backend:** Laravel 12 + PHP 8.4, **PostgreSQL 16**, queue en DB (`QUEUE_CONNECTION=database`)
 - **Frontend:** Angular 19 SPA (same-origin vía nginx; hot reload en `:4200` con proxy). PWA instalable en build de producción (`@angular/service-worker`): manifest + cache del shell. No cachea `/api` ni `/sanctum`. La instalación pide HTTPS (reverse proxy del NAS); en `:8085` HTTP el browser puede no ofrecer “instalar”. `ng serve` no registra el service worker.
-- **Docker Compose:** `db`, `app`, `worker`, `scheduler`, `nginx`
+- **Docker Compose:** `db`, `app`, `worker`, `scheduler`, `nginx`. El worker de cola arranca como `www-data` (el mismo usuario que php-fpm) para que borrar un job pueda `unlink` en `/music`. El entrypoint, como root, hace `chmod o+rwx` de los directorios de `MUSIC_PATH` (carpetas viejas quedaron `root:root` 775).
 - **Dev:** `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build`
 - **Puerto local:** **8085** → UI `/`, API `/api`, health `/up`
 - **yt-dlp:** binario pineado en Dockerfile (`YTDLP_VERSION=2026.07.04`) + Deno 2.x + `/etc/yt-dlp.conf` (`player_client=web_safari,web,mweb,android`; sin `--js-runtimes`)

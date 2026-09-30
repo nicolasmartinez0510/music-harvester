@@ -417,6 +417,7 @@ docker compose exec worker pip3 install --break-system-packages -U "yt-dlp[defau
 | `laravel.log … Permission denied` | `storage/` bind-mounteado desde el host con dueño ≠ `www-data` | Usar volumen nombrado `app_storage` (compose actualizado): `down -v` → `up -d --build` |
 | UI carga pero API falla | `APP_KEY` vacío o DB sin migrar | `key:generate` + recrear `app` (migra solo); verificar servicio `db` healthy |
 | Descargas muy lentas | Concurrencia alta en NAS débil | `MUSIC_MAX_CONCURRENCY=1` en Settings |
+| Borrar en Descargas no saca el archivo del disco | El worker viejo escribía como root y php-fpm (`www-data`) no puede borrar esas carpetas | Rebuild y recrear `app` + `worker`. El entrypoint abre los directorios de `/music` y el worker nuevo corre como `www-data` |
 
 Logs del worker y de la app (con `storage/` en volumen nombrado, leelos vía `docker compose`):
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Storage;
 
 use App\Application\Settings\ProviderSettingsResolver;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Resolves and deletes files recorded on download jobs, constrained to music roots.
@@ -133,8 +134,8 @@ final class DownloadedFilesCleanup
     }
 
     /**
-     * Make a downloaded file (and its parents up to the music root) readable by php-fpm.
-     * Queue workers often run as root on Synology while the app runs as www-data.
+     * Make a downloaded file readable, and its parent directories writable by www-data.
+     * The queue worker runs as www-data; 0777 covers folders left behind by an older root worker.
      */
     public function relaxPermissions(string $path): void
     {
@@ -147,7 +148,7 @@ final class DownloadedFilesCleanup
 
         while ($current !== '' && $current !== '/' && ! in_array($current, $roots, true)) {
             if (is_dir($current)) {
-                @chmod($current, 0775);
+                @chmod($current, 0777);
             }
             $parent = dirname($current);
             if ($parent === $current) {
@@ -291,7 +292,12 @@ final class DownloadedFilesCleanup
         }
 
         if (is_file($path)) {
-            @unlink($path);
+            if (! @unlink($path)) {
+                Log::warning('failed to delete downloaded file', [
+                    'path' => $path,
+                    'error' => error_get_last()['message'] ?? 'unlink failed',
+                ]);
+            }
 
             return;
         }
