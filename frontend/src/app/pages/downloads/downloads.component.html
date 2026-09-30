@@ -1,13 +1,19 @@
 <section class="page">
-  <header class="page-header row-between">
+  <header class="page-header row-between downloads-header">
     <div>
       <h1>Descargas</h1>
       <p>Estado de descargas recientes. Se actualiza cada 5 segundos.</p>
     </div>
     <div class="header-actions">
-      <button type="button" class="btn btn-primary btn-with-icon" (click)="openForm()">
+      <button
+        type="button"
+        class="btn btn-primary btn-with-icon new-download"
+        (click)="openForm()"
+        aria-label="Nueva descarga"
+        title="Nueva descarga"
+      >
         <app-icon name="plus" class="btn-leading-icon" />
-        Nueva descarga
+        <span class="new-download-label">Nueva descarga</span>
       </button>
       @if (jobs.length > 0) {
         <button
@@ -31,10 +37,6 @@
   } @else if (jobs.length === 0) {
     <div class="card empty-state">
       <p>No hay descargas todavía.</p>
-      <button type="button" class="btn btn-primary btn-with-icon" (click)="openForm()">
-        <app-icon name="plus" class="btn-leading-icon" />
-        Nueva descarga
-      </button>
     </div>
   } @else {
     <div class="card table-wrap">

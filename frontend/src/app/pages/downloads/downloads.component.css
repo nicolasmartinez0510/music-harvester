@@ -168,6 +168,26 @@ th {
 }
 
 @media (max-width: 640px) {
+  .downloads-header {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .new-download-label {
+    display: none;
+  }
+
+  .new-download {
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    flex-shrink: 0;
+  }
+
+  .new-download .btn-leading-icon {
+    margin-right: 0;
+  }
+
   .table-wrap {
     overflow-x: visible;
   }
