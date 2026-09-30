@@ -41,6 +41,7 @@ class MusicHarvesterScaffoldTest extends TestCase
     public function test_download_status_terminal_states(): void
     {
         $this->assertTrue(DownloadStatus::Done->isTerminal());
+        $this->assertTrue(DownloadStatus::Existing->isTerminal());
         $this->assertTrue(DownloadStatus::Failed->isTerminal());
         $this->assertFalse(DownloadStatus::Pending->isTerminal());
     }

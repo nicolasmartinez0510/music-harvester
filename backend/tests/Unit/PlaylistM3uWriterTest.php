@@ -95,6 +95,83 @@ class PlaylistM3uWriterTest extends TestCase
         $this->rmTree($base);
     }
 
+    public function test_replaces_m3u_that_the_current_user_cannot_overwrite(): void
+    {
+        $setpriv = null;
+        foreach (['/usr/bin/setpriv', '/bin/setpriv'] as $candidate) {
+            if (is_executable($candidate)) {
+                $setpriv = $candidate;
+                break;
+            }
+        }
+        if ($setpriv === null || ! function_exists('posix_geteuid') || posix_geteuid() !== 0) {
+            $this->markTestSkipped('Needs root and setpriv to run the writer as www-data.');
+        }
+
+        $base = storage_path('framework/testing/m3u-'.uniqid());
+        $storage = new LocalMusicStorage($base);
+        $dir = $storage->playlistDirectory(15, 'Rock alternativo');
+        $storage->ensureDirectory($dir);
+        $audio = $dir.'/68 - skillet - psycho-in-my-head.flac';
+        $m3u = $dir.'/15-rock-alternativo.m3u';
+        file_put_contents($audio, 'a');
+        file_put_contents($m3u, "old\n");
+        chmod($base, 0777);
+        chmod(dirname($dir), 0777);
+        chmod($dir, 0777);
+        chmod($audio, 0644);
+        chmod($m3u, 0644);
+
+        $runner = $base.'/replace-m3u.php';
+        $autoload = dirname(__DIR__, 2).'/vendor/autoload.php';
+        file_put_contents($runner, <<<PHP
+<?php
+require {$this->export($autoload)};
+\$storage = new App\Infrastructure\Storage\LocalMusicStorage({$this->export($base)});
+\$writer = new App\Infrastructure\Storage\PlaylistM3uWriter(\$storage);
+\$path = \$writer->write(
+    ['id' => 15, 'title' => 'Rock alternativo'],
+    [[
+        'title' => 'Psycho In My Head',
+        'artist' => 'Skillet',
+        'status' => 'downloaded',
+        'file_path' => {$this->export($audio)},
+        'position' => 68,
+    ]],
+);
+echo \$path;
+PHP);
+        chmod($runner, 0644);
+
+        $process = proc_open(
+            [$setpriv, '--reuid=www-data', '--regid=www-data', '--init-groups', 'php', $runner],
+            [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            $pipes,
+        );
+        $this->assertIsResource($process);
+        $stdout = stream_get_contents($pipes[1]);
+        $stderr = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $exit = proc_close($process);
+
+        try {
+            $this->assertSame(0, $exit, $stderr);
+            $contents = (string) file_get_contents($m3u);
+            $this->assertStringContainsString('#EXTM3U', $contents);
+            $this->assertStringContainsString('68 - skillet - psycho-in-my-head.flac', $contents);
+            $this->assertStringNotContainsString('old', $contents);
+            $this->assertSame($m3u, trim((string) $stdout));
+        } finally {
+            $this->rmTree($base);
+        }
+    }
+
+    private function export(string $value): string
+    {
+        return var_export($value, true);
+    }
+
     private function rmTree(string $dir): void
     {
         if (! is_dir($dir)) {

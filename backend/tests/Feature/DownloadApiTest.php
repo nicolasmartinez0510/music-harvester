@@ -283,6 +283,53 @@ class DownloadApiTest extends TestCase
             ->assertJsonPath('data.0.files_present', false);
     }
 
+    public function test_done_track_with_empty_paths_reports_existing_when_indexed_file_is_present(): void
+    {
+        $musicPath = storage_path('framework/testing/music-'.uniqid());
+        $file = $musicPath.'/playlists/15-rock-alternativo/68 - skillet - psycho-in-my-head.flac';
+        mkdir(dirname($file), 0777, true);
+        file_put_contents($file, 'x');
+        config(['music.path' => $musicPath]);
+
+        DB::table('download_jobs')->insert([
+            'provider' => 'deezer',
+            'url' => 'https://www.deezer.com/track/2096381787',
+            'kind' => 'track',
+            'title' => 'Psycho In My Head',
+            'artist' => 'Skillet',
+            'status' => DownloadStatus::Done->value,
+            'progress' => 100,
+            'destination_path' => null,
+            'downloaded_paths' => null,
+            'options_json' => json_encode(['format' => 'flac']),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('downloaded_tracks')->insert([
+            'user_id' => null,
+            'provider' => 'deezer',
+            'external_id' => '2096381787',
+            'file_path' => $file,
+            'download_job_id' => null,
+            'saved_playlist_track_id' => null,
+            'title' => 'Psycho In My Head',
+            'artist' => 'Skillet',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->getJson('/api/downloads')
+            ->assertOk()
+            ->assertJsonPath('data.0.status', DownloadStatus::Existing->value)
+            ->assertJsonPath('data.0.files_present', true);
+
+        @unlink($file);
+        @rmdir(dirname($file));
+        @rmdir(dirname(dirname($file)));
+        @rmdir($musicPath);
+    }
+
     public function test_delete_download_removes_job_and_file(): void
     {
         $musicPath = storage_path('framework/testing/music-'.uniqid());

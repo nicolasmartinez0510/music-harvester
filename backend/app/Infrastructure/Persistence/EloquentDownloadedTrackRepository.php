@@ -27,6 +27,11 @@ final class EloquentDownloadedTrackRepository implements DownloadedTrackReposito
         return null;
     }
 
+    public function findRecorded(?int $userId, string $provider, string $externalId): ?array
+    {
+        return $this->find($userId, $provider, $externalId);
+    }
+
     public function upsert(
         ?int $userId,
         string $provider,

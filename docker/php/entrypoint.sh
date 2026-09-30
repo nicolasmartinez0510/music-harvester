@@ -25,8 +25,11 @@ mkdir -p \
 # write logs, cache and sessions.
 if ! chown -R www-data:www-data storage bootstrap/cache; then
     echo "WARNING: chown failed — bind-mounted host folder? Falling back to chmod."
-    chmod -R a+rw storage bootstrap/cache || true
+    chmod -R a+rwx storage bootstrap/cache || true
 fi
+# www-data boots Laravel and must create bootstrap/cache/packages.php.
+# chown can report success and still leave the directory unwritable.
+chmod -R a+rwx bootstrap/cache || true
 
 relax_music_permissions() {
     music="${MUSIC_PATH:-/music}"
@@ -39,6 +42,9 @@ relax_music_permissions() {
     # Skip dirs that are already writable by "other" so repeat starts stay cheap.
     find "$music" -type d ! -perm -o+w -exec chmod o+rwx {} + \
         || echo "WARNING: chmod under ${music} failed. The download manager may not be able to delete files."
+    # Old root-owned playlist files cannot be overwritten by www-data.
+    find "$music" -type f -name '*.m3u' ! -perm -o+w -exec chmod o+rw {} + \
+        || echo "WARNING: chmod of playlist .m3u files under ${music} failed."
 }
 
 wait_for_db() {

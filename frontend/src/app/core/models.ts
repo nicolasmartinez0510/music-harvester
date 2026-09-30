@@ -1,4 +1,4 @@
-export type DownloadStatus = 'pending' | 'running' | 'done' | 'failed';
+export type DownloadStatus = 'pending' | 'running' | 'done' | 'existing' | 'failed';
 export type AudioFormat = 'mp3_320' | 'm4a' | 'flac';
 export type DeezerMode = 'native' | 'hybrid';
 export type ProviderName = 'youtube_music' | 'deezer' | 'auto';
@@ -188,6 +188,7 @@ export const STATUS_LABELS: Record<DownloadStatus, string> = {
   pending: 'Pendiente',
   running: 'Descargando',
   done: 'Completado',
+  existing: 'Ya existe',
   failed: 'Fallido',
 };
 

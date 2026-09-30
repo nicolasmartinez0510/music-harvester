@@ -26,7 +26,7 @@ class ProcessDownloadCommand extends Command
             return self::FAILURE;
         }
 
-        if ($job['status'] === DownloadStatus::Done->value) {
+        if (in_array($job['status'], [DownloadStatus::Done->value, DownloadStatus::Existing->value], true)) {
             $this->warn("Download job #{$jobId} is already done.");
 
             return self::SUCCESS;
@@ -52,8 +52,10 @@ class ProcessDownloadCommand extends Command
         $status = $updated['status'] ?? 'unknown';
         $path = $updated['destination_path'] ?? null;
 
-        if ($status === DownloadStatus::Done->value) {
-            $this->info('Download completed successfully.');
+        if (in_array($status, [DownloadStatus::Done->value, DownloadStatus::Existing->value], true)) {
+            $this->info($status === DownloadStatus::Existing->value
+                ? 'Track already exists.'
+                : 'Download completed successfully.');
             if (is_string($path) && $path !== '') {
                 $this->line("Saved to: {$path}");
             }

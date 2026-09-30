@@ -121,6 +121,11 @@ th {
   color: var(--success);
 }
 
+.status-existing {
+  background: #e0f2fe;
+  color: #075985;
+}
+
 .status-failed {
   background: var(--danger-soft);
   color: var(--danger);

@@ -279,7 +279,8 @@ class ProcessDownloadJobTest extends TestCase
         ]);
         $jobs->shouldReceive('updateStatus')->once()->with(11, DownloadStatus::Running);
         $jobs->shouldReceive('updateMetadata')->once()->with(11, 'Album', 'Artist');
-        $jobs->shouldReceive('updateProgress')->once()->with(11, 50);
+        $jobs->shouldReceive('updateProgress')->once()->with(11, 50, '/music/artist/album/01 - have.flac');
+        $jobs->shouldReceive('appendDownloadedPath')->once()->with(11, '/music/artist/album/01 - have.flac');
         $jobs->shouldReceive('updateProgress')->once()->with(11, 100, '/music/artist/album/02 - need.flac');
         $jobs->shouldReceive('appendDownloadedPath')->once()->with(11, '/music/artist/album/02 - need.flac');
         $jobs->shouldReceive('updateStatus')->once()->with(11, DownloadStatus::Done, null);
@@ -298,6 +299,53 @@ class ProcessDownloadJobTest extends TestCase
             ->with(null, 'deezer', 'need', '/music/artist/album/02 - need.flac', 'Need', 'Artist', 11, null);
 
         $job = new ProcessDownloadJob(11);
+        $job->handle($jobs, $this->registry([$provider]), $this->settingsResolver(), $this->metadata(), $this->cleanup(), $index);
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function test_track_already_in_the_index_is_marked_existing_without_downloading(): void
+    {
+        $track = new Track(title: 'Psycho In My Head', artist: new Artist('Skillet'), id: '2096381787', index: 1);
+        $resolved = new ResolvedMusic(
+            provider: 'deezer',
+            kind: ResolvedKind::Track,
+            title: 'Psycho In My Head',
+            items: [new ResolvedItem(ResolvedKind::Track, $track, 1)],
+            sourceUrl: 'https://www.deezer.com/track/2096381787',
+        );
+
+        $provider = Mockery::mock(MusicProvider::class);
+        $provider->shouldReceive('name')->andReturn('deezer');
+        $provider->shouldReceive('supports')->andReturn(true);
+        $provider->shouldReceive('resolve')->once()->andReturn($resolved);
+        $provider->shouldReceive('download')->never();
+
+        $existingPath = '/music/playlists/15-rock-alternativo/68 - skillet - psycho-in-my-head.flac';
+
+        $jobs = Mockery::mock(DownloadJobRepository::class);
+        $jobs->shouldReceive('find')->once()->with(143)->andReturn([
+            'id' => 143,
+            'provider' => 'deezer',
+            'url' => 'https://www.deezer.com/track/2096381787',
+            'kind' => 'track',
+            'status' => DownloadStatus::Pending->value,
+            'options_json' => json_encode(['format' => AudioFormat::Flac->value]),
+        ]);
+        $jobs->shouldReceive('updateStatus')->once()->with(143, DownloadStatus::Running);
+        $jobs->shouldReceive('updateMetadata')->once()->with(143, 'Psycho In My Head', 'Skillet');
+        $jobs->shouldReceive('updateProgress')->once()->with(143, 100, $existingPath);
+        $jobs->shouldReceive('appendDownloadedPath')->once()->with(143, $existingPath);
+        $jobs->shouldReceive('updateStatus')->once()->with(143, DownloadStatus::Existing, null);
+
+        $index = Mockery::mock(DownloadedTrackRepository::class);
+        $index->shouldReceive('findPresent')
+            ->once()
+            ->with(null, 'deezer', '2096381787')
+            ->andReturn(['file_path' => $existingPath]);
+        $index->shouldReceive('upsert')->never();
+
+        $job = new ProcessDownloadJob(143);
         $job->handle($jobs, $this->registry([$provider]), $this->settingsResolver(), $this->metadata(), $this->cleanup(), $index);
 
         $this->addToAssertionCount(1);

@@ -12,7 +12,7 @@ Plan fundacional: [`.cursor/plans/music_harvester_nas.plan.md`](plans/music_harv
 
 - **Backend:** Laravel 12 + PHP 8.4, **PostgreSQL 16**, queue en DB (`QUEUE_CONNECTION=database`)
 - **Frontend:** Angular 19 SPA (same-origin vía nginx; hot reload en `:4200` con proxy). PWA instalable en build de producción (`@angular/service-worker`): manifest + cache del shell. No cachea `/api` ni `/sanctum`. La instalación pide HTTPS (reverse proxy del NAS); en `:8085` HTTP el browser puede no ofrecer “instalar”. `ng serve` no registra el service worker.
-- **Docker Compose:** `db`, `app`, `worker`, `scheduler`, `nginx`. El worker de cola arranca como `www-data` (el mismo usuario que php-fpm) para que borrar un job pueda `unlink` en `/music`. El entrypoint, como root, hace `chmod o+rwx` de los directorios de `MUSIC_PATH` (carpetas viejas quedaron `root:root` 775).
+- **Docker Compose:** `db`, `app`, `worker`, `scheduler`, `nginx`. El worker de cola arranca como `www-data` (el mismo usuario que php-fpm) para que borrar un job pueda `unlink` en `/music`. El entrypoint, como root, hace `chmod o+rwx` de los directorios de `MUSIC_PATH` y `o+rw` de los `.m3u` (carpetas y playlists viejas quedaron `root:root`). También deja `bootstrap/cache` escribible por `www-data`; si no, el worker muere al arrancar y los jobs se quedan en Pendiente.
 - **Dev:** `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build`
 - **Puerto local:** **8085** → UI `/`, API `/api`, health `/up`
 - **yt-dlp:** binario pineado en Dockerfile (`YTDLP_VERSION=2026.07.04`) + Deno 2.x + `/etc/yt-dlp.conf` (`player_client=web_safari,web,mweb,android`; sin `--js-runtimes`)
@@ -62,8 +62,9 @@ Plan: [`.cursor/plans/user_auth_admin_1389c0c0.plan.md`](plans/user_auth_admin_1
 
 - `saved_playlists` + sync job/scheduler; intervalo en **minutos** (default 5)
 - Disco: `playlists/{id}-{slug}/` + M3U regenerado en cada sync (paths relativos a la carpeta de la playlist, así un tema reutilizado apunta a `{artist}/{album}/` sin copiar audio)
-- Dedup: tabla `downloaded_tracks` (`user_id` + `provider` + `external_id` → `file_path`). Sync de playlist y descargas de álbum/track omiten lo ya indexado si el archivo sigue en disco. Borrar un job no borra un archivo cuyo índice pertenece a otro job. Backfill de descargas viejas: `php artisan downloads:backfill-index` (en el NAS, dentro de `app`; `--dry-run` primero). Resuelve cada job `done`, matchea el archivo por nombre y registra el id del tema. Álbumes primero, así la playlist reutiliza ese path
-- One-shot downloads siguen en artista/álbum
+- Dedup: tabla `downloaded_tracks` (`user_id` + `provider` + `external_id` → `file_path`). Sync de playlist y descargas de álbum/track omiten lo ya indexado si el archivo sigue en disco. Un one-shot que reutiliza todo el material queda en estado `existing` (**Ya existe**) y guarda la ruta ya indexada; no crea otra copia en `{artist}/{album}/`. Borrar ese job no borra un archivo cuyo índice pertenece a otro dueño (playlist con `download_job_id` null). Jobs `done` viejos, de un solo track y sin ruta, se muestran como **Ya existe** si el índice todavía tiene el archivo. Backfill de descargas viejas: `php artisan downloads:backfill-index` (en el NAS, dentro de `app`; `--dry-run` primero). Resuelve cada job `done`, matchea el archivo por nombre y registra el id del tema. Álbumes primero, así la playlist reutiliza ese path
+- El `.m3u` se reescribe en cada sync. Si el archivo viejo es de root y `www-data` no puede pisarlo, se borra y se crea de nuevo
+- One-shot de un tema que no está en el índice sigue en artista/álbum
 - Distinto del eje futuro **Puentes** (copiar playlist entre providers sin bajar audio)
 
 ## Cookies / yt-dlp (operativo)
@@ -90,6 +91,7 @@ Plan: [`.cursor/plans/user_auth_admin_1389c0c0.plan.md`](plans/user_auth_admin_1
 - Preview snip ~30s en tracks Deezer (Explorar + Mi Colección): play sobre la portada (hover en desktop; en móvil siempre visible, con la portada atenuada). Spinner mientras carga y anillo de progreso de la duración del clip. Un solo `Audio`, sin barra. Plan: [track_preview_snip](plans/track_preview_snip_abbb972b.plan.md)
 - Portadas de descarga Deezer: el enricher reintenta `cover_xl`, valida JPEG/PNG, cachea bytes por álbum y loguea el fallo. Mutagen ya no borra la carátula embebida si el fetch no trae reemplazo (streamrip o thumb de hybrid se conservan). Lo ya descargado se corrige con `php artisan downloads:repair-covers` (solo archivos indexados sin portada; `--dry-run` primero). El probe es un solo proceso mutagen (`--has-cover-stream`) y el comando imprime `[n/total] checking` para que en el NAS no parezca colgado. Plan: [fix_download_covers](plans/fix_download_covers_f3288b6b.plan.md)
 - Miniaturas de tracks en la ficha de álbum: Deezer manda `md5_image` en vez de `cover_medium`; `cover_url` se arma con esa hash para que el listado no quede en el placeholder
+- Descargas que ya están en el índice (por ejemplo dentro de una playlist) muestran **Ya existe** en vez de Completado / Archivos ausentes. El sync de playlist puede reescribir un `.m3u` que había quedado de root
 - UI responsive (tablas y hits en ≤640px, safe-area, acciones como iconos) + PWA instalable (shell cacheado; sin offline de catálogo ni descargas). Nueva versión avisa con toast “Recargar”. Plan: [responsive_pwa](plans/responsive_pwa_38f12cec.plan.md)
 
 ## Próximos / pendientes

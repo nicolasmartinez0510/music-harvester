@@ -56,7 +56,7 @@ class ProcessDownloadJob implements ShouldQueue
 
         // Only skip completed jobs. Allow re-entry when status is still "running"
         // (worker crash/timeout left the row stuck and queue retries would no-op).
-        if ($job['status'] === DownloadStatus::Done->value) {
+        if (in_array($job['status'], [DownloadStatus::Done->value, DownloadStatus::Existing->value], true)) {
             return;
         }
 
@@ -92,6 +92,7 @@ class ProcessDownloadJob implements ShouldQueue
 
             $completed = 0;
             $actuallyDownloaded = 0;
+            $reused = 0;
             $lastPath = null;
             $failures = [];
             $isMultiItem = $this->isMultiItemJob($job);
@@ -104,10 +105,17 @@ class ProcessDownloadJob implements ShouldQueue
                     $existing = $downloadedTracks->findPresent($userId, $provider->name(), $externalId);
                     if ($existing !== null) {
                         $completed++;
-                        $jobs->updateProgress(
-                            $this->downloadJobId,
-                            (int) round(($completed / $total) * 100),
-                        );
+                        $reused++;
+                        $existingPath = is_string($existing['file_path'] ?? null) ? $existing['file_path'] : '';
+                        $progress = (int) round(($completed / $total) * 100);
+                        if ($existingPath !== '') {
+                            $lastPath = $existingPath;
+                            $jobs->updateProgress($this->downloadJobId, $progress, $existingPath);
+                            $jobs->appendDownloadedPath($this->downloadJobId, $existingPath);
+                            $cleanup->relaxPermissions($existingPath);
+                        } else {
+                            $jobs->updateProgress($this->downloadJobId, $progress);
+                        }
 
                         continue;
                     }
@@ -179,7 +187,10 @@ class ProcessDownloadJob implements ShouldQueue
             }
 
             $summary = $this->buildCompletionSummary($completed, $total, $failures);
-            $jobs->updateStatus($this->downloadJobId, DownloadStatus::Done, $summary);
+            $status = $actuallyDownloaded === 0 && $reused > 0 && $failures === []
+                ? DownloadStatus::Existing
+                : DownloadStatus::Done;
+            $jobs->updateStatus($this->downloadJobId, $status, $summary);
         } catch (Throwable $exception) {
             $jobs->updateStatus($this->downloadJobId, DownloadStatus::Failed, $exception->getMessage());
 

@@ -9,12 +9,13 @@ enum DownloadStatus: string
     case Pending = 'pending';
     case Running = 'running';
     case Done = 'done';
+    case Existing = 'existing';
     case Failed = 'failed';
 
     public function isTerminal(): bool
     {
         return match ($this) {
-            self::Done, self::Failed => true,
+            self::Done, self::Existing, self::Failed => true,
             default => false,
         };
     }

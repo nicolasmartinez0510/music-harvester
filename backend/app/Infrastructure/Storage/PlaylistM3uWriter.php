@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Storage;
 
 use App\Domain\Music\ValueObjects\PlaylistTrackStatus;
+use RuntimeException;
 
 final class PlaylistM3uWriter
 {
@@ -59,9 +60,31 @@ final class PlaylistM3uWriter
         }
 
         $contents = implode("\n", $lines)."\n";
-        file_put_contents($m3uPath, $contents);
+        $this->replaceContents($m3uPath, $contents);
 
         return $m3uPath;
+    }
+
+    /**
+     * Playlist folders created by the old root worker leave a root-owned .m3u (0644).
+     * www-data cannot overwrite that file. The directory is opened on startup, so
+     * unlink and write a new file owned by the current user.
+     */
+    private function replaceContents(string $path, string $contents): void
+    {
+        if (is_file($path) && ! is_writable($path)) {
+            @chmod($path, 0666);
+        }
+
+        if (is_file($path) && ! is_writable($path) && ! @unlink($path)) {
+            throw new RuntimeException(
+                'No se puede actualizar la playlist porque el archivo no es escribible: '.$path,
+            );
+        }
+
+        if (file_put_contents($path, $contents) === false) {
+            throw new RuntimeException('No se puede escribir la playlist: '.$path);
+        }
     }
 
     private function sanitizePlaylistName(string $title): string
