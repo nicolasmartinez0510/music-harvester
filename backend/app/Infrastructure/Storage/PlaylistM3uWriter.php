@@ -35,7 +35,11 @@ final class PlaylistM3uWriter
         ];
 
         foreach ($tracks as $track) {
-            if (($track['status'] ?? '') !== PlaylistTrackStatus::Downloaded->value) {
+            $status = (string) ($track['status'] ?? '');
+            if (! in_array($status, [
+                PlaylistTrackStatus::Downloaded->value,
+                PlaylistTrackStatus::Existing->value,
+            ], true)) {
                 continue;
             }
 
@@ -48,7 +52,7 @@ final class PlaylistM3uWriter
                 ? (string) $track['artist']
                 : 'Unknown Artist';
             $trackTitle = (string) ($track['title'] ?? 'Unknown Title');
-            $basename = basename($filePath);
+            $basename = $this->relativeFrom($directory, $filePath);
 
             $lines[] = '#EXTINF:-1,'.$artist.' - '.$trackTitle;
             $lines[] = $basename;
@@ -63,5 +67,35 @@ final class PlaylistM3uWriter
     private function sanitizePlaylistName(string $title): string
     {
         return str_replace(["\r", "\n"], ' ', $title);
+    }
+
+    private function relativeFrom(string $directory, string $filePath): string
+    {
+        $from = $this->absolute($directory);
+        $to = $this->absolute($filePath);
+
+        if ($to === $from || str_starts_with($to, $from.'/')) {
+            $relative = ltrim(substr($to, strlen($from)), '/');
+
+            return $relative !== '' ? $relative : basename($filePath);
+        }
+
+        $fromParts = $from === '' ? [] : explode('/', trim($from, '/'));
+        $toParts = $to === '' ? [] : explode('/', trim($to, '/'));
+
+        while ($fromParts !== [] && $toParts !== [] && $fromParts[0] === $toParts[0]) {
+            array_shift($fromParts);
+            array_shift($toParts);
+        }
+
+        return str_repeat('../', count($fromParts)).implode('/', $toParts);
+    }
+
+    private function absolute(string $path): string
+    {
+        $resolved = realpath($path);
+        $value = $resolved !== false ? $resolved : $path;
+
+        return rtrim(str_replace('\\', '/', $value), '/');
     }
 }

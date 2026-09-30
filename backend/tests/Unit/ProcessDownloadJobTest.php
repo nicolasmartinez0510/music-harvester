@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Application\Settings\ProviderSettingsResolver;
+use App\Domain\Music\Contracts\DownloadedTrackRepository;
 use App\Domain\Music\Contracts\DownloadJobRepository;
 use App\Domain\Music\Contracts\MusicProvider;
 use App\Domain\Music\Contracts\SettingsRepository;
@@ -91,7 +92,7 @@ class ProcessDownloadJobTest extends TestCase
             ->with(42, DownloadStatus::Done, null);
 
         $job = new ProcessDownloadJob(42);
-        $job->handle($jobs, $registry, $settings, $this->metadata(), $this->cleanup());
+        $job->handle($jobs, $registry, $settings, $this->metadata(), $this->cleanup(), $this->downloadedTracks());
 
         $this->addToAssertionCount(1);
     }
@@ -134,7 +135,7 @@ class ProcessDownloadJobTest extends TestCase
         $job = new ProcessDownloadJob(7);
 
         $this->expectException(\RuntimeException::class);
-        $job->handle($jobs, $registry, $settings, $this->metadata(), $this->cleanup());
+        $job->handle($jobs, $registry, $settings, $this->metadata(), $this->cleanup(), $this->downloadedTracks());
     }
 
     public function test_playlist_continues_after_individual_track_failure(): void
@@ -188,7 +189,7 @@ class ProcessDownloadJobTest extends TestCase
             ));
 
         $job = new ProcessDownloadJob(9);
-        $job->handle($jobs, $registry, $settings, $this->metadata(), $this->cleanup());
+        $job->handle($jobs, $registry, $settings, $this->metadata(), $this->cleanup(), $this->downloadedTracks());
 
         $this->addToAssertionCount(1);
     }
@@ -238,9 +239,77 @@ class ProcessDownloadJobTest extends TestCase
         $jobs->shouldReceive('updateStatus')->once()->with(3, DownloadStatus::Done, null);
 
         $job = new ProcessDownloadJob(3);
-        $job->handle($jobs, $this->registry([$provider]), $this->settingsResolver(), $metadata, $this->cleanup());
+        $job->handle($jobs, $this->registry([$provider]), $this->settingsResolver(), $metadata, $this->cleanup(), $this->downloadedTracks());
 
         $this->addToAssertionCount(1);
+    }
+
+    public function test_album_skips_tracks_already_in_the_index(): void
+    {
+        $existing = new Track(title: 'Have', artist: new Artist('Artist'), id: 'have', index: 1);
+        $missing = new Track(title: 'Need', artist: new Artist('Artist'), id: 'need', index: 2);
+        $resolved = new ResolvedMusic(
+            provider: 'deezer',
+            kind: ResolvedKind::Album,
+            title: 'Album',
+            items: [
+                new ResolvedItem(ResolvedKind::Track, $existing, 1),
+                new ResolvedItem(ResolvedKind::Track, $missing, 2),
+            ],
+            sourceUrl: 'https://www.deezer.com/album/9',
+        );
+
+        $provider = Mockery::mock(MusicProvider::class);
+        $provider->shouldReceive('name')->andReturn('deezer');
+        $provider->shouldReceive('supports')->andReturn(true);
+        $provider->shouldReceive('resolve')->once()->andReturn($resolved);
+        $provider->shouldReceive('download')
+            ->once()
+            ->withArgs(fn (ResolvedItem $item): bool => $item->item instanceof Track && $item->item->id === 'need')
+            ->andReturn(DownloadResult::ok('/music/artist/album/02 - need.flac'));
+
+        $jobs = Mockery::mock(DownloadJobRepository::class);
+        $jobs->shouldReceive('find')->once()->with(11)->andReturn([
+            'id' => 11,
+            'provider' => 'deezer',
+            'url' => 'https://www.deezer.com/album/9',
+            'kind' => 'album',
+            'status' => DownloadStatus::Pending->value,
+            'options_json' => json_encode(['format' => AudioFormat::Flac->value]),
+        ]);
+        $jobs->shouldReceive('updateStatus')->once()->with(11, DownloadStatus::Running);
+        $jobs->shouldReceive('updateMetadata')->once()->with(11, 'Album', 'Artist');
+        $jobs->shouldReceive('updateProgress')->once()->with(11, 50);
+        $jobs->shouldReceive('updateProgress')->once()->with(11, 100, '/music/artist/album/02 - need.flac');
+        $jobs->shouldReceive('appendDownloadedPath')->once()->with(11, '/music/artist/album/02 - need.flac');
+        $jobs->shouldReceive('updateStatus')->once()->with(11, DownloadStatus::Done, null);
+
+        $index = Mockery::mock(DownloadedTrackRepository::class);
+        $index->shouldReceive('findPresent')
+            ->once()
+            ->with(null, 'deezer', 'have')
+            ->andReturn(['file_path' => '/music/artist/album/01 - have.flac']);
+        $index->shouldReceive('findPresent')
+            ->once()
+            ->with(null, 'deezer', 'need')
+            ->andReturn(null);
+        $index->shouldReceive('upsert')
+            ->once()
+            ->with(null, 'deezer', 'need', '/music/artist/album/02 - need.flac', 'Need', 'Artist', 11, null);
+
+        $job = new ProcessDownloadJob(11);
+        $job->handle($jobs, $this->registry([$provider]), $this->settingsResolver(), $this->metadata(), $this->cleanup(), $index);
+
+        $this->addToAssertionCount(1);
+    }
+
+    private function downloadedTracks(): DownloadedTrackRepository&MockInterface
+    {
+        $tracks = Mockery::mock(DownloadedTrackRepository::class);
+        $tracks->shouldReceive('findPresent')->andReturn(null);
+        $tracks->shouldReceive('upsert');
+
+        return $tracks;
     }
 
     private function metadata(): TrackMetadataApplicator&MockInterface

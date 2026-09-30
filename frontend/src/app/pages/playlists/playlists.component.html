@@ -64,6 +64,9 @@
               </td>
               <td>
                 {{ playlist.counts.downloaded }}/{{ playlist.counts.total }}
+                @if (playlist.counts.existing > 0) {
+                  <small class="muted"> ({{ playlist.counts.existing }} ya existían)</small>
+                }
                 @if (playlist.counts.pending > 0) {
                   <small class="muted"> ({{ playlist.counts.pending }} pend.)</small>
                 }

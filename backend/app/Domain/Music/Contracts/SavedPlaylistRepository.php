@@ -104,7 +104,7 @@ interface SavedPlaylistRepository
     public function listPendingTracks(int $playlistId): array;
 
     /**
-     * @return array{total: int, downloaded: int, pending: int, failed: int, skipped: int}
+     * @return array{total: int, downloaded: int, existing: int, pending: int, failed: int, skipped: int}
      */
     public function trackCounts(int $playlistId): array;
 }

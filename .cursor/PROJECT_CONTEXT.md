@@ -61,7 +61,8 @@ Plan: [`.cursor/plans/user_auth_admin_1389c0c0.plan.md`](plans/user_auth_admin_1
 ## Playlists (descarga local)
 
 - `saved_playlists` + sync job/scheduler; intervalo en **minutos** (default 5)
-- Disco: `playlists/{id}-{slug}/` + M3U regenerado en cada sync
+- Disco: `playlists/{id}-{slug}/` + M3U regenerado en cada sync (paths relativos a la carpeta de la playlist, así un tema reutilizado apunta a `{artist}/{album}/` sin copiar audio)
+- Dedup: tabla `downloaded_tracks` (`user_id` + `provider` + `external_id` → `file_path`). Sync de playlist y descargas de álbum/track omiten lo ya indexado si el archivo sigue en disco. Borrar un job no borra un archivo cuyo índice pertenece a otro job. Backfill de descargas viejas: `php artisan downloads:backfill-index` (en el NAS, dentro de `app`; `--dry-run` primero). Resuelve cada job `done`, matchea el archivo por nombre y registra el id del tema. Álbumes primero, así la playlist reutiliza ese path
 - One-shot downloads siguen en artista/álbum
 - Distinto del eje futuro **Puentes** (copiar playlist entre providers sin bajar audio)
 
@@ -78,7 +79,7 @@ Plan: [`.cursor/plans/user_auth_admin_1389c0c0.plan.md`](plans/user_auth_admin_1
 - Épicas v2: providers, playlists sync, content manager (Explorar)
 - UI Trinomio + sidebar fijo/colapsable + playlists polish
 - Postgres + historial descargas (metadata, delete con archivos, sync “Descargado” en Browse)
-- Playlist folders + M3U + sync 5 min
+- Playlist folders + M3U + sync 5 min + dedup por índice de tracks (`downloaded_tracks`)
 - Auth/admin/tenancy + favoritos API
 - Mi Colección (Deezer)
 - Deezer audio metadata (mutagen)

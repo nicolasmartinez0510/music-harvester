@@ -8,6 +8,7 @@ use App\Domain\Music\Contracts\SavedPlaylistRepository;
 use App\Domain\Music\ValueObjects\AudioFormat;
 use App\Domain\Music\ValueObjects\PlaylistSyncStatus;
 use App\Domain\Music\ValueObjects\PlaylistTrackStatus;
+use Carbon\Carbon;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -158,7 +159,7 @@ final class EloquentSavedPlaylistRepository implements SavedPlaylistRepository
             }
 
             $intervalMinutes = max(1, (int) $playlist['sync_interval_minutes']);
-            $nextDue = \Carbon\Carbon::parse($lastSynced)->addMinutes($intervalMinutes);
+            $nextDue = Carbon::parse($lastSynced)->addMinutes($intervalMinutes);
 
             if ($nextDue->lte(now())) {
                 $due[] = $playlist;
@@ -268,7 +269,7 @@ final class EloquentSavedPlaylistRepository implements SavedPlaylistRepository
             $data['download_job_id'] = $downloadJobId;
         }
 
-        if ($status === PlaylistTrackStatus::Downloaded) {
+        if ($status === PlaylistTrackStatus::Downloaded || $status === PlaylistTrackStatus::Existing) {
             $data['downloaded_at'] = now();
             $data['last_error'] = null;
         }
@@ -316,13 +317,15 @@ final class EloquentSavedPlaylistRepository implements SavedPlaylistRepository
             ->all();
 
         $downloaded = (int) ($rows[PlaylistTrackStatus::Downloaded->value] ?? 0);
+        $existing = (int) ($rows[PlaylistTrackStatus::Existing->value] ?? 0);
         $pending = (int) ($rows[PlaylistTrackStatus::Pending->value] ?? 0);
         $failed = (int) ($rows[PlaylistTrackStatus::Failed->value] ?? 0);
         $skipped = (int) ($rows[PlaylistTrackStatus::Skipped->value] ?? 0);
 
         return [
-            'total' => $downloaded + $pending + $failed + $skipped,
+            'total' => $downloaded + $existing + $pending + $failed + $skipped,
             'downloaded' => $downloaded,
+            'existing' => $existing,
             'pending' => $pending,
             'failed' => $failed,
             'skipped' => $skipped,

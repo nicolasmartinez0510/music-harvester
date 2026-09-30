@@ -63,6 +63,38 @@ class PlaylistM3uWriterTest extends TestCase
         $this->rmTree($base);
     }
 
+    public function test_writes_library_relative_path_for_reused_album_files(): void
+    {
+        $base = storage_path('framework/testing/m3u-'.uniqid());
+        $storage = new LocalMusicStorage($base);
+        $writer = new PlaylistM3uWriter($storage);
+
+        $playlistDir = $storage->playlistDirectory(1, 'Chill');
+        $storage->ensureDirectory($playlistDir);
+        $albumDir = $base.'/artist/album';
+        mkdir($albumDir, 0777, true);
+        $albumFile = $albumDir.'/03 - title.flac';
+        file_put_contents($albumFile, 'a');
+
+        $path = $writer->write(
+            ['id' => 1, 'title' => 'Chill'],
+            [
+                [
+                    'title' => 'Title',
+                    'artist' => 'Artist',
+                    'status' => 'existing',
+                    'file_path' => $albumFile,
+                    'position' => 1,
+                ],
+            ],
+        );
+
+        $contents = (string) file_get_contents($path);
+        $this->assertStringContainsString("#EXTINF:-1,Artist - Title\n../../artist/album/03 - title.flac\n", $contents);
+
+        $this->rmTree($base);
+    }
+
     private function rmTree(string $dir): void
     {
         if (! is_dir($dir)) {

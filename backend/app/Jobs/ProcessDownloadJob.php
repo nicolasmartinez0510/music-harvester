@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Application\Auth\LibraryPathResolver;
 use App\Application\Settings\ProviderSettingsResolver;
+use App\Domain\Music\Contracts\DownloadedTrackRepository;
 use App\Domain\Music\Contracts\DownloadJobRepository;
 use App\Domain\Music\Contracts\TrackMetadataApplicator;
 use App\Domain\Music\Models\Track;
@@ -45,6 +46,7 @@ class ProcessDownloadJob implements ShouldQueue
         ProviderSettingsResolver $settings,
         TrackMetadataApplicator $metadata,
         DownloadedFilesCleanup $cleanup,
+        DownloadedTrackRepository $downloadedTracks,
     ): void {
         $job = $jobs->find($this->downloadJobId);
 
@@ -89,12 +91,29 @@ class ProcessDownloadJob implements ShouldQueue
             );
 
             $completed = 0;
+            $actuallyDownloaded = 0;
             $lastPath = null;
             $failures = [];
             $isMultiItem = $this->isMultiItemJob($job);
+            $userId = isset($job['user_id']) && $job['user_id'] !== null ? (int) $job['user_id'] : null;
 
             foreach ($items as $item) {
-                if ($isMultiItem && $completed > 0) {
+                $track = $item->item instanceof Track ? $item->item : null;
+                $externalId = $track?->id;
+                if (is_string($externalId) && $externalId !== '') {
+                    $existing = $downloadedTracks->findPresent($userId, $provider->name(), $externalId);
+                    if ($existing !== null) {
+                        $completed++;
+                        $jobs->updateProgress(
+                            $this->downloadJobId,
+                            (int) round(($completed / $total) * 100),
+                        );
+
+                        continue;
+                    }
+                }
+
+                if ($isMultiItem && $actuallyDownloaded > 0) {
                     sleep(self::PLAYLIST_TRACK_DELAY_SECONDS);
                 }
 
@@ -114,6 +133,7 @@ class ProcessDownloadJob implements ShouldQueue
                 }
 
                 $completed++;
+                $actuallyDownloaded++;
                 $lastPath = $result->destinationPath;
                 if ($provider->name() === 'deezer' && $item->item instanceof Track && is_string($lastPath) && $lastPath !== '') {
                     try {
@@ -139,6 +159,18 @@ class ProcessDownloadJob implements ShouldQueue
                 if (is_string($lastPath) && $lastPath !== '') {
                     $jobs->appendDownloadedPath($this->downloadJobId, $lastPath);
                     $cleanup->relaxPermissions($lastPath);
+                    if ($track instanceof Track && is_string($track->id) && $track->id !== '') {
+                        $downloadedTracks->upsert(
+                            userId: $userId,
+                            provider: $provider->name(),
+                            externalId: $track->id,
+                            filePath: $lastPath,
+                            title: $track->title,
+                            artist: $track->artist?->name,
+                            downloadJobId: $this->downloadJobId,
+                            savedPlaylistTrackId: null,
+                        );
+                    }
                 }
             }
 

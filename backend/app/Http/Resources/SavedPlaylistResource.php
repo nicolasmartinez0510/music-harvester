@@ -34,6 +34,7 @@ final class SavedPlaylistResource extends JsonResource
             'counts' => $counts ?? [
                 'total' => 0,
                 'downloaded' => 0,
+                'existing' => 0,
                 'pending' => 0,
                 'failed' => 0,
                 'skipped' => 0,

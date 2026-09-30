@@ -126,6 +126,11 @@ th {
   color: #166534;
 }
 
+.status-existing {
+  background: #e0f2fe;
+  color: #075985;
+}
+
 .status-failed {
   background: #fee2e2;
   color: #991b1b;

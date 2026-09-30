@@ -29,6 +29,7 @@ use App\Application\UpdateSavedPlaylist\UpdateSavedPlaylistHandler;
 use App\Application\UpdateSettings\UpdateSettingsHandler;
 use App\Domain\Music\Contracts\ArtistBiographyLookup;
 use App\Domain\Music\Contracts\AudioTagWriter;
+use App\Domain\Music\Contracts\DownloadedTrackRepository;
 use App\Domain\Music\Contracts\DownloadJobRepository;
 use App\Domain\Music\Contracts\MusicDownloader;
 use App\Domain\Music\Contracts\MusicProvider;
@@ -41,6 +42,7 @@ use App\Infrastructure\Downloader\YtDlpDownloader;
 use App\Infrastructure\Metadata\Deezer\DeezerAudioMetadataEnricher;
 use App\Infrastructure\Metadata\Deezer\DeezerMetadataMapper;
 use App\Infrastructure\Metadata\MutagenAudioTagWriter;
+use App\Infrastructure\Persistence\EloquentDownloadedTrackRepository;
 use App\Infrastructure\Persistence\EloquentDownloadRepository;
 use App\Infrastructure\Persistence\EloquentSavedPlaylistRepository;
 use App\Infrastructure\Persistence\EloquentSettingsRepository;
@@ -62,6 +64,7 @@ class MusicHarvesterServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(DownloadJobRepository::class, EloquentDownloadRepository::class);
+        $this->app->singleton(DownloadedTrackRepository::class, EloquentDownloadedTrackRepository::class);
         $this->app->singleton(SavedPlaylistRepository::class, EloquentSavedPlaylistRepository::class);
         $this->app->singleton(SettingsRepository::class, EloquentSettingsRepository::class);
         $this->app->singleton(ArtistBiographyLookup::class, WikipediaArtistBiographyLookup::class);

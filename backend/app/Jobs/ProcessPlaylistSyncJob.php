@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Application\Auth\LibraryPathResolver;
 use App\Application\Settings\ProviderSettingsResolver;
+use App\Domain\Music\Contracts\DownloadedTrackRepository;
 use App\Domain\Music\Contracts\SavedPlaylistRepository;
 use App\Domain\Music\Contracts\TrackMetadataApplicator;
 use App\Domain\Music\Models\Track;
@@ -48,6 +49,7 @@ class ProcessPlaylistSyncJob implements ShouldQueue
         LocalMusicStorage $storage,
         PlaylistM3uWriter $m3uWriter,
         TrackMetadataApplicator $metadata,
+        DownloadedTrackRepository $downloadedTracks,
     ): void {
         $playlist = $playlists->find($this->savedPlaylistId);
 
@@ -126,20 +128,13 @@ class ProcessPlaylistSyncJob implements ShouldQueue
                 $libraryRoot,
             );
             $storage->ensureDirectory($playlistDir);
+            $this->relabelReusedTracks($playlists, $playlistDir);
 
             $pending = $playlists->listPendingTracks($this->savedPlaylistId);
             $options = $this->buildOptions($playlist, $provider->name(), $settings, $playlistDir, $userId);
-            $completed = 0;
+            $downloadedCount = 0;
 
             foreach ($pending as $pendingTrack) {
-                if ($playlists->find($this->savedPlaylistId) === null) {
-                    return;
-                }
-
-                if ($completed > 0) {
-                    sleep(self::TRACK_DELAY_SECONDS);
-                }
-
                 if ($playlists->find($this->savedPlaylistId) === null) {
                     return;
                 }
@@ -154,6 +149,27 @@ class ProcessPlaylistSyncJob implements ShouldQueue
                     );
 
                     continue;
+                }
+
+                $externalId = (string) $pendingTrack['external_id'];
+                $existing = $downloadedTracks->findPresent($userId, $provider->name(), $externalId);
+                if ($existing !== null) {
+                    $playlists->updateTrackStatus(
+                        (int) $pendingTrack['id'],
+                        PlaylistTrackStatus::Existing,
+                        filePath: (string) $existing['file_path'],
+                    );
+                    $this->regenerateM3u($playlists, $m3uWriter, $playlist, $libraryRoot);
+
+                    continue;
+                }
+
+                if ($downloadedCount > 0) {
+                    sleep(self::TRACK_DELAY_SECONDS);
+                }
+
+                if ($playlists->find($this->savedPlaylistId) === null) {
+                    return;
                 }
 
                 $downloadItem = $this->withPlaylistPosition(
@@ -198,12 +214,26 @@ class ProcessPlaylistSyncJob implements ShouldQueue
                     }
                 }
 
+                if (is_string($result->destinationPath) && $result->destinationPath !== '') {
+                    $track = $downloadItem->item instanceof Track ? $downloadItem->item : null;
+                    $downloadedTracks->upsert(
+                        userId: $userId,
+                        provider: $provider->name(),
+                        externalId: $externalId,
+                        filePath: $result->destinationPath,
+                        title: $track?->title ?? (is_string($pendingTrack['title'] ?? null) ? $pendingTrack['title'] : null),
+                        artist: $track?->artist?->name ?? (is_string($pendingTrack['artist'] ?? null) ? $pendingTrack['artist'] : null),
+                        downloadJobId: null,
+                        savedPlaylistTrackId: (int) $pendingTrack['id'],
+                    );
+                }
+
                 $playlists->updateTrackStatus(
                     (int) $pendingTrack['id'],
                     PlaylistTrackStatus::Downloaded,
                     filePath: $result->destinationPath,
                 );
-                $completed++;
+                $downloadedCount++;
 
                 $this->regenerateM3u($playlists, $m3uWriter, $playlist, $libraryRoot);
             }
@@ -268,6 +298,34 @@ class ProcessPlaylistSyncJob implements ShouldQueue
             $playlists->listTracks($this->savedPlaylistId),
             $libraryRoot,
         );
+    }
+
+    private function relabelReusedTracks(SavedPlaylistRepository $playlists, string $playlistDir): void
+    {
+        foreach ($playlists->listTracks($this->savedPlaylistId) as $track) {
+            if (($track['status'] ?? '') !== PlaylistTrackStatus::Downloaded->value) {
+                continue;
+            }
+
+            $filePath = $track['file_path'] ?? null;
+            if (! is_string($filePath) || $filePath === '' || $this->pathIsInside($filePath, $playlistDir)) {
+                continue;
+            }
+
+            $playlists->updateTrackStatus(
+                (int) $track['id'],
+                PlaylistTrackStatus::Existing,
+                filePath: $filePath,
+            );
+        }
+    }
+
+    private function pathIsInside(string $path, string $directory): bool
+    {
+        $normalized = rtrim(str_replace('\\', '/', $path), '/');
+        $dir = rtrim(str_replace('\\', '/', $directory), '/');
+
+        return $dir !== '' && ($normalized === $dir || str_starts_with($normalized, $dir.'/'));
     }
 
     private function withPlaylistPosition(ResolvedItem $item, int $position): ResolvedItem

@@ -3,7 +3,7 @@ export type AudioFormat = 'mp3_320' | 'm4a' | 'flac';
 export type DeezerMode = 'native' | 'hybrid';
 export type ProviderName = 'youtube_music' | 'deezer' | 'auto';
 export type PlaylistSyncStatus = 'idle' | 'running' | 'done' | 'failed';
-export type PlaylistTrackStatus = 'pending' | 'downloaded' | 'failed' | 'skipped';
+export type PlaylistTrackStatus = 'pending' | 'downloaded' | 'existing' | 'failed' | 'skipped';
 
 export interface DownloadJob {
   id: number;
@@ -27,6 +27,7 @@ export interface DownloadJob {
 export interface PlaylistTrackCounts {
   total: number;
   downloaded: number;
+  existing: number;
   pending: number;
   failed: number;
   skipped: number;
@@ -199,6 +200,7 @@ export const PLAYLIST_SYNC_LABELS: Record<PlaylistSyncStatus, string> = {
 export const PLAYLIST_TRACK_LABELS: Record<PlaylistTrackStatus, string> = {
   pending: 'Pendiente',
   downloaded: 'Descargado',
+  existing: 'Ya existe',
   failed: 'Fallido',
   skipped: 'Omitido',
 };

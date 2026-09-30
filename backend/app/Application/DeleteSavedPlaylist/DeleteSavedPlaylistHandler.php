@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\DeleteSavedPlaylist;
 
 use App\Application\Auth\LibraryPathResolver;
+use App\Domain\Music\Contracts\DownloadedTrackRepository;
 use App\Domain\Music\Contracts\SavedPlaylistRepository;
 use App\Infrastructure\Queue\PlaylistSyncQueueCanceller;
 use App\Infrastructure\Storage\DownloadedFilesCleanup;
@@ -26,6 +27,7 @@ final readonly class DeleteSavedPlaylistHandler
         private LocalMusicStorage $storage,
         private DownloadedFilesCleanup $filesCleanup,
         private LibraryPathResolver $paths,
+        private DownloadedTrackRepository $downloadedTracks,
     ) {}
 
     public function handle(DeleteSavedPlaylistCommand $command): bool
@@ -68,8 +70,33 @@ final readonly class DeleteSavedPlaylistHandler
             return false;
         }
 
-        $this->filesCleanup->deletePaths([...$filePaths, ...$directories]);
+        $ownedPaths = [];
+        foreach ($filePaths as $path) {
+            if ($this->pathIsInside($path, $directories)) {
+                $ownedPaths[] = $path;
+            }
+        }
+
+        $this->filesCleanup->deletePaths([...$ownedPaths, ...$directories]);
+        $this->downloadedTracks->deleteByPaths($ownedPaths);
 
         return true;
+    }
+
+    /**
+     * @param  list<string>  $directories
+     */
+    private function pathIsInside(string $path, array $directories): bool
+    {
+        $normalized = rtrim(str_replace('\\', '/', $path), '/');
+
+        foreach ($directories as $directory) {
+            $dir = rtrim(str_replace('\\', '/', $directory), '/');
+            if ($dir !== '' && ($normalized === $dir || str_starts_with($normalized, $dir.'/'))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

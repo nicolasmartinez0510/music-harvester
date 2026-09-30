@@ -34,6 +34,43 @@ final class DownloadedFilesCleanup
     }
 
     /**
+     * First existing file for a stored path, including host-vs-container root remap.
+     * Does not expand to sibling audio in the album folder.
+     */
+    public function locateExistingFile(string $path): ?string
+    {
+        foreach ($this->candidatePaths($path) as $candidate) {
+            if ($this->isSafePath($candidate) && is_file($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<string>  $preservePaths
+     */
+    private function isPreserved(string $path, array $preservePaths): bool
+    {
+        if ($preservePaths === []) {
+            return false;
+        }
+
+        if (in_array($path, $preservePaths, true)) {
+            return true;
+        }
+
+        foreach ($this->candidatePaths($path) as $candidate) {
+            if (in_array($candidate, $preservePaths, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * @param  array<string, mixed>  $job
      */
     public function filesPresent(array $job): bool
@@ -43,12 +80,17 @@ final class DownloadedFilesCleanup
 
     /**
      * @param  array<string, mixed>  $job
+     * @param  list<string>  $preservePaths  Paths owned by another download; leave the file in place.
      */
-    public function deleteJobFiles(array $job): void
+    public function deleteJobFiles(array $job, array $preservePaths = []): void
     {
         $deletedDirs = [];
 
         foreach ($this->resolveExistingFiles($job) as $path) {
+            if ($this->isPreserved($path, $preservePaths)) {
+                continue;
+            }
+
             $this->deletePath($path);
             $parent = dirname($path);
             if ($parent !== '' && ! in_array($parent, $deletedDirs, true)) {
@@ -58,7 +100,15 @@ final class DownloadedFilesCleanup
 
         // Also try exact recorded paths (may already be gone).
         foreach ($this->pathsForJob($job) as $path) {
+            if ($this->isPreserved($path, $preservePaths)) {
+                continue;
+            }
+
             foreach ($this->candidatePaths($path) as $candidate) {
+                if ($this->isPreserved($candidate, $preservePaths)) {
+                    continue;
+                }
+
                 $this->deletePath($candidate);
             }
         }
@@ -125,6 +175,7 @@ final class DownloadedFilesCleanup
 
                 if (is_file($candidate)) {
                     $found[$candidate] = true;
+
                     continue;
                 }
 
@@ -132,6 +183,7 @@ final class DownloadedFilesCleanup
                     foreach ($this->audioFilesIn($candidate) as $audio) {
                         $found[$audio] = true;
                     }
+
                     continue;
                 }
 

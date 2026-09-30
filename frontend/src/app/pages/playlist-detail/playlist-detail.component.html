@@ -19,6 +19,9 @@
         <p class="header-meta">
           <span class="provider-badge">{{ providerLabel(detail.provider) }}</span>
           <span>· {{ detail.counts.downloaded }}/{{ detail.counts.total }} descargados</span>
+          @if (detail.counts.existing > 0) {
+            <span>· {{ detail.counts.existing }} ya existían</span>
+          }
           @if (detail.last_synced_at) {
             <span>· Último: {{ detail.last_synced_at | date: 'short' }}</span>
           } @else {

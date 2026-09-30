@@ -241,7 +241,17 @@ export class PlaylistDetailComponent implements OnInit {
   }
 
   trackStatusClass(status: string): string {
-    return `status status-${status === 'downloaded' ? 'done' : status === 'pending' ? 'pending' : status === 'failed' ? 'failed' : 'pending'}`;
+    if (status === 'downloaded') {
+      return 'status status-done';
+    }
+    if (status === 'existing') {
+      return 'status status-existing';
+    }
+    if (status === 'failed') {
+      return 'status status-failed';
+    }
+
+    return 'status status-pending';
   }
 
   private clampPage(): void {
