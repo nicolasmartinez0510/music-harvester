@@ -80,3 +80,31 @@
   background: var(--surface-muted);
   color: var(--text);
 }
+
+@media (max-width: 640px) {
+  .user-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      'avatar meta'
+      'actions actions';
+    align-items: center;
+  }
+
+  .user-avatar {
+    grid-area: avatar;
+  }
+
+  .user-meta {
+    grid-area: meta;
+  }
+
+  .user-meta span {
+    white-space: normal;
+  }
+
+  .user-actions {
+    grid-area: actions;
+    justify-content: flex-end;
+  }
+}

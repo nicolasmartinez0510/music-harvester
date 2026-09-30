@@ -115,6 +115,18 @@
   border-radius: 0.4rem;
 }
 
+@media (max-width: 640px) {
+  .avatar-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 400px) {
+  .avatar-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 .code-input {
   letter-spacing: 0.4em;
   font-size: 1.4rem;

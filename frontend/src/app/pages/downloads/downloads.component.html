@@ -5,16 +5,22 @@
       <p>Estado de descargas recientes. Se actualiza cada 5 segundos.</p>
     </div>
     <div class="header-actions">
-      @if (jobs.length > 0) {
-        <button type="button" class="btn btn-danger btn-with-icon" (click)="openClearConfirm()">
-          <app-icon name="trash" class="btn-leading-icon" />
-          Vaciar historial
-        </button>
-      }
       <button type="button" class="btn btn-primary btn-with-icon" (click)="openForm()">
         <app-icon name="plus" class="btn-leading-icon" />
         Nueva descarga
       </button>
+      @if (jobs.length > 0) {
+        <button
+          type="button"
+          class="btn btn-danger btn-with-icon clear-history"
+          (click)="openClearConfirm()"
+          aria-label="Vaciar historial"
+          title="Vaciar historial"
+        >
+          <app-icon name="trash" class="btn-leading-icon" />
+          <span class="clear-history-label">Vaciar historial</span>
+        </button>
+      }
     </div>
   </header>
 
@@ -60,21 +66,23 @@
                   </small>
                 }
               </td>
-              <td>
+              <td data-label="Estado">
                 <span [class]="statusClass(job.status)">{{ statusLabels[job.status] }}</span>
                 @if (job.error) {
                   <small class="job-error">{{ job.error }}</small>
                 }
               </td>
-              <td>{{ job.kind }}</td>
-              <td>
-                <div class="progress">
-                  <div class="progress-bar" [style.width.%]="job.progress"></div>
+              <td data-label="Tipo">{{ job.kind }}</td>
+              <td data-label="Progreso">
+                <div class="progress-readout">
+                  <div class="progress">
+                    <div class="progress-bar" [style.width.%]="job.progress"></div>
+                  </div>
+                  <small>{{ job.progress }}%</small>
                 </div>
-                <small>{{ job.progress }}%</small>
               </td>
-              <td>{{ job.created_at | date: 'short' }}</td>
-              <td>
+              <td data-label="Creado">{{ job.created_at | date: 'short' }}</td>
+              <td class="actions-cell">
                 <div class="row-actions">
                   @if (job.can_download_artifact) {
                     <button type="button" class="btn btn-small" (click)="downloadArtifact(job)">

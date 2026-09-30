@@ -135,3 +135,57 @@ th {
   background: #fee2e2;
   color: #991b1b;
 }
+
+@media (max-width: 640px) {
+  .header-actions {
+    width: 100%;
+  }
+
+  .header-actions .btn-primary {
+    flex: 1 1 auto;
+  }
+
+  .table-wrap {
+    overflow-x: visible;
+  }
+
+  table,
+  tbody {
+    display: block;
+  }
+
+  thead {
+    display: none;
+  }
+
+  tr {
+    display: grid;
+    gap: 0.4rem;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  tr:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  td {
+    display: grid;
+    grid-template-columns: 5.25rem minmax(0, 1fr);
+    gap: 0.25rem 0.65rem;
+    align-items: start;
+    padding: 0;
+    border: 0;
+  }
+
+  td::before {
+    content: attr(data-label);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding-top: 0.15rem;
+  }
+}

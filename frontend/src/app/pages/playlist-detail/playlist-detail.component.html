@@ -92,15 +92,15 @@
           <tbody>
             @for (track of pagedTracks; track track.id) {
               <tr>
-                <td>{{ track.position }}</td>
-                <td>
+                <td data-label="#">{{ track.position }}</td>
+                <td data-label="Título">
                   {{ track.title }}
                   @if (track.last_error) {
                     <small class="track-error">{{ track.last_error }}</small>
                   }
                 </td>
-                <td>{{ track.artist || '—' }}</td>
-                <td>
+                <td data-label="Artista">{{ track.artist || '—' }}</td>
+                <td data-label="Estado">
                   <span [class]="trackStatusClass(track.status)">
                     {{ trackLabels[track.status] }}
                   </span>

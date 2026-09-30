@@ -1,7 +1,7 @@
 import { AsyncPipe } from '@angular/common';
 import { Component, inject } from '@angular/core';
 
-import { ToastService } from './toast.service';
+import { ToastMessage, ToastService } from './toast.service';
 
 @Component({
   selector: 'app-toast-host',
@@ -15,6 +15,11 @@ import { ToastService } from './toast.service';
           [class.toast-error]="toast.kind === 'error'"
         >
           <span>{{ toast.text }}</span>
+          @if (toast.actionLabel) {
+            <button type="button" class="toast-action" (click)="runAction(toast)">
+              {{ toast.actionLabel }}
+            </button>
+          }
           <button
             type="button"
             class="toast-dismiss"
@@ -30,4 +35,9 @@ import { ToastService } from './toast.service';
 })
 export class ToastHostComponent {
   readonly toasts = inject(ToastService);
+
+  runAction(toast: ToastMessage): void {
+    toast.onAction?.();
+    this.toasts.dismiss(toast.id);
+  }
 }

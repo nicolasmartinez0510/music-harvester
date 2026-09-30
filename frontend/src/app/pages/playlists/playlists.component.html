@@ -4,9 +4,15 @@
       <h1>Playlists guardadas</h1>
       <p>Sincronizá playlists y descargá solo los tracks nuevos.</p>
     </div>
-    <button type="button" class="btn btn-primary btn-with-icon" (click)="openForm()">
+    <button
+      type="button"
+      class="btn btn-primary btn-with-icon add-playlist"
+      (click)="openForm()"
+      aria-label="Agregar playlist"
+      title="Agregar playlist"
+    >
       <app-icon name="plus" class="btn-leading-icon" />
-      Agregar playlist
+      <span class="add-playlist-label">Agregar playlist</span>
     </button>
   </header>
 
@@ -19,10 +25,6 @@
   } @else if (playlists.length === 0) {
     <div class="card empty-state">
       <p>No hay playlists guardadas todavía.</p>
-      <button type="button" class="btn btn-primary btn-with-icon" (click)="openForm()">
-        <app-icon name="plus" class="btn-leading-icon" />
-        Agregar la primera
-      </button>
     </div>
   } @else {
     <div class="card table-wrap">
@@ -51,10 +53,10 @@
                   }
                 </small>
               </td>
-              <td>
+              <td data-label="Provider">
                 <span class="provider-badge">{{ providerLabel(playlist.provider) }}</span>
               </td>
-              <td>
+              <td data-label="Sync">
                 <span [class]="syncClass(playlist.last_sync_status)">
                   {{ syncLabels[playlist.last_sync_status] }}
                 </span>
@@ -62,7 +64,7 @@
                   <small class="muted sync-auto-off">auto off</small>
                 }
               </td>
-              <td>
+              <td data-label="Tracks">
                 {{ playlist.counts.downloaded }}/{{ playlist.counts.total }}
                 @if (playlist.counts.existing > 0) {
                   <small class="muted"> ({{ playlist.counts.existing }} ya existían)</small>

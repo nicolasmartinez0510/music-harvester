@@ -12,6 +12,7 @@ import {
   ProviderInfo,
   providerIconName,
 } from './core/models';
+import { AppUpdateService } from './core/app-update.service';
 import { ThemeService } from './core/theme.service';
 import { IconComponent, IconName } from './shared/icon.component';
 import { ToastHostComponent } from './shared/toast-host.component';
@@ -33,6 +34,7 @@ export class AppComponent implements OnInit {
   readonly auth = inject(AuthService);
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
+  private readonly appUpdates = inject(AppUpdateService);
 
   readonly providerLabels = PROVIDER_LABELS;
   readonly libraryKinds: LibraryKind[] = ['artists', 'tracks', 'albums', 'playlists'];
@@ -58,6 +60,7 @@ export class AppComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.appUpdates.listen();
     this.auth.bootstrap().subscribe();
   }
 

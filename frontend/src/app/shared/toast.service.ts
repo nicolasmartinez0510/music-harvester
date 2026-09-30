@@ -7,6 +7,8 @@ export interface ToastMessage {
   id: number;
   kind: ToastKind;
   text: string;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -26,6 +28,14 @@ export class ToastService {
 
   dismiss(id: number): void {
     this.messagesSubject.next(this.messagesSubject.value.filter((m) => m.id !== id));
+  }
+
+  prompt(text: string, actionLabel: string, onAction: () => void): void {
+    const id = this.nextId++;
+    this.messagesSubject.next([
+      ...this.messagesSubject.value,
+      { id, kind: 'success', text, actionLabel, onAction },
+    ]);
   }
 
   private push(kind: ToastKind, text: string, durationMs: number): void {

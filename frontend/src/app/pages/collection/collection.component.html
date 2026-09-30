@@ -59,7 +59,7 @@
                 [attr.aria-label]="syncLabel(hit)"
               >
                 <app-icon [name]="syncIcon(hit)" class="btn-leading-icon" />
-                {{ syncLabel(hit) }}
+                <span class="sync-label">{{ syncLabel(hit) }}</span>
               </button>
               <app-catalog-download-btn [url]="hit.canonical_url" />
             } @else if (hit.type === 'track' || hit.type === 'album') {

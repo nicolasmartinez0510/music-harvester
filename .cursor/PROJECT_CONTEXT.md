@@ -11,7 +11,7 @@ Plan fundacional: [`.cursor/plans/music_harvester_nas.plan.md`](plans/music_harv
 ## Stack y entorno local
 
 - **Backend:** Laravel 12 + PHP 8.4, **PostgreSQL 16**, queue en DB (`QUEUE_CONNECTION=database`)
-- **Frontend:** Angular 19 SPA (same-origin vía nginx; hot reload en `:4200` con proxy)
+- **Frontend:** Angular 19 SPA (same-origin vía nginx; hot reload en `:4200` con proxy). PWA instalable en build de producción (`@angular/service-worker`): manifest + cache del shell. No cachea `/api` ni `/sanctum`. La instalación pide HTTPS (reverse proxy del NAS); en `:8085` HTTP el browser puede no ofrecer “instalar”. `ng serve` no registra el service worker.
 - **Docker Compose:** `db`, `app`, `worker`, `scheduler`, `nginx`
 - **Dev:** `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build`
 - **Puerto local:** **8085** → UI `/`, API `/api`, health `/up`
@@ -33,7 +33,7 @@ Plan fundacional: [`.cursor/plans/music_harvester_nas.plan.md`](plans/music_harv
 | `/users` | Admin: usuarios + approve server storage |
 | Auth | `/login`, `/register`, `/verify-email`, `/forgot-password`, `/reset-password` |
 
-Sidebar Trinomio (claro/oscuro), colapsable a rail, Favoritos de artistas + Mi Colección.
+Sidebar Trinomio (claro/oscuro), colapsable a rail en desktop y drawer ≤840px. En móvil (≤640px) las tablas de Descargas, Playlists y detalle de playlist pasan a filas apiladas, con las acciones arriba a la derecha. En Explorar y Mi Colección, descargar, estrella y sync son iconos a la derecha de la fila. La discografía pasa a 6 ítems por página. Safe-area en barra móvil y drawer. Toasts centrados abajo.
 
 ## Auth y tenancy
 
@@ -84,9 +84,10 @@ Plan: [`.cursor/plans/user_auth_admin_1389c0c0.plan.md`](plans/user_auth_admin_1
 - Mi Colección (Deezer)
 - Deezer audio metadata (mutagen)
 - Browse UX polish, album track spinners, album back navigation
-- Discografía del artista en tabs **Álbumes discográficos** / **Sencillos y EPs** (`record_type` de Deezer en `CatalogHit`). Página de 12 por tab; el botón Descargar se alinea al fondo de la fila
+- Discografía del artista en tabs **Álbumes discográficos** / **Sencillos y EPs** (`record_type` de Deezer en `CatalogHit`). Página de 12 por tab en desktop y 6 en móvil; el botón Descargar se alinea al fondo de la fila
 - Fondo de la ficha de artista: portada difuminada (blur 20px) solo en el área de contenido; el sidebar queda sólido. Se limpia al salir de la ruta
 - Bio de Wikipedia vuelve a mostrarse: el User-Agent anterior recibía 403/429 y el fallo quedaba cacheado 24 h
+- UI responsive (tablas y hits en ≤640px, safe-area, acciones como iconos) + PWA instalable (shell cacheado; sin offline de catálogo ni descargas). Nueva versión avisa con toast “Recargar”. Plan: [responsive_pwa](plans/responsive_pwa_38f12cec.plan.md)
 
 ## Próximos / pendientes
 

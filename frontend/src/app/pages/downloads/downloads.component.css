@@ -64,12 +64,26 @@ th {
   justify-content: flex-end;
 }
 
+.progress-readout {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+}
+
 .progress {
+  flex: 1;
   height: 0.4rem;
   background: var(--surface-muted);
   border-radius: 999px;
   overflow: hidden;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0;
+}
+
+.progress-readout small {
+  flex-shrink: 0;
+  min-width: 2.6rem;
 }
 
 .progress-bar {
@@ -151,4 +165,107 @@ th {
 
 .provider-select {
   margin: 0;
+}
+
+@media (max-width: 640px) {
+  .table-wrap {
+    overflow-x: visible;
+  }
+
+  table,
+  tbody {
+    display: block;
+  }
+
+  thead {
+    display: none;
+  }
+
+  .clear-history-label {
+    display: none;
+  }
+
+  .clear-history {
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+  }
+
+  .clear-history .btn-leading-icon {
+    margin-right: 0;
+  }
+
+  tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 0.65rem;
+    row-gap: 0.4rem;
+    align-items: start;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  tr:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  td {
+    display: grid;
+    grid-template-columns: 5.25rem minmax(0, 1fr);
+    gap: 0.25rem 0.65rem;
+    align-items: center;
+    padding: 0;
+    border: 0;
+  }
+
+  td::before {
+    content: attr(data-label);
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  td[data-label] {
+    grid-column: 1 / -1;
+  }
+
+  td[data-label] > * {
+    grid-column: 2;
+    justify-self: start;
+    max-width: 100%;
+  }
+
+  td:not([data-label]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  td:not([data-label])::before {
+    content: none;
+  }
+
+  .content-cell {
+    grid-column: 1;
+    grid-row: 1;
+    max-width: none;
+  }
+
+  .actions-cell {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    align-self: start;
+  }
+
+  .progress-readout {
+    justify-self: stretch;
+  }
+
+  .row-actions {
+    justify-content: flex-end;
+  }
 }

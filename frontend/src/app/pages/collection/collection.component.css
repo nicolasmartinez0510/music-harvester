@@ -74,3 +74,31 @@ a.hit-title:hover {
   padding: 1.5rem;
   text-align: center;
 }
+
+@media (max-width: 640px) {
+  .hit {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .hit-actions {
+    width: auto;
+    flex-shrink: 0;
+    margin-left: auto;
+    justify-content: flex-end;
+  }
+
+  .sync-label {
+    display: none;
+  }
+
+  .hit-actions .btn-small {
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+  }
+
+  .hit-actions .btn-leading-icon {
+    margin-right: 0;
+  }
+}

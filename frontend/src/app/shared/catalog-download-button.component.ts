@@ -19,7 +19,7 @@ import { IconComponent, IconName } from './icon.component';
       [attr.aria-label]="buttonLabel()"
     >
       <app-icon [name]="iconName()" class="btn-leading-icon" />
-      {{ buttonLabel() }}
+      <span class="btn-label">{{ buttonLabel() }}</span>
     </button>
   `,
   styles: `
@@ -36,6 +36,22 @@ import { IconComponent, IconName } from './icon.component';
     .btn-downloaded:disabled {
       opacity: 1;
       cursor: default;
+    }
+
+    @media (max-width: 640px) {
+      :host-context(.hit) .btn-label {
+        display: none;
+      }
+
+      :host-context(.hit) .btn {
+        width: 2.75rem;
+        height: 2.75rem;
+        padding: 0;
+      }
+
+      :host-context(.hit) .btn-leading-icon {
+        margin-right: 0;
+      }
     }
   `,
 })

@@ -30,10 +30,11 @@ export class BrowseArtistComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly mobileAlbums = window.matchMedia('(max-width: 640px)');
   private artistKey = '';
 
   readonly trackPageSize = 20;
-  readonly albumPageSize = 12;
+  albumPageSize = 12;
   readonly releaseTabs: { id: ReleaseTab; label: string }[] = [
     { id: 'albums', label: 'Álbumes discográficos' },
     { id: 'singles', label: 'Sencillos y EPs' },
@@ -59,7 +60,13 @@ export class BrowseArtistComponent implements OnInit {
   collectionBackKind: 'artists' | 'albums' | 'tracks' | 'playlists' = 'artists';
 
   ngOnInit(): void {
-    this.destroyRef.onDestroy(() => this.backdrop.clear());
+    this.syncAlbumPageSize();
+    const onViewportChange = () => this.syncAlbumPageSize();
+    this.mobileAlbums.addEventListener('change', onViewportChange);
+    this.destroyRef.onDestroy(() => {
+      this.mobileAlbums.removeEventListener('change', onViewportChange);
+      this.backdrop.clear();
+    });
 
     this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((query) => {
       this.applyQuery(query);
@@ -289,6 +296,10 @@ export class BrowseArtistComponent implements OnInit {
       queryParamsHandling: 'merge',
       replaceUrl: true,
     });
+  }
+
+  private syncAlbumPageSize(): void {
+    this.albumPageSize = this.mobileAlbums.matches ? 6 : 12;
   }
 
   private compareAlbums(a: CatalogHit, b: CatalogHit): number {

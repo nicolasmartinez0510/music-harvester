@@ -271,12 +271,13 @@ code {
 
 .toast-host {
   position: fixed;
-  right: 1rem;
-  bottom: 1rem;
+  left: 50%;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
   z-index: 1000;
   display: grid;
   gap: 0.5rem;
-  max-width: min(22rem, calc(100vw - 2rem));
+  width: min(22rem, calc(100vw - 2rem));
+  transform: translateX(-50%);
 }
 
 .toast {
@@ -302,6 +303,18 @@ code {
   border-color: var(--danger);
   background: var(--danger-soft);
   color: var(--danger);
+}
+
+.toast-action {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  white-space: nowrap;
 }
 
 .toast-dismiss {
