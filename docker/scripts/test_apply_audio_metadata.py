@@ -107,6 +107,19 @@ class ApplyAudioMetadataTest(unittest.TestCase):
             self.assertEqual(len(pictures), 1)
             self.assertEqual(bytes(pictures[0].data), replacement)
 
+    def test_has_cover_flag_reports_embedded_artwork(self) -> None:
+        if not mutagen_available():
+            self.skipTest("mutagen is not installed")
+
+        jpeg = b"\xff\xd8\xff\xd9"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "track.mp3"
+            self.write_mp3(path)
+            self.apply(path, {"title": "Original"}, None)
+            self.assertFalse(self.has_cover(path))
+            self.apply(path, {"title": "Original"}, jpeg)
+            self.assertTrue(self.has_cover(path))
+
     def write_mp3(self, path: Path) -> None:
         frame = bytes.fromhex("FFFB9000") + (b"\x00" * 413)
         path.write_bytes(frame * 2)
@@ -127,6 +140,16 @@ class ApplyAudioMetadataTest(unittest.TestCase):
             check=False,
         )
         self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def has_cover(self, path: Path) -> bool:
+        completed = subprocess.run(
+            [sys.executable, str(SCRIPT), "--has-cover", str(path)],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        return completed.stdout.strip() == "yes"
 
 
 if __name__ == "__main__":

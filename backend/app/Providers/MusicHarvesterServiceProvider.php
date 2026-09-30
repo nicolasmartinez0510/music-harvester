@@ -28,6 +28,7 @@ use App\Application\SyncSavedPlaylist\SyncSavedPlaylistHandler;
 use App\Application\UpdateSavedPlaylist\UpdateSavedPlaylistHandler;
 use App\Application\UpdateSettings\UpdateSettingsHandler;
 use App\Domain\Music\Contracts\ArtistBiographyLookup;
+use App\Domain\Music\Contracts\AudioCoverProbe;
 use App\Domain\Music\Contracts\AudioTagWriter;
 use App\Domain\Music\Contracts\DownloadedTrackRepository;
 use App\Domain\Music\Contracts\DownloadJobRepository;
@@ -41,6 +42,7 @@ use App\Infrastructure\Biography\WikipediaArtistBiographyLookup;
 use App\Infrastructure\Downloader\YtDlpDownloader;
 use App\Infrastructure\Metadata\Deezer\DeezerAudioMetadataEnricher;
 use App\Infrastructure\Metadata\Deezer\DeezerMetadataMapper;
+use App\Infrastructure\Metadata\MutagenAudioCoverProbe;
 use App\Infrastructure\Metadata\MutagenAudioTagWriter;
 use App\Infrastructure\Persistence\EloquentDownloadedTrackRepository;
 use App\Infrastructure\Persistence\EloquentDownloadRepository;
@@ -88,6 +90,7 @@ class MusicHarvesterServiceProvider extends ServiceProvider
         });
         $this->app->singleton(MutagenAudioTagWriter::class);
         $this->app->singleton(AudioTagWriter::class, MutagenAudioTagWriter::class);
+        $this->app->singleton(AudioCoverProbe::class, MutagenAudioCoverProbe::class);
         $this->app->singleton(ApplyTrackMetadataHandler::class);
         $this->app->singleton(TrackMetadataApplicator::class, function ($app) {
             return $app->make(ApplyTrackMetadataHandler::class);

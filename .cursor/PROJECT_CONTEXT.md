@@ -88,7 +88,7 @@ Plan: [`.cursor/plans/user_auth_admin_1389c0c0.plan.md`](plans/user_auth_admin_1
 - Fondo de la ficha de artista: portada difuminada (blur 20px) solo en el área de contenido; el sidebar queda sólido. Se limpia al salir de la ruta
 - Bio de Wikipedia vuelve a mostrarse: el User-Agent anterior recibía 403/429 y el fallo quedaba cacheado 24 h
 - Preview snip ~30s en tracks Deezer (Explorar + Mi Colección): play sobre la portada (hover en desktop; en móvil siempre visible, con la portada atenuada). Spinner mientras carga y anillo de progreso de la duración del clip. Un solo `Audio`, sin barra. Plan: [track_preview_snip](plans/track_preview_snip_abbb972b.plan.md)
-- Portadas de descarga Deezer: el enricher reintenta `cover_xl`, valida JPEG/PNG, cachea bytes por álbum y loguea el fallo. Mutagen ya no borra la carátula embebida si el fetch no trae reemplazo (streamrip o thumb de hybrid se conservan). Plan: [fix_download_covers](plans/fix_download_covers_f3288b6b.plan.md)
+- Portadas de descarga Deezer: el enricher reintenta `cover_xl`, valida JPEG/PNG, cachea bytes por álbum y loguea el fallo. Mutagen ya no borra la carátula embebida si el fetch no trae reemplazo (streamrip o thumb de hybrid se conservan). Lo ya descargado se corrige con `php artisan downloads:repair-covers` (solo archivos indexados sin portada; `--dry-run` primero). Plan: [fix_download_covers](plans/fix_download_covers_f3288b6b.plan.md)
 - UI responsive (tablas y hits en ≤640px, safe-area, acciones como iconos) + PWA instalable (shell cacheado; sin offline de catálogo ni descargas). Nueva versión avisa con toast “Recargar”. Plan: [responsive_pwa](plans/responsive_pwa_38f12cec.plan.md)
 
 ## Próximos / pendientes

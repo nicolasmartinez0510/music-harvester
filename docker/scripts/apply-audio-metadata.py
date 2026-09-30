@@ -11,6 +11,9 @@ from pathlib import Path
 
 
 def main() -> int:
+    if len(sys.argv) >= 2 and sys.argv[1] == "--has-cover":
+        return probe_cover(sys.argv[2] if len(sys.argv) >= 3 else "")
+
     try:
         payload = json.load(sys.stdin)
     except json.JSONDecodeError as exc:
@@ -43,6 +46,42 @@ def main() -> int:
         return 1
 
     return 0
+
+
+def probe_cover(path: str) -> int:
+    if path == "":
+        print("missing path", file=sys.stderr)
+        return 2
+    try:
+        print("yes" if has_embedded_cover(path) else "no")
+    except Exception as exc:  # noqa: BLE001 — surface mutagen errors to PHP
+        print(str(exc), file=sys.stderr)
+        return 1
+    return 0
+
+
+def has_embedded_cover(path: str) -> bool:
+    ext = Path(path).suffix.lower()
+    if ext == ".mp3":
+        from mutagen.id3 import ID3, ID3NoHeaderError
+
+        try:
+            frames = ID3(path)
+        except ID3NoHeaderError:
+            return False
+        return any(bytes(frame.data) for frame in frames.getall("APIC"))
+    if ext == ".flac":
+        from mutagen.flac import FLAC
+
+        return any(bytes(picture.data) for picture in FLAC(path).pictures)
+    if ext in {".m4a", ".mp4", ".aac"}:
+        from mutagen.mp4 import MP4
+
+        audio = MP4(path)
+        if audio.tags is None or "covr" not in audio.tags:
+            return False
+        return any(bytes(item) for item in audio.tags["covr"])
+    raise RuntimeError(f"unsupported extension: {ext or '(none)'}")
 
 
 def decode_cover(value: object) -> bytes | None:

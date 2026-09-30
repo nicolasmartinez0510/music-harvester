@@ -310,7 +310,70 @@ docker compose -f docker-compose.yml -f docker-compose.synology.yml up -d --buil
 docker compose -f docker-compose.yml -f docker-compose.synology.yml restart worker
 ```
 
-### 4.6 Servicios del stack
+No uses `docker-compose.dev.yml` en el NAS, ni `down -v`: ese flag borra el volumen de Postgres.
+
+### 4.6 Dedup de descargas ya existentes
+
+A partir del índice `downloaded_tracks`, una playlist no vuelve a bajar un tema si ese archivo ya está registrado y sigue en disco. El M3U apunta al archivo del álbum con un path relativo. En la UI el estado es **Ya existe**. **Omitido** es otra cosa: el tema salió de la playlist remota.
+
+Las descargas nuevas se indexan solas. La música que ya estaba en el NAS antes de ese cambio no entra hasta correr el backfill, una sola vez, después de desplegar.
+
+1. En la Mac, `git push`. En la carpeta del proyecto del NAS, `git pull`.
+2. Reconstruir. Al arrancar, `app` migra solo y crea la tabla:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.synology.yml up -d --build
+```
+
+3. Esperá a que `app` esté healthy. El ARL de Deezer tiene que estar en Settings: el comando resuelve cada álbum o playlist contra el proveedor.
+4. Ensayo, sin escribir el índice:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.synology.yml exec app php artisan downloads:backfill-index --dry-run
+```
+
+5. Si el resumen cierra, indexá de verdad:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.synology.yml exec app php artisan downloads:backfill-index
+```
+
+Tarda: una consulta por URL de job `done`, con 1 segundo de pausa entre cada una (`--sleep=0` la saca). Primero toma álbumes y temas sueltos, después playlists, para que el path que queda sea el del álbum. Un job que no se puede resolver se saltea y el resto sigue. El resumen dice cuántos se indexaron, cuántos ya estaban, cuántos jobs no tienen archivo y cuántos fallaron al resolver.
+
+6. En la UI, **Sincronizar ahora** en la playlist. Los temas indexados quedan como **Ya existe** y no se vuelven a bajar.
+
+No hace falta repetir el backfill en cada deploy. Solo si más adelante importás una biblioteca vieja que nunca pasó por este índice.
+
+### 4.6.1 Portadas que faltan en lo ya descargado
+
+Las descargas nuevas ya salen con carátula. Los archivos que quedaron en disco **sin** ninguna imagen no se corrigen solos. `downloads:repair-covers` recorre el índice Deezer (`downloaded_tracks`) y embebe `cover_xl` solo en esos. Si el tema ya tiene portada, aunque sea la equivocada (por ejemplo un thumbnail de YouTube), no lo toca.
+
+Hace falta que el tema esté en el índice. Si la biblioteca es anterior, corré antes `downloads:backfill-index` (sección 4.6). El ARL de Deezer tiene que estar en Settings: el comando pide la portada a la API.
+
+En la carpeta del proyecto del NAS (`/volume1/docker/music-harvester`):
+
+1. `git pull` de este cambio y reconstruir. El detector de carátula va en la imagen; sin rebuild el comando no lo encuentra.
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.synology.yml up -d --build
+```
+
+2. Esperá a que `app` esté healthy.
+3. Ensayo, sin escribir archivos:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.synology.yml exec app php artisan downloads:repair-covers --dry-run
+```
+
+4. Si el listado cierra, aplicalo:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.synology.yml exec app php artisan downloads:repair-covers
+```
+
+Si Deezer limita las consultas, agregá `--sleep=1`. El resumen dice cuántos se escanearon, cuántos ya tenían portada, cuántos se repararon y cuántos siguieron sin ella. No hace falta repetirlo en cada deploy.
+
+### 4.7 Servicios del stack
 
 | Servicio | Función |
 |----------|---------|
@@ -319,13 +382,13 @@ docker compose -f docker-compose.yml -f docker-compose.synology.yml restart work
 | `scheduler` | Tareas programadas (`schedule:work`) |
 | `nginx` | UI Angular + proxy `/api` → Laravel (mismo origen, sin CORS) |
 
-### 4.7 Carga del NAS
+### 4.8 Carga del NAS
 
 - Dejá `MUSIC_MAX_CONCURRENCY=1` en modelos con CPU limitada (ARM o entry-level).
 - Las descargas de playlist son secuenciales por job; evitá lanzar muchas descargas grandes a la vez.
 - Monitoreá uso de CPU en **Administrador de recursos** durante la primera playlist completa.
 
-### 4.8 Actualizar yt-dlp
+### 4.9 Actualizar yt-dlp
 
 YouTube cambia a menudo; conviene reconstruir la imagen periódicamente:
 

@@ -78,6 +78,16 @@ final class EloquentDownloadedTrackRepository implements DownloadedTrackReposito
         DB::table('downloaded_tracks')->where('download_job_id', $downloadJobId)->delete();
     }
 
+    public function listByProvider(string $provider): array
+    {
+        return DB::table('downloaded_tracks')
+            ->where('provider', $provider)
+            ->orderBy('id')
+            ->get()
+            ->map(fn ($row): array => (array) $row)
+            ->all();
+    }
+
     public function isReferencedByAnotherOwner(string $filePath, int $downloadJobId): bool
     {
         return DB::table('downloaded_tracks')

@@ -32,6 +32,11 @@ interface DownloadedTrackRepository
     public function deleteByJobId(int $downloadJobId): void;
 
     /**
+     * @return list<array<string, mixed>>
+     */
+    public function listByProvider(string $provider): array;
+
+    /**
      * True when some index row points at this path but is not owned by $downloadJobId.
      */
     public function isReferencedByAnotherOwner(string $filePath, int $downloadJobId): bool;
