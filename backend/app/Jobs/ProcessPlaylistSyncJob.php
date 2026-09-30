@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Application\Auth\LibraryPathResolver;
+use App\Application\IndexDownloadedTracks\DownloadedTrackLookup;
 use App\Application\Settings\ProviderSettingsResolver;
 use App\Domain\Music\Contracts\DownloadedTrackRepository;
 use App\Domain\Music\Contracts\SavedPlaylistRepository;
@@ -90,6 +91,7 @@ class ProcessPlaylistSyncJob implements ShouldQueue
             }
 
             $seenExternalIds = [];
+            $lookup = new DownloadedTrackLookup();
 
             foreach ($resolved->items as $index => $item) {
                 if (! $item->item instanceof Track) {
@@ -97,7 +99,7 @@ class ProcessPlaylistSyncJob implements ShouldQueue
                 }
 
                 $track = $item->item;
-                $externalId = $track->id;
+                $externalId = $lookup->indexId($track);
 
                 if ($externalId === null || $externalId === '') {
                     continue;
@@ -139,7 +141,7 @@ class ProcessPlaylistSyncJob implements ShouldQueue
                     return;
                 }
 
-                $resolvedItem = $this->findResolvedItem($resolved->items, (string) $pendingTrack['external_id']);
+                $resolvedItem = $this->findResolvedItem($resolved->items, (string) $pendingTrack['external_id'], $lookup);
 
                 if ($resolvedItem === null) {
                     $playlists->updateTrackStatus(
@@ -152,7 +154,9 @@ class ProcessPlaylistSyncJob implements ShouldQueue
                 }
 
                 $externalId = (string) $pendingTrack['external_id'];
-                $existing = $downloadedTracks->findPresent($userId, $provider->name(), $externalId);
+                $existing = $resolvedItem->item instanceof Track
+                    ? $lookup->present($downloadedTracks, $userId, $provider->name(), $resolvedItem->item)
+                    : null;
                 if ($existing !== null) {
                     $playlists->updateTrackStatus(
                         (int) $pendingTrack['id'],
@@ -225,6 +229,7 @@ class ProcessPlaylistSyncJob implements ShouldQueue
                         artist: $track?->artist?->name ?? (is_string($pendingTrack['artist'] ?? null) ? $pendingTrack['artist'] : null),
                         downloadJobId: null,
                         savedPlaylistTrackId: (int) $pendingTrack['id'],
+                        releaseYear: $track?->releaseYear,
                     );
                 }
 
@@ -345,6 +350,7 @@ class ProcessPlaylistSyncJob implements ShouldQueue
                 index: max(1, $position),
                 id: $track->id,
                 duration: $track->duration,
+                releaseYear: $track->releaseYear,
             ),
             position: max(1, $position),
         );
@@ -353,10 +359,10 @@ class ProcessPlaylistSyncJob implements ShouldQueue
     /**
      * @param  list<ResolvedItem>  $items
      */
-    private function findResolvedItem(array $items, string $externalId): ?ResolvedItem
+    private function findResolvedItem(array $items, string $externalId, DownloadedTrackLookup $lookup): ?ResolvedItem
     {
         foreach ($items as $item) {
-            if ($item->item instanceof Track && $item->item->id === $externalId) {
+            if ($item->item instanceof Track && $lookup->indexId($item->item) === $externalId) {
                 return $item;
             }
         }

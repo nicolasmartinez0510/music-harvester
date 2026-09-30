@@ -294,11 +294,121 @@ class ProcessDownloadJobTest extends TestCase
             ->once()
             ->with(null, 'deezer', 'need')
             ->andReturn(null);
+        $index->shouldReceive('findPresentByIdentity')
+            ->once()
+            ->with(null, 'Artist', 'Need', null)
+            ->andReturn(null);
         $index->shouldReceive('upsert')
             ->once()
-            ->with(null, 'deezer', 'need', '/music/artist/album/02 - need.flac', 'Need', 'Artist', 11, null);
+            ->with(null, 'deezer', 'need', '/music/artist/album/02 - need.flac', 'Need', 'Artist', 11, null, null);
 
         $job = new ProcessDownloadJob(11);
+        $job->handle($jobs, $this->registry([$provider]), $this->settingsResolver(), $this->metadata(), $this->cleanup(), $index);
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function test_album_skips_a_track_already_downloaded_under_another_id(): void
+    {
+        $existing = new Track(title: 'Vicious', artist: new Artist('Halestorm'), id: 'deluxe', index: 1, releaseYear: 2011);
+        $missing = new Track(title: 'Need', artist: new Artist('Artist'), id: 'need', index: 2, releaseYear: 2011);
+        $resolved = new ResolvedMusic(
+            provider: 'deezer',
+            kind: ResolvedKind::Album,
+            title: 'Album',
+            items: [
+                new ResolvedItem(ResolvedKind::Track, $existing, 1),
+                new ResolvedItem(ResolvedKind::Track, $missing, 2),
+            ],
+            sourceUrl: 'https://www.deezer.com/album/9',
+        );
+
+        $provider = Mockery::mock(MusicProvider::class);
+        $provider->shouldReceive('name')->andReturn('deezer');
+        $provider->shouldReceive('supports')->andReturn(true);
+        $provider->shouldReceive('resolve')->once()->andReturn($resolved);
+        $provider->shouldReceive('download')
+            ->once()
+            ->withArgs(fn (ResolvedItem $item): bool => $item->item instanceof Track && $item->item->id === 'need')
+            ->andReturn(DownloadResult::ok('/music/artist/album/02 - need.flac'));
+
+        $jobs = Mockery::mock(DownloadJobRepository::class);
+        $jobs->shouldReceive('find')->once()->with(12)->andReturn([
+            'id' => 12,
+            'provider' => 'deezer',
+            'url' => 'https://www.deezer.com/album/9',
+            'kind' => 'album',
+            'status' => DownloadStatus::Pending->value,
+            'options_json' => json_encode(['format' => AudioFormat::Flac->value]),
+        ]);
+        $jobs->shouldReceive('updateStatus')->once()->with(12, DownloadStatus::Running);
+        $jobs->shouldReceive('updateMetadata')->once()->with(12, 'Album', 'Halestorm');
+        $jobs->shouldReceive('updateProgress')->once()->with(12, 50, '/music/halestorm/standard/01 - vicious.flac');
+        $jobs->shouldReceive('appendDownloadedPath')->once()->with(12, '/music/halestorm/standard/01 - vicious.flac');
+        $jobs->shouldReceive('updateProgress')->once()->with(12, 100, '/music/artist/album/02 - need.flac');
+        $jobs->shouldReceive('appendDownloadedPath')->once()->with(12, '/music/artist/album/02 - need.flac');
+        $jobs->shouldReceive('updateStatus')->once()->with(12, DownloadStatus::Done, null);
+
+        $index = Mockery::mock(DownloadedTrackRepository::class);
+        $index->shouldReceive('findPresent')->once()->with(null, 'deezer', 'deluxe')->andReturn(null);
+        $index->shouldReceive('findPresentByIdentity')
+            ->once()
+            ->with(null, 'Halestorm', 'Vicious', 2011)
+            ->andReturn(['file_path' => '/music/halestorm/standard/01 - vicious.flac']);
+        $index->shouldReceive('findPresent')->once()->with(null, 'deezer', 'need')->andReturn(null);
+        $index->shouldReceive('findPresentByIdentity')->once()->with(null, 'Artist', 'Need', 2011)->andReturn(null);
+        $index->shouldReceive('upsert')
+            ->once()
+            ->with(null, 'deezer', 'need', '/music/artist/album/02 - need.flac', 'Need', 'Artist', 12, null, 2011);
+
+        $job = new ProcessDownloadJob(12);
+        $job->handle($jobs, $this->registry([$provider]), $this->settingsResolver(), $this->metadata(), $this->cleanup(), $index);
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function test_track_without_provider_id_uses_artist_and_title(): void
+    {
+        $track = new Track(title: 'Vicious', artist: new Artist('Halestorm'), releaseYear: 2009);
+        $resolved = new ResolvedMusic(
+            provider: 'deezer',
+            kind: ResolvedKind::Track,
+            title: 'Vicious',
+            items: [new ResolvedItem(ResolvedKind::Track, $track, 1)],
+            sourceUrl: 'https://www.deezer.com/track/1',
+        );
+
+        $provider = Mockery::mock(MusicProvider::class);
+        $provider->shouldReceive('name')->andReturn('deezer');
+        $provider->shouldReceive('supports')->andReturn(true);
+        $provider->shouldReceive('resolve')->once()->andReturn($resolved);
+        $provider->shouldReceive('download')->never();
+
+        $existingPath = '/music/halestorm/standard/01 - vicious.flac';
+        $jobs = Mockery::mock(DownloadJobRepository::class);
+        $jobs->shouldReceive('find')->once()->with(13)->andReturn([
+            'id' => 13,
+            'provider' => 'deezer',
+            'url' => 'https://www.deezer.com/track/1',
+            'kind' => 'track',
+            'status' => DownloadStatus::Pending->value,
+            'options_json' => json_encode(['format' => AudioFormat::Flac->value]),
+        ]);
+        $jobs->shouldReceive('updateStatus')->once()->with(13, DownloadStatus::Running);
+        $jobs->shouldReceive('updateMetadata')->once()->with(13, 'Vicious', 'Halestorm');
+        $jobs->shouldReceive('updateProgress')->once()->with(13, 100, $existingPath);
+        $jobs->shouldReceive('appendDownloadedPath')->once()->with(13, $existingPath);
+        $jobs->shouldReceive('updateStatus')->once()->with(13, DownloadStatus::Existing, null);
+
+        $index = Mockery::mock(DownloadedTrackRepository::class);
+        $index->shouldReceive('findPresent')->never();
+        $index->shouldReceive('findPresentByIdentity')
+            ->once()
+            ->with(null, 'Halestorm', 'Vicious', 2009)
+            ->andReturn(['file_path' => $existingPath]);
+        $index->shouldReceive('upsert')->never();
+
+        $job = new ProcessDownloadJob(13);
         $job->handle($jobs, $this->registry([$provider]), $this->settingsResolver(), $this->metadata(), $this->cleanup(), $index);
 
         $this->addToAssertionCount(1);
@@ -355,6 +465,7 @@ class ProcessDownloadJobTest extends TestCase
     {
         $tracks = Mockery::mock(DownloadedTrackRepository::class);
         $tracks->shouldReceive('findPresent')->andReturn(null);
+        $tracks->shouldReceive('findPresentByIdentity')->andReturn(null);
         $tracks->shouldReceive('upsert');
 
         return $tracks;

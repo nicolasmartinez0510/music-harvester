@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Application\IndexDownloadedTracks\DownloadedTrackLookup;
 use App\Application\Settings\ProviderSettingsResolver;
 use App\Domain\Music\Contracts\DownloadedTrackRepository;
 use App\Domain\Music\Contracts\MusicProvider;
@@ -265,6 +266,230 @@ class ProcessPlaylistSyncJobTest extends TestCase
         $this->rmTree($base);
     }
 
+    public function test_sync_reuses_same_artist_and_title_when_the_provider_id_differs(): void
+    {
+        $track = new Track(title: 'Vicious', artist: new Artist('Halestorm'), id: 'deluxe', index: 1, releaseYear: 2011);
+        $resolved = new ResolvedMusic(
+            provider: 'deezer',
+            kind: ResolvedKind::Playlist,
+            title: 'My List',
+            items: [new ResolvedItem(ResolvedKind::Track, $track, 1)],
+            sourceUrl: 'https://www.deezer.com/playlist/1',
+        );
+
+        $provider = Mockery::mock(MusicProvider::class);
+        $provider->shouldReceive('name')->andReturn('deezer');
+        $provider->shouldReceive('supports')->andReturn(true);
+        $provider->shouldReceive('resolve')->once()->andReturn($resolved);
+        $provider->shouldReceive('download')->never();
+
+        $settings = $this->settingsResolver();
+        $registry = $this->registry([$provider], $settings);
+        $base = storage_path('framework/testing/sync-job-'.uniqid());
+        $storage = new LocalMusicStorage($base);
+        $m3u = new PlaylistM3uWriter($storage);
+
+        $playlists = Mockery::mock(SavedPlaylistRepository::class);
+        $playlists->shouldReceive('find')->andReturn([
+            'id' => 11,
+            'provider' => 'deezer',
+            'url' => 'https://www.deezer.com/playlist/1',
+            'title' => 'My List',
+            'default_format' => 'flac',
+            'last_sync_status' => PlaylistSyncStatus::Idle->value,
+        ]);
+        $playlists->shouldReceive('updateSyncStatus')->once()->with(11, PlaylistSyncStatus::Running);
+        $playlists->shouldReceive('upsertTrack')->once()->andReturn([
+            'id' => 20,
+            'external_id' => 'deluxe',
+            'status' => PlaylistTrackStatus::Pending->value,
+        ]);
+        $playlists->shouldReceive('markMissingTracksSkipped')->once();
+        $playlists->shouldReceive('listPendingTracks')->once()->andReturn([
+            [
+                'id' => 20,
+                'external_id' => 'deluxe',
+                'title' => 'Vicious',
+                'artist' => 'Halestorm',
+                'position' => 1,
+                'status' => PlaylistTrackStatus::Pending->value,
+            ],
+        ]);
+        $playlists->shouldReceive('updateTrackStatus')
+            ->once()
+            ->with(20, PlaylistTrackStatus::Existing, '/music/halestorm/standard/01 - vicious.flac');
+        $playlists->shouldReceive('listTracks')->andReturn([]);
+        $playlists->shouldReceive('updateSyncStatus')
+            ->once()
+            ->with(11, PlaylistSyncStatus::Done, null, true);
+
+        $index = Mockery::mock(DownloadedTrackRepository::class);
+        $index->shouldReceive('findPresent')
+            ->once()
+            ->with(null, 'deezer', 'deluxe')
+            ->andReturn(null);
+        $index->shouldReceive('findPresentByIdentity')
+            ->once()
+            ->with(null, 'Halestorm', 'Vicious', 2011)
+            ->andReturn(['file_path' => '/music/halestorm/standard/01 - vicious.flac']);
+        $index->shouldReceive('upsert')->never();
+
+        $job = new ProcessPlaylistSyncJob(11);
+        $job->handle($playlists, $registry, $settings, $storage, $m3u, $this->metadata(), $index);
+
+        $this->assertFileExists($base.'/playlists/11-my-list/11-my-list.m3u');
+        $this->rmTree($base);
+    }
+
+    public function test_sync_without_provider_id_matches_by_artist_and_title(): void
+    {
+        $track = new Track(title: 'Vicious', artist: new Artist('Halestorm'), releaseYear: 2009);
+        $resolved = new ResolvedMusic(
+            provider: 'deezer',
+            kind: ResolvedKind::Playlist,
+            title: 'My List',
+            items: [new ResolvedItem(ResolvedKind::Track, $track, 1)],
+            sourceUrl: 'https://www.deezer.com/playlist/1',
+        );
+        $key = (new DownloadedTrackLookup())->indexId($track);
+
+        $provider = Mockery::mock(MusicProvider::class);
+        $provider->shouldReceive('name')->andReturn('deezer');
+        $provider->shouldReceive('supports')->andReturn(true);
+        $provider->shouldReceive('resolve')->once()->andReturn($resolved);
+        $provider->shouldReceive('download')->never();
+
+        $settings = $this->settingsResolver();
+        $registry = $this->registry([$provider], $settings);
+        $base = storage_path('framework/testing/sync-job-'.uniqid());
+        $storage = new LocalMusicStorage($base);
+        $m3u = new PlaylistM3uWriter($storage);
+
+        $playlists = Mockery::mock(SavedPlaylistRepository::class);
+        $playlists->shouldReceive('find')->andReturn([
+            'id' => 13,
+            'provider' => 'deezer',
+            'url' => 'https://www.deezer.com/playlist/1',
+            'title' => 'My List',
+            'default_format' => 'flac',
+            'last_sync_status' => PlaylistSyncStatus::Idle->value,
+        ]);
+        $playlists->shouldReceive('updateSyncStatus')->once()->with(13, PlaylistSyncStatus::Running);
+        $playlists->shouldReceive('upsertTrack')->once()->with(13, $key, 'Vicious', 'Halestorm', 1)->andReturn([
+            'id' => 30,
+            'external_id' => $key,
+            'status' => PlaylistTrackStatus::Pending->value,
+        ]);
+        $playlists->shouldReceive('markMissingTracksSkipped')->once()->with(13, [$key]);
+        $playlists->shouldReceive('listPendingTracks')->once()->andReturn([
+            [
+                'id' => 30,
+                'external_id' => $key,
+                'title' => 'Vicious',
+                'artist' => 'Halestorm',
+                'position' => 1,
+                'status' => PlaylistTrackStatus::Pending->value,
+            ],
+        ]);
+        $playlists->shouldReceive('updateTrackStatus')
+            ->once()
+            ->with(30, PlaylistTrackStatus::Existing, '/music/halestorm/standard/01 - vicious.flac');
+        $playlists->shouldReceive('listTracks')->andReturn([]);
+        $playlists->shouldReceive('updateSyncStatus')
+            ->once()
+            ->with(13, PlaylistSyncStatus::Done, null, true);
+
+        $index = Mockery::mock(DownloadedTrackRepository::class);
+        $index->shouldReceive('findPresent')->never();
+        $index->shouldReceive('findPresentByIdentity')
+            ->once()
+            ->with(null, 'Halestorm', 'Vicious', 2009)
+            ->andReturn(['file_path' => '/music/halestorm/standard/01 - vicious.flac']);
+        $index->shouldReceive('upsert')->never();
+
+        $job = new ProcessPlaylistSyncJob(13);
+        $job->handle($playlists, $registry, $settings, $storage, $m3u, $this->metadata(), $index);
+
+        $this->assertFileExists($base.'/playlists/13-my-list/13-my-list.m3u');
+        $this->rmTree($base);
+    }
+
+    public function test_sync_downloads_when_same_name_matches_only_other_years(): void
+    {
+        $track = new Track(title: 'Song', artist: new Artist('Artist'), id: 'vid1', index: 1, releaseYear: 2011);
+        $resolved = new ResolvedMusic(
+            provider: 'deezer',
+            kind: ResolvedKind::Playlist,
+            title: 'My List',
+            items: [new ResolvedItem(ResolvedKind::Track, $track, 1)],
+            sourceUrl: 'https://www.deezer.com/playlist/1',
+        );
+
+        $provider = Mockery::mock(MusicProvider::class);
+        $provider->shouldReceive('name')->andReturn('deezer');
+        $provider->shouldReceive('supports')->andReturn(true);
+        $provider->shouldReceive('resolve')->once()->andReturn($resolved);
+        $provider->shouldReceive('download')
+            ->once()
+            ->andReturn(DownloadResult::ok('/music/artist/album/01 - song.flac'));
+
+        $settings = $this->settingsResolver();
+        $registry = $this->registry([$provider], $settings);
+        $base = storage_path('framework/testing/sync-job-'.uniqid());
+        $storage = new LocalMusicStorage($base);
+        $m3u = new PlaylistM3uWriter($storage);
+
+        $playlists = Mockery::mock(SavedPlaylistRepository::class);
+        $playlists->shouldReceive('find')->andReturn([
+            'id' => 12,
+            'provider' => 'deezer',
+            'url' => 'https://www.deezer.com/playlist/1',
+            'title' => 'My List',
+            'default_format' => 'flac',
+            'last_sync_status' => PlaylistSyncStatus::Idle->value,
+        ]);
+        $playlists->shouldReceive('updateSyncStatus')->once()->with(12, PlaylistSyncStatus::Running);
+        $playlists->shouldReceive('upsertTrack')->once()->andReturn([
+            'id' => 21,
+            'external_id' => 'vid1',
+            'status' => PlaylistTrackStatus::Pending->value,
+        ]);
+        $playlists->shouldReceive('markMissingTracksSkipped')->once();
+        $playlists->shouldReceive('listPendingTracks')->once()->andReturn([
+            [
+                'id' => 21,
+                'external_id' => 'vid1',
+                'title' => 'Song',
+                'artist' => 'Artist',
+                'position' => 1,
+                'status' => PlaylistTrackStatus::Pending->value,
+            ],
+        ]);
+        $playlists->shouldReceive('updateTrackStatus')
+            ->once()
+            ->with(21, PlaylistTrackStatus::Downloaded, '/music/artist/album/01 - song.flac');
+        $playlists->shouldReceive('listTracks')->andReturn([]);
+        $playlists->shouldReceive('updateSyncStatus')
+            ->once()
+            ->with(12, PlaylistSyncStatus::Done, null, true);
+
+        $index = Mockery::mock(DownloadedTrackRepository::class);
+        $index->shouldReceive('findPresent')->once()->with(null, 'deezer', 'vid1')->andReturn(null);
+        $index->shouldReceive('findPresentByIdentity')
+            ->once()
+            ->with(null, 'Artist', 'Song', 2011)
+            ->andReturn(null);
+        $index->shouldReceive('upsert')
+            ->once()
+            ->with(null, 'deezer', 'vid1', '/music/artist/album/01 - song.flac', 'Song', 'Artist', null, 21, 2011);
+
+        $job = new ProcessPlaylistSyncJob(12);
+        $job->handle($playlists, $registry, $settings, $storage, $m3u, $this->metadata(), $index);
+
+        $this->assertFileExists($base.'/playlists/12-my-list/12-my-list.m3u');
+        $this->rmTree($base);
+    }
+
     public function test_sync_relabels_downloaded_tracks_that_live_outside_the_playlist_folder(): void
     {
         $track = new Track(title: 'Song', artist: new Artist('Artist'), id: 'vid1', index: 1);
@@ -334,6 +559,7 @@ class ProcessPlaylistSyncJobTest extends TestCase
     {
         $tracks = Mockery::mock(DownloadedTrackRepository::class);
         $tracks->shouldReceive('findPresent')->andReturn(null);
+        $tracks->shouldReceive('findPresentByIdentity')->andReturn(null);
         $tracks->shouldReceive('upsert');
 
         return $tracks;

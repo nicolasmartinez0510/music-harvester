@@ -13,5 +13,6 @@ final readonly class Track
         public ?int $index = null,
         public ?string $id = null,
         public ?string $duration = null,
+        public ?int $releaseYear = null,
     ) {}
 }

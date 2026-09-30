@@ -15,6 +15,8 @@ def main() -> int:
         return probe_stream()
     if len(sys.argv) >= 2 and sys.argv[1] == "--has-cover":
         return probe_cover(sys.argv[2] if len(sys.argv) >= 3 else "")
+    if len(sys.argv) >= 2 and sys.argv[1] == "--read-date-stream":
+        return read_date_stream()
 
     try:
         payload = json.load(sys.stdin)
@@ -60,6 +62,63 @@ def probe_stream() -> int:
         except Exception as exc:  # noqa: BLE001 — surface mutagen errors to PHP
             print(f"err {exc}", flush=True)
     return 0
+
+
+def read_date_stream() -> int:
+    for line in sys.stdin:
+        path = line.rstrip("\r\n")
+        if path == "":
+            continue
+        try:
+            year = release_year(path)
+            print(year if year else "none", flush=True)
+        except Exception as exc:  # noqa: BLE001 — surface mutagen errors to PHP
+            print(f"err {exc}", flush=True)
+    return 0
+
+
+def release_year(path: str) -> str | None:
+    ext = Path(path).suffix.lower()
+    raw = None
+    if ext == ".mp3":
+        from mutagen.id3 import ID3, ID3NoHeaderError
+
+        try:
+            tags = ID3(path)
+        except ID3NoHeaderError:
+            return None
+        for key in ("TDRC", "TYER", "TDRL"):
+            frame = tags.get(key)
+            if frame is None:
+                continue
+            text = str(frame).strip()
+            if text:
+                raw = text
+                break
+    elif ext == ".flac":
+        from mutagen.flac import FLAC
+
+        audio = FLAC(path)
+        for key in ("DATE", "YEAR"):
+            values = audio.get(key)
+            if values:
+                raw = str(values[0]).strip()
+                if raw:
+                    break
+    elif ext in {".m4a", ".mp4", ".aac"}:
+        from mutagen.mp4 import MP4
+
+        audio = MP4(path)
+        values = audio.tags.get("\xa9day") if audio.tags is not None else None
+        if values:
+            raw = str(values[0]).strip()
+    else:
+        return None
+
+    if not raw:
+        return None
+    match = re.match(r"(\d{4})", raw)
+    return match.group(1) if match else None
 
 
 def probe_cover(path: str) -> int:

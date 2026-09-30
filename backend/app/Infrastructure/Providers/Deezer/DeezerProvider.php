@@ -350,7 +350,28 @@ final class DeezerProvider implements MusicProvider, CatalogSource, UserLibraryS
             index: max(1, $index),
             id: isset($data['id']) ? (string) $data['id'] : null,
             duration: $duration,
+            releaseYear: $this->releaseYear($data),
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function releaseYear(array $data): ?int
+    {
+        $date = $data['release_date'] ?? null;
+        if (! is_string($date) || $date === '') {
+            $album = $data['album'] ?? null;
+            $date = is_array($album) ? ($album['release_date'] ?? null) : null;
+        }
+
+        if (! is_string($date) || preg_match('/^(\d{4})/', $date, $matches) !== 1) {
+            return null;
+        }
+
+        $year = (int) $matches[1];
+
+        return $year >= 1000 && $year <= 9999 ? $year : null;
     }
 
     private function requireArl(): string

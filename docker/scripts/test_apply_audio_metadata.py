@@ -143,6 +143,27 @@ class ApplyAudioMetadataTest(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertEqual(completed.stdout.splitlines(), ["no", "yes"])
 
+    def test_read_date_stream_returns_year(self) -> None:
+        if not mutagen_available():
+            self.skipTest("mutagen is not installed")
+
+        with tempfile.TemporaryDirectory() as directory:
+            tagged = Path(directory) / "tagged.mp3"
+            empty = Path(directory) / "empty.mp3"
+            self.write_mp3(tagged)
+            self.write_mp3(empty)
+            self.apply(tagged, {"title": "Song", "date": "2001-03-12"}, None)
+
+            completed = subprocess.run(
+                [sys.executable, str(SCRIPT), "--read-date-stream"],
+                input=f"{tagged}\n{empty}\n",
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(completed.stdout.splitlines(), ["2001", "none"])
+
     def write_mp3(self, path: Path) -> None:
         frame = bytes.fromhex("FFFB9000") + (b"\x00" * 413)
         path.write_bytes(frame * 2)

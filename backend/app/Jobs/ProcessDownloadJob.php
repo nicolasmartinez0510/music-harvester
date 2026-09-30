@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Application\Auth\LibraryPathResolver;
+use App\Application\IndexDownloadedTracks\DownloadedTrackLookup;
 use App\Application\Settings\ProviderSettingsResolver;
 use App\Domain\Music\Contracts\DownloadedTrackRepository;
 use App\Domain\Music\Contracts\DownloadJobRepository;
@@ -97,28 +98,28 @@ class ProcessDownloadJob implements ShouldQueue
             $failures = [];
             $isMultiItem = $this->isMultiItemJob($job);
             $userId = isset($job['user_id']) && $job['user_id'] !== null ? (int) $job['user_id'] : null;
+            $lookup = new DownloadedTrackLookup();
 
             foreach ($items as $item) {
                 $track = $item->item instanceof Track ? $item->item : null;
-                $externalId = $track?->id;
-                if (is_string($externalId) && $externalId !== '') {
-                    $existing = $downloadedTracks->findPresent($userId, $provider->name(), $externalId);
-                    if ($existing !== null) {
-                        $completed++;
-                        $reused++;
-                        $existingPath = is_string($existing['file_path'] ?? null) ? $existing['file_path'] : '';
-                        $progress = (int) round(($completed / $total) * 100);
-                        if ($existingPath !== '') {
-                            $lastPath = $existingPath;
-                            $jobs->updateProgress($this->downloadJobId, $progress, $existingPath);
-                            $jobs->appendDownloadedPath($this->downloadJobId, $existingPath);
-                            $cleanup->relaxPermissions($existingPath);
-                        } else {
-                            $jobs->updateProgress($this->downloadJobId, $progress);
-                        }
-
-                        continue;
+                $existing = $track instanceof Track
+                    ? $lookup->present($downloadedTracks, $userId, $provider->name(), $track)
+                    : null;
+                if ($existing !== null) {
+                    $completed++;
+                    $reused++;
+                    $existingPath = is_string($existing['file_path'] ?? null) ? $existing['file_path'] : '';
+                    $progress = (int) round(($completed / $total) * 100);
+                    if ($existingPath !== '') {
+                        $lastPath = $existingPath;
+                        $jobs->updateProgress($this->downloadJobId, $progress, $existingPath);
+                        $jobs->appendDownloadedPath($this->downloadJobId, $existingPath);
+                        $cleanup->relaxPermissions($existingPath);
+                    } else {
+                        $jobs->updateProgress($this->downloadJobId, $progress);
                     }
+
+                    continue;
                 }
 
                 if ($isMultiItem && $actuallyDownloaded > 0) {
@@ -167,16 +168,18 @@ class ProcessDownloadJob implements ShouldQueue
                 if (is_string($lastPath) && $lastPath !== '') {
                     $jobs->appendDownloadedPath($this->downloadJobId, $lastPath);
                     $cleanup->relaxPermissions($lastPath);
-                    if ($track instanceof Track && is_string($track->id) && $track->id !== '') {
+                    $indexId = $track instanceof Track ? $lookup->indexId($track) : null;
+                    if ($track instanceof Track && is_string($indexId) && $indexId !== '') {
                         $downloadedTracks->upsert(
                             userId: $userId,
                             provider: $provider->name(),
-                            externalId: $track->id,
+                            externalId: $indexId,
                             filePath: $lastPath,
                             title: $track->title,
                             artist: $track->artist?->name,
                             downloadJobId: $this->downloadJobId,
                             savedPlaylistTrackId: null,
+                            releaseYear: $track->releaseYear,
                         );
                     }
                 }

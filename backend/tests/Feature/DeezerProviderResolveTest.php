@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Music\Models\Track;
 use App\Domain\Music\ValueObjects\CatalogType;
 use App\Infrastructure\Providers\Deezer\DeezerProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,7 +24,8 @@ class DeezerProviderResolveTest extends TestCase
                 'duration' => 224,
                 'track_position' => 4,
                 'artist' => ['id' => 27, 'name' => 'Daft Punk'],
-                'album' => ['id' => 302127, 'title' => 'Discovery'],
+                'album' => ['id' => 302127, 'title' => 'Discovery', 'release_date' => '1999-01-01'],
+                'release_date' => '2001-03-12',
                 'type' => 'track',
             ]),
         ]);
@@ -33,8 +35,31 @@ class DeezerProviderResolveTest extends TestCase
 
         $this->assertSame('deezer', $resolved->provider);
         $this->assertCount(1, $resolved->items);
-        $this->assertSame('Harder Better Faster Stronger', $resolved->items[0]->item->title);
-        $this->assertSame('3135556', $resolved->items[0]->item->id);
+        $item = $resolved->items[0]->item;
+        $this->assertInstanceOf(Track::class, $item);
+        $this->assertSame('Harder Better Faster Stronger', $item->title);
+        $this->assertSame('3135556', $item->id);
+        $this->assertSame(2001, $item->releaseYear);
+    }
+
+    public function test_resolve_track_uses_album_release_date_when_the_track_has_none(): void
+    {
+        Http::fake([
+            'api.deezer.com/track/1' => Http::response([
+                'id' => 1,
+                'title' => 'Song',
+                'duration' => 180,
+                'artist' => ['name' => 'Artist'],
+                'album' => ['title' => 'Deluxe', 'release_date' => '2011-06-01'],
+                'type' => 'track',
+            ]),
+        ]);
+
+        $resolved = app(DeezerProvider::class)->resolve('https://www.deezer.com/track/1');
+        $item = $resolved->items[0]->item;
+
+        $this->assertInstanceOf(Track::class, $item);
+        $this->assertSame(2011, $item->releaseYear);
     }
 
     public function test_catalog_search_tracks(): void

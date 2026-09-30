@@ -114,6 +114,7 @@ final class BackfillDownloadedTrackIndexCommand extends Command
                         title: $track->title,
                         artist: $track->artist?->name,
                         downloadJobId: (int) $job['id'],
+                        releaseYear: $track->releaseYear,
                     );
                 }
                 $written++;

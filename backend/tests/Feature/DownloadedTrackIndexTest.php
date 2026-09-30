@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Application\DeleteDownload\DeleteDownloadCommand;
 use App\Application\DeleteDownload\DeleteDownloadHandler;
 use App\Domain\Music\Contracts\DownloadedTrackRepository;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -36,6 +37,99 @@ class DownloadedTrackIndexTest extends TestCase
             'external_id' => '100',
         ]);
 
+        @rmdir($dir);
+    }
+
+    public function test_identity_reuses_one_file_even_when_the_year_differs(): void
+    {
+        $dir = storage_path('framework/testing/index-'.uniqid());
+        mkdir($dir, 0777, true);
+        $file = $dir.'/song.flac';
+        file_put_contents($file, 'a');
+
+        $index = app(DownloadedTrackRepository::class);
+        $index->upsert(null, 'deezer', 'standard', $file, 'Vicious', 'Halestorm', releaseYear: 2009);
+
+        $present = $index->findPresentByIdentity(null, 'halestorm', ' vicious ', 2011);
+
+        $this->assertNotNull($present);
+        $this->assertSame($file, $present['file_path']);
+        $this->assertSame(2009, (int) $present['release_year']);
+
+        unlink($file);
+        @rmdir($dir);
+    }
+
+    public function test_identity_narrows_several_files_by_release_year(): void
+    {
+        $dir = storage_path('framework/testing/index-'.uniqid());
+        mkdir($dir, 0777, true);
+        $older = $dir.'/older.flac';
+        $newer = $dir.'/newer.flac';
+        file_put_contents($older, 'a');
+        file_put_contents($newer, 'b');
+
+        $index = app(DownloadedTrackRepository::class);
+        $index->upsert(null, 'deezer', 'old', $older, 'Song', 'Artist', releaseYear: 2001);
+        $index->upsert(null, 'deezer', 'new', $newer, 'Song', 'Artist', releaseYear: 2011);
+
+        $matched = $index->findPresentByIdentity(null, 'Artist', 'Song', 2011);
+        $this->assertNotNull($matched);
+        $this->assertSame($newer, $matched['file_path']);
+
+        $this->assertNull($index->findPresentByIdentity(null, 'Artist', 'Song', 1999));
+
+        $this->assertSame($older, $index->findPresentByIdentity(null, 'Artist', 'Song', null)['file_path']);
+
+        unlink($older);
+        unlink($newer);
+        @rmdir($dir);
+    }
+
+    public function test_identity_drops_a_missing_file_and_ignores_another_user(): void
+    {
+        $dir = storage_path('framework/testing/index-'.uniqid());
+        mkdir($dir, 0777, true);
+        $file = $dir.'/song.flac';
+        file_put_contents($file, 'a');
+
+        $other = User::factory()->create();
+        $index = app(DownloadedTrackRepository::class);
+        $index->upsert(null, 'deezer', 'gone', $dir.'/missing.flac', 'Song', 'Artist');
+        $index->upsert($other->id, 'youtube_music', 'other-user', $file, 'Song', 'Artist');
+        $index->upsert(null, 'deezer', 'kept', $file, 'Song', 'Artist');
+
+        $present = $index->findPresentByIdentity(null, 'Artist', 'Song', null);
+
+        $this->assertNotNull($present);
+        $this->assertSame('kept', $present['external_id']);
+        $this->assertDatabaseMissing('downloaded_tracks', ['external_id' => 'gone']);
+        $this->assertDatabaseHas('downloaded_tracks', ['external_id' => 'other-user']);
+
+        unlink($file);
+        @rmdir($dir);
+    }
+
+    public function test_identity_reuses_a_file_when_candidates_have_no_year(): void
+    {
+        $dir = storage_path('framework/testing/index-'.uniqid());
+        mkdir($dir, 0777, true);
+        $first = $dir.'/a.flac';
+        $second = $dir.'/b.flac';
+        file_put_contents($first, 'a');
+        file_put_contents($second, 'b');
+
+        $index = app(DownloadedTrackRepository::class);
+        $index->upsert(null, 'deezer', 'a', $first, 'Song', 'Artist');
+        $index->upsert(null, 'deezer', 'b', $second, 'Song', 'Artist');
+
+        $present = $index->findPresentByIdentity(null, 'Artist', 'Song', 2011);
+
+        $this->assertNotNull($present);
+        $this->assertSame($first, $present['file_path']);
+
+        unlink($first);
+        unlink($second);
         @rmdir($dir);
     }
 
