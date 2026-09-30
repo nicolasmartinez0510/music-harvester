@@ -1,6 +1,6 @@
 ---
 name: Responsive PWA
-overview: Hacer la UI usable en móvil extendiendo los breakpoints existentes, y convertir la SPA Angular en PWA instalable con shell cacheado (sin offline de API/descargas).
+overview: UI usable en móvil sobre el shell existente, y SPA instalable como PWA con el shell cacheado (sin offline de API ni descargas). Incluye el pulido posterior de cards, iconos y botones de alta.
 todos:
   - id: responsive-shell
     content: Safe-area + touch targets en shell móvil (app.component / styles)
@@ -9,13 +9,16 @@ todos:
     content: Stack card-layout ≤640 en Downloads, Playlists, Playlist detail
     status: completed
   - id: responsive-hits-misc
-    content: Collection wrap, browse search stack, users stack, register avatar grid
+    content: Hits con iconos a la derecha, users, register, página de 6 en móvil
     status: completed
   - id: pwa-angular
     content: Deps SW, ngsw-config, provideServiceWorker (prod), manifest + iconos 192/512/maskable
     status: completed
   - id: pwa-update-nginx
     content: Toast SwUpdate + headers nginx para index/ngsw/manifest
+    status: completed
+  - id: mobile-polish
+    content: Acciones arriba a la derecha, iconos, toasts centrados, un solo botón de alta
     status: completed
   - id: docs-close
     content: Actualizar PROJECT_CONTEXT.md al cerrar; rebuild compose dev
@@ -25,48 +28,49 @@ isProject: false
 
 # Responsive + PWA instalable
 
-## Alcance
+Hecho. Commits `3eff482` (PWA + layout) y `4981fcc` (botón único de nueva descarga).
 
-- **Responsive:** cerrar gaps en pantallas densas (tablas, filas de hits, auth register, users) reusando el shell móvil ya existente (drawer ≤840px).
-- **PWA:** instalable (`standalone`) + cache del app shell vía `@angular/service-worker`. **No** cachear `/api` ni `/sanctum`; sin modo offline de catálogo/descargas.
-- **Orden:** primero CSS/layout; después PWA (manifest, iconos, SW, nginx).
+## Alcance que quedó
+
+- **Responsive:** shell drawer ≤840px, contenido ≤640px. En móvil las tablas son cards y las acciones de fila son iconos a la derecha, no botones con texto debajo.
+- **PWA:** instalable (`standalone`) + cache del app shell vía `@angular/service-worker`. No cachea `/api` ni `/sanctum`. Sin offline de catálogo ni descargas.
+- **Instalar:** contexto seguro. `http://localhost:8085` alcanza en la Mac. En el NAS, HTTPS de Tailscale en un puerto distinto del 443 (`https://nas.<tailnet>.ts.net:8443` → `127.0.0.1:8085`) para no pisar Vaultwarden. `ng serve` (`:4200`) no registra el service worker. El worker se registra al estabilizar la app o a los 30 s; hace falta recargar una vez para que Chrome ofrezca instalar.
 
 ## Parte 1 — Responsive
 
-Breakpoints a consolidar (ya en uso):
+Breakpoints:
 
-- `≤840px` — shell (drawer + `mobile-bar`)
-- `≤640px` — páginas de contenido (tablas → stack, hits wrap)
-- `≤560px` — polish auth topbar (ya hecho)
+- `≤840px` — shell (drawer + `mobile-bar`, safe-area, targets ≥44px)
+- `≤640px` — cards, iconos de acción, página de discografía en 6
+- `≤560px` — auth topbar (ya estaba)
 
-### Shell
+### Cards de tablas (≤640px)
 
-En [`frontend/src/app/app.component.css`](frontend/src/app/app.component.css) y [`frontend/src/styles.css`](frontend/src/styles.css):
+`thead` oculto, cada `tr` en grid. La celda de título ocupa la columna izquierda; las acciones van en la columna derecha, arriba. El resto de celdas llevan `data-label` y ocupan el ancho completo. El valor no se estira a todo el ancho (`justify-self: start`). La barra de progreso y el porcentaje van en la misma fila (`.progress-readout`).
 
-- `env(safe-area-inset-*)` en `mobile-bar`, sidebar drawer y padding inferior del contenido
-- Touch targets ≥44px en hamburger / cierre / icon buttons del rail móvil
+- Descargas: tachito arriba a la derecha.
+- Playlists guardadas: sincronizar, ver y borrar arriba a la derecha.
+- Detalle de playlist: filas apiladas; la toolbar de sync envuelve.
 
-### Tablas → layout apilado (alta prioridad)
+### Filas de Explorar y Mi Colección (≤640px)
 
-Hoy solo hacen `overflow-x: auto`. En `≤640px`, pasar a filas tipo card (label + valor) sin romper el HTML de desktop:
+No bajan a una segunda línea. Quedan a la derecha de la fila, solo icono:
 
-- [`downloads.component.css`](frontend/src/app/pages/downloads/downloads.component.css) + HTML si hace falta `data-label` en celdas
-- [`playlists.component.css`](frontend/src/app/pages/playlists/playlists.component.css) — quitar `nowrap` forzado en actions bajo móvil
-- [`playlist-detail.component.css`](frontend/src/app/pages/playlist-detail/playlist-detail.component.css) — misma idea; toolbar de sync/gear/trash a full-width wrap
+- Descargar (el texto del botón se oculta dentro de `.hit`).
+- Estrella de favorito del artista.
+- Sincronizar + descargar en las playlists del proveedor.
 
-Patrón: `thead { display: none }`, cada `tr` como bloque, `td::before { content: attr(data-label) }` o grid de columnas ocultando secondary info.
+La búsqueda de Explorar apila provider, query y submit. La grilla de avatares del registro pasa a 4 y luego a 3 columnas. Usuarios apila meta y acciones. La discografía del artista usa 12 ítems por página en desktop y 6 en móvil (`matchMedia` en `browse-artist`).
 
-### Filas de catálogo / colección
+### Botones de alta
 
-- Replicar en Collection el wrap ≤640 de Browse ([`browse.component.css`](frontend/src/app/pages/browse/browse.component.css) L168–177) en [`collection.component.css`](frontend/src/app/pages/collection/collection.component.css)
-- Browse search: apilar provider + query + submit de forma más limpia bajo 640
-- Browse artist/playlist: toolbars/chips con wrap + gap; sin rediseño visual
+Un solo botón en el encabezado. El del estado vacío se sacó (Playlists y Descargas).
 
-### Resto (media)
+- Escritorio: “Agregar playlist” y “Nueva descarga” con texto.
+- Celular: solo el “+”, a la derecha del título.
+- “Nueva descarga” va antes que “Vaciar historial”. En el celular, vaciar es solo el tachito; en escritorio conserva el texto.
 
-- **Users:** [`users.component.css`](frontend/src/app/pages/users/users.component.css) — `user-card` en columna bajo 640 (meta arriba, actions abajo)
-- **Register:** [`auth-page.css`](frontend/src/app/pages/auth/auth-page.css) — avatar grid `repeat(6)` → `repeat(4)` / `repeat(3)` en breakpoints chicos
-- Settings / login / album: sin cambios estructurales (ya OK)
+Toasts centrados abajo, no anclados a la derecha.
 
 ## Parte 2 — PWA
 
@@ -79,47 +83,17 @@ flowchart LR
   SW -->|"network only"| Laravel
 ```
 
-### Wiring Angular
-
-1. Añadir `@angular/service-worker` y configurar producción con `ngsw-config.json` (equivalente a schematic `@angular/pwa`).
-2. En [`app.config.ts`](frontend/src/app/app.config.ts): `provideServiceWorker('ngsw-worker.js', { enabled: !isDevMode(), registrationStrategy: 'registerWhenStable:30000' })`.
-3. [`angular.json`](frontend/angular.json): `serviceWorker` + `ngswConfigPath` solo en config `production`.
-4. Manifest en `frontend/public/manifest.webmanifest` (name, short_name, `display: standalone`, `start_url: "/"`, theme/background alineados a `--accent` / `--bg`).
-5. Link en [`index.html`](frontend/src/index.html): manifest + `theme-color`.
-6. Iconos desde `frontend/public/logo.png` (1024²): generar `icons/icon-192.png`, `icon-512.png` y variantes maskable; referenciarlos en el manifest. Mantener `apple-touch-icon`.
-
-### `ngsw-config.json` (política fija)
-
-- **Prefetch:** `index.html`, JS/CSS hashed, iconos, logo
-- **Lazy:** fuentes remotas solo si siguen en Google Fonts (o dejar network)
-- **Data groups:** ninguno para API — las peticiones a `/api/**` y `/sanctum/**` no entran en el asset group (paths de la app = estáticos bajo `/`)
-- Sin `navigationUrls` agresivos que interfieran con Laravel; el SPA ya lo resuelve nginx con `try_files`
-
-### Update UX mínima
-
-Servicio pequeño que escuche `SwUpdate.versionUpdates` y muestre un toast existente ([`toast.service.ts`](frontend/src/app/shared/toast.service.ts)) tipo “Hay una nueva versión — recargar”, con acción de `activateUpdate()` + reload. Sin banner de “Instalar app” custom (instalación nativa del browser).
-
-### Nginx
-
-En [`docker/nginx/default.conf`](docker/nginx/default.conf):
-
-- Servir `manifest.webmanifest` con `application/manifest+json` si hace falta
-- `Cache-Control: no-cache` para `index.html` y `ngsw.json` / `ngsw-worker.js` para que las updates del SW no queden pegadas detrás de un cache agresivo (hoy no hay headers de cache; fijar explícitamente para esos archivos)
-- Resto de assets hashed: cache largo opcional; no bloqueante para v1
-
-### HTTPS / instalación
-
-- Installability requiere **secure context** (HTTPS o localhost). En Synology con reverse proxy HTTPS funciona; en `:8085` HTTP local la instalación puede no ofrecerse — esperado, documentar en cierre de feature / `PROJECT_CONTEXT.md`.
+- `@angular/service-worker` solo en el build de producción (`angular.json` → `serviceWorker: ngsw-config.json`).
+- `provideServiceWorker('ngsw-worker.js', { enabled: !isDevMode(), registrationStrategy: 'registerWhenStable:30000' })`.
+- `frontend/public/manifest.webmanifest` (`display: standalone`, theme `#008ace`, background `#f8fafc`) + iconos 192/512 y maskable, generados desde `logo.png`.
+- `ngsw-config.json`: prefetch del shell; avatars lazy; `navigationUrls` excluye `/api/**`, `/sanctum/**` y `/up`. Sin data groups.
+- `AppUpdateService` escucha `VERSION_READY` y muestra el toast “Hay una nueva versión.” con acción Recargar (`activateUpdate` + reload).
+- Nginx: `Cache-Control: no-cache` en `index.html`, `ngsw.json`, `ngsw-worker.js` y `manifest.webmanifest` (`application/manifest+json`).
+- Budget de estilos del shell subido a 12 kB de error y el bundle inicial a 600 kB de warning, porque el CSS del layout y el service worker los pasaban.
 
 ## Fuera de alcance
 
-- Offline de API, cola de descargas, o cache de audio
+- Offline de API, cola de descargas o cache de audio
 - Push notifications
-- Bottom tab bar móvil (el drawer actual alcanza)
-- Rediseño visual / nuevo design system
-
-## Verificación (sin browser automation)
-
-- Build production del frontend (`ng build`) y comprobar que salen `ngsw-worker.js`, `ngsw.json`, manifest e iconos en `dist`
-- Rebuild compose dev al cerrar feature (rule de cierre)
-- Checklist manual para el usuario: viewport &lt;640 en Downloads/Playlists/Collection; DevTools → Application → Manifest + SW en build prod detrás de HTTPS
+- Bottom tab bar
+- Banner propio de “Instalar app”
