@@ -145,6 +145,20 @@ def apply_mp3(path: str, tags: dict, cover: bytes | None, cover_mime: str, lyric
         frames = ID3(path)
     except ID3NoHeaderError:
         frames = ID3()
+
+    kept_pictures = []
+    if not cover:
+        for frame in frames.getall("APIC"):
+            kept_pictures.append(
+                APIC(
+                    encoding=frame.encoding,
+                    mime=frame.mime,
+                    type=frame.type,
+                    desc=frame.desc,
+                    data=bytes(frame.data),
+                )
+            )
+
     frames.clear()
 
     title = text(tags, "title")
@@ -191,6 +205,9 @@ def apply_mp3(path: str, tags: dict, cover: bytes | None, cover_mime: str, lyric
 
     if cover:
         frames.add(APIC(encoding=Encoding.UTF8, mime=cover_mime or "image/jpeg", type=3, desc="Cover", data=cover))
+    else:
+        for frame in kept_pictures:
+            frames.add(frame)
 
     frames.save(path)
 
@@ -199,6 +216,20 @@ def apply_flac(path: str, tags: dict, cover: bytes | None, cover_mime: str, lyri
     from mutagen.flac import FLAC, Picture
 
     audio = FLAC(path)
+    kept_pictures: list[Picture] = []
+    if not cover:
+        for pic in list(audio.pictures):
+            clone = Picture()
+            clone.type = pic.type
+            clone.mime = pic.mime
+            clone.desc = pic.desc
+            clone.width = pic.width
+            clone.height = pic.height
+            clone.depth = pic.depth
+            clone.colors = pic.colors
+            clone.data = bytes(pic.data)
+            kept_pictures.append(clone)
+
     audio.delete()
     audio.clear_pictures()
 
@@ -245,6 +276,9 @@ def apply_flac(path: str, tags: dict, cover: bytes | None, cover_mime: str, lyri
         picture.desc = "Cover"
         picture.data = cover
         audio.add_picture(picture)
+    else:
+        for picture in kept_pictures:
+            audio.add_picture(picture)
 
     audio.save()
 
@@ -253,6 +287,13 @@ def apply_mp4(path: str, tags: dict, cover: bytes | None, cover_mime: str, lyric
     from mutagen.mp4 import MP4, MP4Cover
 
     audio = MP4(path)
+    kept_covers = None
+    if not cover and audio.tags is not None and "covr" in audio.tags:
+        kept_covers = [
+            MP4Cover(bytes(item), imageformat=getattr(item, "imageformat", MP4Cover.FORMAT_JPEG))
+            for item in audio.tags["covr"]
+        ]
+
     audio.clear()
 
     def put(key: str, value: str | None) -> None:
@@ -290,6 +331,8 @@ def apply_mp4(path: str, tags: dict, cover: bytes | None, cover_mime: str, lyric
     if cover:
         imageformat = MP4Cover.FORMAT_PNG if "png" in (cover_mime or "") else MP4Cover.FORMAT_JPEG
         audio["covr"] = [MP4Cover(cover, imageformat=imageformat)]
+    elif kept_covers:
+        audio["covr"] = kept_covers
 
     audio.save()
 

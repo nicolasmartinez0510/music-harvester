@@ -12,14 +12,20 @@ use App\Domain\Music\ValueObjects\MetadataEnrichContext;
 use App\Infrastructure\Providers\Deezer\DeezerApiClient;
 use App\Infrastructure\Providers\Deezer\DeezerGwClient;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 final class DeezerAudioMetadataEnricher implements TrackMetadataEnricher
 {
     private const COVER_MAX_BYTES = 6_000_000;
 
+    private const COVER_ATTEMPTS = 3;
+
     /** @var array<string, array<string, mixed>> */
     private array $albums = [];
+
+    /** @var array<string, array{0: string, 1: string}> */
+    private array $covers = [];
 
     public function __construct(
         private DeezerApiClient $api,
@@ -50,7 +56,7 @@ final class DeezerAudioMetadataEnricher implements TrackMetadataEnricher
         $coverBytes = null;
         $coverMime = null;
         if ($context->embedCover) {
-            [$coverBytes, $coverMime] = $this->downloadCover($albumJson, $trackJson);
+            [$coverBytes, $coverMime] = $this->downloadCover($albumJson, $trackJson, $id);
         }
 
         return $this->mapper->map($track, $trackJson, $albumJson, $lyrics instanceof LyricsPayload ? $lyrics : null, $coverBytes, $coverMime, $context);
@@ -76,7 +82,7 @@ final class DeezerAudioMetadataEnricher implements TrackMetadataEnricher
         try {
             $full = $this->api->get('album/'.$id);
         } catch (Throwable) {
-            $full = $embedded;
+            return $embedded;
         }
 
         $this->albums[$id] = $full;
@@ -89,29 +95,119 @@ final class DeezerAudioMetadataEnricher implements TrackMetadataEnricher
      * @param  array<string, mixed>  $trackJson
      * @return array{0: ?string, 1: ?string}
      */
-    private function downloadCover(array $albumJson, array $trackJson): array
+    private function downloadCover(array $albumJson, array $trackJson, string $trackId): array
     {
+        $albumId = $this->albumId($albumJson, $trackJson);
+        if ($albumId !== '' && isset($this->covers[$albumId])) {
+            return $this->covers[$albumId];
+        }
+
         $embedded = $trackJson['album'] ?? null;
         $url = $this->coverUrl($albumJson) ?? (is_array($embedded) ? $this->coverUrl($embedded) : null);
         if ($url === null) {
+            $this->warnCover($trackId, $albumId, null, null, 'missing_url');
+
             return [null, null];
         }
 
-        try {
-            $response = Http::timeout(20)->get($url);
+        $lastStatus = null;
+        $reason = 'http';
+
+        for ($attempt = 1; $attempt <= self::COVER_ATTEMPTS; $attempt++) {
+            try {
+                $response = Http::timeout(20)->get($url);
+            } catch (Throwable) {
+                $reason = 'exception';
+                $lastStatus = null;
+                $this->backoff($attempt);
+
+                continue;
+            }
+
             if (! $response->successful()) {
-                return [null, null];
+                $reason = 'http';
+                $lastStatus = $response->status();
+                $this->backoff($attempt);
+
+                continue;
             }
 
             $body = $response->body();
-            if ($body === '' || strlen($body) > self::COVER_MAX_BYTES) {
+            $status = $response->status();
+            if ($body === '') {
+                $reason = 'empty';
+                $lastStatus = $status;
+                $this->backoff($attempt);
+
+                continue;
+            }
+
+            if (strlen($body) > self::COVER_MAX_BYTES) {
+                $this->warnCover($trackId, $albumId, $url, $status, 'too_large');
+
                 return [null, null];
             }
 
-            return [$body, $this->imageMime($response->header('Content-Type'), $url)];
-        } catch (Throwable) {
-            return [null, null];
+            if (! $this->looksLikeImage($body)) {
+                $this->warnCover($trackId, $albumId, $url, $status, 'not_image');
+
+                return [null, null];
+            }
+
+            $result = [$body, $this->imageMime($response->header('Content-Type'), $url)];
+            if ($albumId !== '') {
+                $this->covers[$albumId] = $result;
+            }
+
+            return $result;
         }
+
+        $this->warnCover($trackId, $albumId, $url, $lastStatus, $reason);
+
+        return [null, null];
+    }
+
+    /**
+     * @param  array<string, mixed>  $albumJson
+     * @param  array<string, mixed>  $trackJson
+     */
+    private function albumId(array $albumJson, array $trackJson): string
+    {
+        $id = isset($albumJson['id']) ? trim((string) $albumJson['id']) : '';
+        if ($id !== '') {
+            return $id;
+        }
+
+        $embedded = $trackJson['album'] ?? null;
+        if (is_array($embedded) && isset($embedded['id'])) {
+            return trim((string) $embedded['id']);
+        }
+
+        return '';
+    }
+
+    private function backoff(int $attempt): void
+    {
+        if ($attempt < self::COVER_ATTEMPTS) {
+            usleep(100_000 * $attempt);
+        }
+    }
+
+    private function warnCover(string $trackId, string $albumId, ?string $url, ?int $status, string $reason): void
+    {
+        Log::warning('deezer cover fetch failed', [
+            'track_id' => $trackId,
+            'album_id' => $albumId !== '' ? $albumId : null,
+            'url' => $url,
+            'status' => $status,
+            'reason' => $reason,
+        ]);
+    }
+
+    private function looksLikeImage(string $body): bool
+    {
+        return str_starts_with($body, "\xFF\xD8")
+            || str_starts_with($body, "\x89PNG\r\n\x1a\n");
     }
 
     /**
