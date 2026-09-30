@@ -24,6 +24,8 @@ export type IconName =
   | 'check'
   | 'users'
   | 'logout'
+  | 'play'
+  | 'pause'
   | 'provider-deezer'
   | 'provider-youtube-music';
 
@@ -243,6 +245,17 @@ export type IconName =
           <path d="M3.5 19c.6-2.8 2.8-4.5 5.5-4.5S14.4 16.2 15 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
           <circle cx="17" cy="9" r="2.2" stroke="currentColor" stroke-width="2" />
           <path d="M16.2 14.6c1.8.3 3.2 1.6 3.8 3.4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+      }
+      @case ('play') {
+        <svg [attr.width]="size" [attr.height]="size" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M8 5.5v13l11-6.5-11-6.5Z" />
+        </svg>
+      }
+      @case ('pause') {
+        <svg [attr.width]="size" [attr.height]="size" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <rect x="6" y="5" width="4" height="14" rx="1" />
+          <rect x="14" y="5" width="4" height="14" rx="1" />
         </svg>
       }
       @case ('provider-deezer') {

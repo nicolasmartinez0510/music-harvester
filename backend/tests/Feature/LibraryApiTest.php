@@ -90,6 +90,7 @@ class LibraryApiTest extends TestCase
                         'title' => 'Harder Better Faster Stronger',
                         'type' => 'track',
                         'artist' => ['name' => 'Daft Punk'],
+                        'preview' => 'https://cdns-preview.dzcdn.net/stream/c-3135556.mp3',
                     ]],
                 ]);
             }
@@ -129,7 +130,8 @@ class LibraryApiTest extends TestCase
         $this->getJson('/api/library/deezer/tracks')
             ->assertOk()
             ->assertJsonPath('data.0.type', 'track')
-            ->assertJsonPath('data.0.id', '3135556');
+            ->assertJsonPath('data.0.id', '3135556')
+            ->assertJsonPath('data.0.preview_url', 'https://cdns-preview.dzcdn.net/stream/c-3135556.mp3');
 
         $this->getJson('/api/library/deezer/albums')
             ->assertOk()

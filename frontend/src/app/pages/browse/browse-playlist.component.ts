@@ -5,12 +5,13 @@ import { ApiService } from '../../core/api.service';
 import { CatalogActionsService } from '../../core/catalog-actions.service';
 import { CatalogPlaylist } from '../../core/models';
 import { CatalogDownloadButtonComponent } from '../../shared/catalog-download-button.component';
+import { CatalogPreviewButtonComponent } from '../../shared/catalog-preview-button.component';
 import { IconComponent } from '../../shared/icon.component';
 import { PageLoadingComponent } from '../../shared/page-loading.component';
 
 @Component({
   selector: 'app-browse-playlist',
-  imports: [RouterLink, IconComponent, CatalogDownloadButtonComponent, PageLoadingComponent],
+  imports: [RouterLink, IconComponent, CatalogDownloadButtonComponent, CatalogPreviewButtonComponent, PageLoadingComponent],
   templateUrl: './browse-playlist.component.html',
   styleUrl: './browse-detail.css',
 })

@@ -458,6 +458,9 @@ final class DeezerProvider implements MusicProvider, CatalogSource, UserLibraryS
             recordType: isset($row['record_type']) && is_string($row['record_type']) && $row['record_type'] !== ''
                 ? $row['record_type']
                 : null,
+            previewUrl: isset($row['preview']) && is_string($row['preview']) && $row['preview'] !== ''
+                ? $row['preview']
+                : null,
         );
     }
 

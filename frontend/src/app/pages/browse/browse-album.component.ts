@@ -4,11 +4,12 @@ import { ActivatedRoute, ParamMap, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api.service';
 import { CatalogAlbum } from '../../core/models';
 import { CatalogDownloadButtonComponent } from '../../shared/catalog-download-button.component';
+import { CatalogPreviewButtonComponent } from '../../shared/catalog-preview-button.component';
 import { PageLoadingComponent } from '../../shared/page-loading.component';
 
 @Component({
   selector: 'app-browse-album',
-  imports: [RouterLink, CatalogDownloadButtonComponent, PageLoadingComponent],
+  imports: [RouterLink, CatalogDownloadButtonComponent, CatalogPreviewButtonComponent, PageLoadingComponent],
   templateUrl: './browse-album.component.html',
   styleUrl: './browse-detail.css',
 })

@@ -27,6 +27,7 @@ final class CatalogResource
             'release_date' => $hit->releaseDate,
             'fans' => $hit->fans,
             'record_type' => $hit->recordType,
+            'preview_url' => $hit->previewUrl,
         ];
     }
 

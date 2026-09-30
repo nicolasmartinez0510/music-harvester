@@ -18,11 +18,16 @@
     <div class="card hits">
       @for (hit of hits; track hit.type + hit.id) {
         <article class="hit">
-          @if (hit.cover_url) {
-            <img [src]="hit.cover_url" [alt]="hit.title" class="hit-cover" width="56" height="56" />
-          } @else {
-            <div class="hit-cover placeholder" aria-hidden="true"></div>
-          }
+          <div class="hit-media">
+            @if (hit.cover_url) {
+              <img [src]="hit.cover_url" [alt]="hit.title" class="hit-cover" width="56" height="56" />
+            } @else {
+              <div class="hit-cover placeholder" aria-hidden="true"></div>
+            }
+            @if (hit.type === 'track') {
+              <app-catalog-preview-btn [previewUrl]="hit.preview_url" />
+            }
+          </div>
           <div class="hit-body">
             @if (detailLink(hit); as link) {
               <a

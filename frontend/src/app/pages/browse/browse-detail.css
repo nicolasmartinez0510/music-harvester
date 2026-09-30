@@ -132,6 +132,14 @@
   padding-bottom: 0;
 }
 
+.hit-media {
+  position: relative;
+  flex-shrink: 0;
+  line-height: 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
 .hit-cover {
   width: 2.75rem;
   height: 2.75rem;

@@ -25,6 +25,7 @@ class CatalogApiTest extends TestCase
                         'type' => 'track',
                         'artist' => ['name' => 'Daft Punk'],
                         'album' => ['cover_medium' => 'https://example.com/cover.jpg'],
+                        'preview' => 'https://cdns-preview.dzcdn.net/stream/c-3135556.mp3',
                     ],
                 ],
                 'total' => 1,
@@ -38,7 +39,8 @@ class CatalogApiTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.id', '3135556')
             ->assertJsonPath('data.0.type', 'track')
-            ->assertJsonPath('data.0.canonical_url', 'https://www.deezer.com/track/3135556');
+            ->assertJsonPath('data.0.canonical_url', 'https://www.deezer.com/track/3135556')
+            ->assertJsonPath('data.0.preview_url', 'https://cdns-preview.dzcdn.net/stream/c-3135556.mp3');
     }
 
     public function test_search_unknown_provider_returns_404(): void
@@ -65,6 +67,7 @@ class CatalogApiTest extends TestCase
                         'title' => 'Harder Better Faster Stronger',
                         'type' => 'track',
                         'artist' => ['name' => 'Daft Punk'],
+                        'preview' => 'https://cdns-preview.dzcdn.net/stream/c-3135556.mp3',
                     ],
                 ],
             ]),
@@ -100,7 +103,8 @@ class CatalogApiTest extends TestCase
             ->assertJsonPath('data.albums.0.fans', 900000)
             ->assertJsonPath('data.albums.0.record_type', 'album')
             ->assertJsonPath('data.albums.1.record_type', 'single')
-            ->assertJsonPath('data.top_tracks.0.record_type', null);
+            ->assertJsonPath('data.top_tracks.0.record_type', null)
+            ->assertJsonPath('data.top_tracks.0.preview_url', 'https://cdns-preview.dzcdn.net/stream/c-3135556.mp3');
     }
 
     public function test_get_artist_includes_wikipedia_description(): void
@@ -143,6 +147,7 @@ class CatalogApiTest extends TestCase
                         'title' => 'Harder Better Faster Stronger',
                         'type' => 'track',
                         'artist' => ['name' => 'Daft Punk'],
+                        'preview' => 'https://cdns-preview.dzcdn.net/stream/c-3135556.mp3',
                     ],
                 ],
                 'total' => 1,
@@ -153,6 +158,7 @@ class CatalogApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.title', 'Discovery')
             ->assertJsonPath('data.tracks.0.id', '3135556')
+            ->assertJsonPath('data.tracks.0.preview_url', 'https://cdns-preview.dzcdn.net/stream/c-3135556.mp3')
             ->assertJsonPath('data.canonical_url', 'https://www.deezer.com/album/302127');
     }
 
@@ -173,6 +179,7 @@ class CatalogApiTest extends TestCase
                         'title' => 'Harder Better Faster Stronger',
                         'type' => 'track',
                         'artist' => ['name' => 'Daft Punk'],
+                        'preview' => '',
                     ],
                 ],
                 'total' => 1,
@@ -182,7 +189,8 @@ class CatalogApiTest extends TestCase
         $this->getJson('/api/catalog/deezer/playlists/908622995')
             ->assertOk()
             ->assertJsonPath('data.title', 'Hits')
-            ->assertJsonPath('data.tracks.0.id', '3135556');
+            ->assertJsonPath('data.tracks.0.id', '3135556')
+            ->assertJsonPath('data.tracks.0.preview_url', null);
     }
 
     public function test_search_artist_prefers_picture_xl(): void

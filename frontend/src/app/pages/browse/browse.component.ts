@@ -14,6 +14,7 @@ import {
 } from '../../core/models';
 import { SearchHistoryEntry, SearchHistoryService } from '../../core/search-history.service';
 import { CatalogDownloadButtonComponent } from '../../shared/catalog-download-button.component';
+import { CatalogPreviewButtonComponent } from '../../shared/catalog-preview-button.component';
 import { IconComponent } from '../../shared/icon.component';
 import { PageLoadingComponent } from '../../shared/page-loading.component';
 import { PaginationComponent } from '../../shared/pagination.component';
@@ -27,6 +28,7 @@ import { PaginationComponent } from '../../shared/pagination.component';
     IconComponent,
     PaginationComponent,
     CatalogDownloadButtonComponent,
+    CatalogPreviewButtonComponent,
     PageLoadingComponent,
   ],
   templateUrl: './browse.component.html',

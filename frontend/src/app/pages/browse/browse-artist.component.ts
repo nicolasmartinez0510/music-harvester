@@ -9,6 +9,7 @@ import { ArtistFavoritesService } from '../../core/artist-favorites.service';
 import { ArtistPageBackdropService } from '../../core/artist-page-backdrop.service';
 import { CatalogArtist, CatalogHit } from '../../core/models';
 import { CatalogDownloadButtonComponent } from '../../shared/catalog-download-button.component';
+import { CatalogPreviewButtonComponent } from '../../shared/catalog-preview-button.component';
 import { IconComponent } from '../../shared/icon.component';
 import { PageLoadingComponent } from '../../shared/page-loading.component';
 import { PaginationComponent } from '../../shared/pagination.component';
@@ -19,7 +20,7 @@ type ReleaseTab = 'albums' | 'singles';
 
 @Component({
   selector: 'app-browse-artist',
-  imports: [DecimalPipe, RouterLink, IconComponent, PaginationComponent, CatalogDownloadButtonComponent, PageLoadingComponent],
+  imports: [DecimalPipe, RouterLink, IconComponent, PaginationComponent, CatalogDownloadButtonComponent, CatalogPreviewButtonComponent, PageLoadingComponent],
   templateUrl: './browse-artist.component.html',
   styleUrl: './browse-detail.css',
 })

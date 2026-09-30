@@ -110,6 +110,7 @@ export interface CatalogHit {
   release_date?: string | null;
   fans?: number | null;
   record_type?: string | null;
+  preview_url?: string | null;
 }
 
 export interface CatalogArtist {

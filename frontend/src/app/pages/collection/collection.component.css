@@ -17,6 +17,14 @@
   border-bottom: 0;
 }
 
+.hit-media {
+  position: relative;
+  flex-shrink: 0;
+  line-height: 0;
+  border-radius: 0.4rem;
+  overflow: hidden;
+}
+
 .hit-cover {
   width: 3.5rem;
   height: 3.5rem;

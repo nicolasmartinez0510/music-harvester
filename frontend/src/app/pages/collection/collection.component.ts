@@ -12,6 +12,7 @@ import {
   SavedPlaylist,
 } from '../../core/models';
 import { CatalogDownloadButtonComponent } from '../../shared/catalog-download-button.component';
+import { CatalogPreviewButtonComponent } from '../../shared/catalog-preview-button.component';
 import { IconComponent, IconName } from '../../shared/icon.component';
 import { PageLoadingComponent } from '../../shared/page-loading.component';
 
@@ -19,7 +20,7 @@ type SyncUiState = 'idle' | 'syncing' | 'done' | 'failed';
 
 @Component({
   selector: 'app-collection',
-  imports: [RouterLink, CatalogDownloadButtonComponent, IconComponent, PageLoadingComponent],
+  imports: [RouterLink, CatalogDownloadButtonComponent, CatalogPreviewButtonComponent, IconComponent, PageLoadingComponent],
   templateUrl: './collection.component.html',
   styleUrl: './collection.component.css',
 })

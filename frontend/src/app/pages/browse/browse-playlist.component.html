@@ -54,6 +54,16 @@
         <div class="hits">
           @for (hit of playlist.tracks; track hit.id) {
             <article class="hit">
+              @if (hit.cover_url || hit.preview_url) {
+                <div class="hit-media">
+                  @if (hit.cover_url) {
+                    <img [src]="hit.cover_url" [alt]="hit.title" class="hit-cover" width="44" height="44" />
+                  } @else {
+                    <div class="hit-cover placeholder" aria-hidden="true"></div>
+                  }
+                  <app-catalog-preview-btn [previewUrl]="hit.preview_url" />
+                </div>
+              }
               <div class="hit-body">
                 <span class="hit-title">{{ hit.title }}</span>
                 @if (hit.subtitle) {

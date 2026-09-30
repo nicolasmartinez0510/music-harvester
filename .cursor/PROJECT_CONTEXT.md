@@ -33,7 +33,7 @@ Plan fundacional: [`.cursor/plans/music_harvester_nas.plan.md`](plans/music_harv
 | `/users` | Admin: usuarios + approve server storage |
 | Auth | `/login`, `/register`, `/verify-email`, `/forgot-password`, `/reset-password` |
 
-Sidebar Trinomio (claro/oscuro), colapsable a rail en desktop y drawer ≤840px. En móvil (≤640px) las tablas de Descargas, Playlists y detalle de playlist pasan a filas apiladas, con las acciones arriba a la derecha. En Explorar y Mi Colección, descargar, estrella y sync son iconos a la derecha de la fila. La discografía pasa a 6 ítems por página. Safe-area en barra móvil y drawer. Toasts centrados abajo.
+Sidebar Trinomio (claro/oscuro), colapsable a rail en desktop y drawer ≤840px. En móvil (≤640px) las tablas de Descargas, Playlists y detalle de playlist pasan a filas apiladas, con las acciones arriba a la derecha. En Explorar y Mi Colección, descargar, estrella y sync son iconos a la derecha de la fila; el preview de un track es un play sobre la portada. La discografía pasa a 6 ítems por página. Safe-area en barra móvil y drawer. Toasts centrados abajo.
 
 ## Auth y tenancy
 
@@ -49,7 +49,7 @@ Plan: [`.cursor/plans/user_auth_admin_1389c0c0.plan.md`](plans/user_auth_admin_1
 ## Providers y catálogo
 
 - Registry: `youtube_music` + `deezer` (`GET /api/providers`: configured, qualities, `has_catalog`, `has_library`)
-- Deezer catalog: API pública `api.deezer.com`; hits de álbum incluyen `record_type` (`album` | `ep` | `single`)
+- Deezer catalog: API pública `api.deezer.com`; hits de álbum incluyen `record_type` (`album` | `ep` | `single`); hits de track incluyen `preview_url` (snip ~30s de Deezer, o null)
 - Portada de artista: `picture_xl` (fallback `picture_big` / `picture_medium`) en `cover_url`
 - Bio de artista: Wikipedia (es → en). User-Agent con URL del repo; un 403/429 no se cachea como “sin bio”
 - Deezer download nativo: streamrip + ARL → FLAC / MP3 320
@@ -87,13 +87,13 @@ Plan: [`.cursor/plans/user_auth_admin_1389c0c0.plan.md`](plans/user_auth_admin_1
 - Discografía del artista en tabs **Álbumes discográficos** / **Sencillos y EPs** (`record_type` de Deezer en `CatalogHit`). Página de 12 por tab en desktop y 6 en móvil; el botón Descargar se alinea al fondo de la fila
 - Fondo de la ficha de artista: portada difuminada (blur 20px) solo en el área de contenido; el sidebar queda sólido. Se limpia al salir de la ruta
 - Bio de Wikipedia vuelve a mostrarse: el User-Agent anterior recibía 403/429 y el fallo quedaba cacheado 24 h
+- Preview snip ~30s en tracks Deezer (Explorar + Mi Colección): play sobre la portada (hover en desktop; en móvil siempre visible, con la portada atenuada). Spinner mientras carga y anillo de progreso de la duración del clip. Un solo `Audio`, sin barra. Plan: [track_preview_snip](plans/track_preview_snip_abbb972b.plan.md)
 - UI responsive (tablas y hits en ≤640px, safe-area, acciones como iconos) + PWA instalable (shell cacheado; sin offline de catálogo ni descargas). Nueva versión avisa con toast “Recargar”. Plan: [responsive_pwa](plans/responsive_pwa_38f12cec.plan.md)
 
 ## Próximos / pendientes
 
-1. **Preview snip ~30s** tracks Deezer — [track_preview_snip](plans/track_preview_snip_abbb972b.plan.md)
-2. **Épica Puentes de playlists** (Soundiiz-like, Deezer ↔ YTM; sin descarga) — [playlist_bridge_epic](plans/playlist_bridge_epic_ec620289.plan.md)
-3. Spotify / Tidal / Apple: después, y en puentes primero solo metadata
+1. **Épica Puentes de playlists** (Soundiiz-like, Deezer ↔ YTM; sin descarga) — [playlist_bridge_epic](plans/playlist_bridge_epic_ec620289.plan.md)
+2. Spotify / Tidal / Apple: después, y en puentes primero solo metadata
 
 ## Decisiones / convenciones
 
