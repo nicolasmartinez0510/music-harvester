@@ -70,6 +70,9 @@ class RepairMissingCoversCommandTest extends TestCase
         });
 
         $this->artisan('downloads:repair-covers', ['--dry-run' => true])
+            ->expectsOutputToContain('Loading Deezer index (dry run)...')
+            ->expectsOutputToContain('Indexed Deezer tracks: 3')
+            ->expectsOutputToContain('checking '.$missing)
             ->expectsOutputToContain('would repair '.$missing)
             ->expectsOutputToContain('would repair 1')
             ->assertSuccessful();

@@ -371,7 +371,9 @@ docker compose -f docker-compose.yml -f docker-compose.synology.yml exec app php
 docker compose -f docker-compose.yml -f docker-compose.synology.yml exec app php artisan downloads:repair-covers
 ```
 
-Si Deezer limita las consultas, agregá `--sleep=1`. El resumen dice cuántos se escanearon, cuántos ya tenían portada, cuántos se repararon y cuántos siguieron sin ella. No hace falta repetirlo en cada deploy.
+El comando imprime `Loading Deezer index...` al instante y después una línea `[n/total] checking ...` por archivo. Si no aparece ni esa primera línea, el proceso no llegó a arrancar.
+
+Si Deezer limita las consultas, agregá `--sleep=1`. El resumen final dice cuántos se escanearon, cuántos ya tenían portada, cuántos se repararon y cuántos siguieron sin ella. No hace falta repetirlo en cada deploy.
 
 ### 4.7 Servicios del stack
 

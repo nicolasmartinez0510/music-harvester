@@ -11,6 +11,8 @@ from pathlib import Path
 
 
 def main() -> int:
+    if len(sys.argv) >= 2 and sys.argv[1] == "--has-cover-stream":
+        return probe_stream()
     if len(sys.argv) >= 2 and sys.argv[1] == "--has-cover":
         return probe_cover(sys.argv[2] if len(sys.argv) >= 3 else "")
 
@@ -45,6 +47,18 @@ def main() -> int:
         print(str(exc), file=sys.stderr)
         return 1
 
+    return 0
+
+
+def probe_stream() -> int:
+    for line in sys.stdin:
+        path = line.rstrip("\r\n")
+        if path == "":
+            continue
+        try:
+            print("yes" if has_embedded_cover(path) else "no", flush=True)
+        except Exception as exc:  # noqa: BLE001 — surface mutagen errors to PHP
+            print(f"err {exc}", flush=True)
     return 0
 
 

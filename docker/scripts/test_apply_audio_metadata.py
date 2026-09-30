@@ -120,6 +120,29 @@ class ApplyAudioMetadataTest(unittest.TestCase):
             self.apply(path, {"title": "Original"}, jpeg)
             self.assertTrue(self.has_cover(path))
 
+    def test_cover_stream_answers_one_line_per_path(self) -> None:
+        if not mutagen_available():
+            self.skipTest("mutagen is not installed")
+
+        jpeg = b"\xff\xd8\xff\xd9"
+        with tempfile.TemporaryDirectory() as directory:
+            bare = Path(directory) / "bare.mp3"
+            covered = Path(directory) / "covered.mp3"
+            self.write_mp3(bare)
+            self.write_mp3(covered)
+            self.apply(bare, {"title": "Bare"}, None)
+            self.apply(covered, {"title": "Covered"}, jpeg)
+
+            completed = subprocess.run(
+                [sys.executable, str(SCRIPT), "--has-cover-stream"],
+                input=f"{bare}\n{covered}\n",
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(completed.stdout.splitlines(), ["no", "yes"])
+
     def write_mp3(self, path: Path) -> None:
         frame = bytes.fromhex("FFFB9000") + (b"\x00" * 413)
         path.write_bytes(frame * 2)

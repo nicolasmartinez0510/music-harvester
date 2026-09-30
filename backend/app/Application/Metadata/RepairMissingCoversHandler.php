@@ -42,7 +42,13 @@ final readonly class RepairMissingCoversHandler
         $seen = [];
         $didRepair = false;
 
-        foreach ($this->tracks->listByProvider('deezer') as $row) {
+        $this->log($log, $dryRun ? 'Loading Deezer index (dry run)...' : 'Loading Deezer index...');
+        $rows = $this->tracks->listByProvider('deezer');
+        $total = count($rows);
+        $this->log($log, sprintf('Indexed Deezer tracks: %d', $total));
+
+        foreach ($rows as $position => $row) {
+            $step = sprintf('[%d/%d]', $position + 1, $total);
             $path = $this->locate($row);
             if ($path === null) {
                 $missingFile++;
@@ -73,6 +79,7 @@ final readonly class RepairMissingCoversHandler
             }
 
             $scanned++;
+            $this->log($log, $step.' checking '.$path);
 
             try {
                 $hasCover = $this->covers->hasCover($path);
