@@ -151,6 +151,17 @@ class ProcessPlaylistSyncJob implements ShouldQueue
                 $resolved->kind,
                 count($resolved->items),
             );
+            $this->ensureAlbumCovers(
+                $playlists,
+                $metadata,
+                $playlistDir,
+                $resolved->items,
+                $lookup,
+                $provider->name(),
+                $options->deezerArl,
+                $resolved->kind,
+                count($resolved->items),
+            );
 
             $pending = $playlists->listPendingTracks($this->savedPlaylistId);
             $downloadedCount = 0;
@@ -456,6 +467,73 @@ class ProcessPlaylistSyncJob implements ShouldQueue
                         'error' => $exception->getMessage(),
                     ]);
                 }
+            }
+        }
+    }
+
+    /**
+     * Album folders already inside the playlist still need a cover.jpg when the
+     * file was downloaded before that artwork was written beside the audio.
+     *
+     * @param  list<ResolvedItem>  $items
+     */
+    private function ensureAlbumCovers(
+        SavedPlaylistRepository $playlists,
+        TrackMetadataApplicator $metadata,
+        string $playlistDir,
+        array $items,
+        DownloadedTrackLookup $lookup,
+        string $providerName,
+        ?string $arl,
+        ResolvedKind $kind,
+        int $trackTotal,
+    ): void {
+        if ($providerName !== 'deezer') {
+            return;
+        }
+
+        foreach ($playlists->listTracks($this->savedPlaylistId) as $row) {
+            $filePath = $row['file_path'] ?? null;
+            if (! is_string($filePath) || $filePath === '' || ! is_file($filePath)) {
+                continue;
+            }
+
+            if (! $this->pathIsInside($filePath, $playlistDir) || $this->isDirectChild($filePath, $playlistDir)) {
+                continue;
+            }
+
+            $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+            if (! in_array($extension, self::AUDIO_EXTENSIONS, true)) {
+                continue;
+            }
+
+            $cover = dirname($filePath).'/cover.jpg';
+            if (is_file($cover) && filesize($cover) > 0) {
+                continue;
+            }
+
+            $resolvedItem = $this->findResolvedItem($items, (string) ($row['external_id'] ?? ''), $lookup);
+            $track = $resolvedItem?->item instanceof Track ? $resolvedItem->item : null;
+            if ($track === null || $track->id === null || $track->id === '') {
+                continue;
+            }
+
+            try {
+                $metadata->handle(
+                    $filePath,
+                    $track,
+                    'deezer',
+                    new MetadataEnrichContext(
+                        arl: $arl,
+                        kind: $kind,
+                        trackTotal: $trackTotal,
+                    ),
+                );
+            } catch (Throwable $exception) {
+                Log::warning('playlist album cover write failed', [
+                    'path' => $filePath,
+                    'error' => $exception->getMessage(),
+                ]);
             }
         }
     }

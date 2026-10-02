@@ -643,6 +643,86 @@ class ProcessPlaylistSyncJobTest extends TestCase
         $this->rmTree($base);
     }
 
+    public function test_sync_fetches_album_cover_for_tracks_already_inside_the_playlist(): void
+    {
+        $track = new Track(
+            title: 'Song',
+            artist: new Artist('Artist'),
+            album: new Album('Discovery'),
+            id: 'vid1',
+            index: 3,
+        );
+        $resolved = new ResolvedMusic(
+            provider: 'deezer',
+            kind: ResolvedKind::Playlist,
+            title: 'My List',
+            items: [new ResolvedItem(ResolvedKind::Track, $track, 7)],
+            sourceUrl: 'https://www.deezer.com/playlist/1',
+        );
+
+        $provider = Mockery::mock(MusicProvider::class);
+        $provider->shouldReceive('name')->andReturn('deezer');
+        $provider->shouldReceive('supports')->andReturn(true);
+        $provider->shouldReceive('resolve')->once()->andReturn($resolved);
+        $provider->shouldReceive('download')->never();
+
+        $settings = $this->settingsResolver();
+        $registry = $this->registry([$provider], $settings);
+        $base = storage_path('framework/testing/sync-job-'.uniqid());
+        $storage = new LocalMusicStorage($base);
+        $audio = $base.'/playlists/9-my-list/artist/discovery/03 - song.flac';
+        mkdir(dirname($audio), 0755, true);
+        file_put_contents($audio, 'audio');
+
+        $playlists = Mockery::mock(SavedPlaylistRepository::class);
+        $playlists->shouldReceive('find')->andReturn([
+            'id' => 9,
+            'provider' => 'deezer',
+            'url' => 'https://www.deezer.com/playlist/1',
+            'title' => 'My List',
+            'default_format' => 'flac',
+            'last_sync_status' => PlaylistSyncStatus::Idle->value,
+        ]);
+        $playlists->shouldReceive('updateSyncStatus')->once()->with(9, PlaylistSyncStatus::Running);
+        $playlists->shouldReceive('upsertTrack')->once()->andReturn([
+            'id' => 10,
+            'external_id' => 'vid1',
+            'status' => PlaylistTrackStatus::Downloaded->value,
+        ]);
+        $playlists->shouldReceive('markMissingTracksSkipped')->once();
+        $playlists->shouldReceive('listTracks')->andReturn([
+            [
+                'id' => 10,
+                'external_id' => 'vid1',
+                'title' => 'Song',
+                'artist' => 'Artist',
+                'status' => PlaylistTrackStatus::Downloaded->value,
+                'file_path' => $audio,
+                'position' => 7,
+            ],
+        ]);
+        $playlists->shouldReceive('listPendingTracks')->once()->andReturn([]);
+        $playlists->shouldReceive('updateSyncStatus')
+            ->once()
+            ->with(9, PlaylistSyncStatus::Done, null, true);
+
+        $metadata = Mockery::mock(TrackMetadataApplicator::class);
+        $metadata->shouldReceive('handle')->once()->withArgs(
+            function (string $path) use ($audio): bool {
+                return $path === $audio;
+            },
+        );
+
+        $index = Mockery::mock(DownloadedTrackRepository::class);
+        $index->shouldNotReceive('replaceFilePath');
+
+        $job = new ProcessPlaylistSyncJob(9);
+        $job->handle($playlists, $registry, $settings, $storage, new PlaylistM3uWriter($storage), $metadata, $index);
+
+        $this->assertFileExists($audio);
+        $this->rmTree($base);
+    }
+
     public function test_sync_leaves_reused_library_files_outside_the_playlist_folder(): void
     {
         $track = new Track(
