@@ -368,52 +368,7 @@ final readonly class PlaylistCoverGenerator
      */
     private function prepareOutput(array $playlist): string
     {
-        $output = $this->publishedPath($playlist);
-        $this->removeGenericArtwork(dirname($output), $output);
-
-        return $output;
-    }
-
-    /**
-     * Streamrip saves the last track's album art as cover.jpg in the playlist
-     * folder. Navidrome prefers that name over embedded art and over the
-     * playlist sidecar, so every song (and the playlist mosaic) shows that one image.
-     */
-    private function removeGenericArtwork(string $directory, string $keep): void
-    {
-        if (! is_dir($directory)) {
-            return;
-        }
-
-        $generic = [
-            'cover.jpg', 'cover.jpeg', 'cover.png', 'cover.webp',
-            'folder.jpg', 'folder.jpeg', 'folder.png', 'folder.webp',
-            'front.jpg', 'front.jpeg', 'front.png',
-            'album.jpg', 'albumart.jpg',
-        ];
-        $keepReal = realpath($keep) ?: $keep;
-        $items = scandir($directory);
-        if ($items === false) {
-            return;
-        }
-
-        foreach ($items as $item) {
-            if (! in_array(strtolower($item), $generic, true)) {
-                continue;
-            }
-
-            $path = $directory.'/'.$item;
-            if (! is_file($path)) {
-                continue;
-            }
-
-            $real = realpath($path) ?: $path;
-            if ($real === $keepReal) {
-                continue;
-            }
-
-            @unlink($path);
-        }
+        return $this->publishedPath($playlist);
     }
 
     /**

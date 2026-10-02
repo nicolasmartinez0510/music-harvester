@@ -19,6 +19,7 @@ final readonly class ApplyTrackMetadataHandler implements TrackMetadataApplicato
         private SettingsRepository $settings,
         private TrackMetadataEnricher $enricher,
         private AudioTagWriter $writer,
+        private AlbumFolderCoverWriter $covers,
     ) {}
 
     public function handle(string $filePath, Track $track, string $provider, MetadataEnrichContext $context): void
@@ -46,6 +47,7 @@ final readonly class ApplyTrackMetadataHandler implements TrackMetadataApplicato
         try {
             $metadata = $this->enricher->enrich($track, $effective);
             $this->writer->apply($filePath, $metadata);
+            $this->covers->writeIfMissing($filePath, $metadata->coverBytes);
         } catch (Throwable $exception) {
             Log::warning('audio metadata enrich failed', [
                 'path' => $filePath,

@@ -184,6 +184,47 @@ class DownloadedTrackIndexTest extends TestCase
         @rmdir($musicPath);
     }
 
+    public function test_replace_file_path_points_the_index_at_the_new_location(): void
+    {
+        $dir = storage_path('framework/testing/index-'.uniqid());
+        mkdir($dir.'/artist/album', 0777, true);
+        $from = $dir.'/01 - song.flac';
+        $to = $dir.'/artist/album/01 - song.flac';
+        file_put_contents($from, 'a');
+        rename($from, $to);
+
+        $index = app(DownloadedTrackRepository::class);
+        $index->upsert(null, 'deezer', '100', $from, 'Song', 'Artist');
+        $index->replaceFilePath($from, $to);
+
+        $present = $index->findPresent(null, 'deezer', '100');
+        $this->assertNotNull($present);
+        $this->assertSame($to, $present['file_path']);
+
+        @unlink($to);
+        $this->rmIndexDir($dir);
+    }
+
+    private function rmIndexDir(string $dir): void
+    {
+        if (! is_dir($dir)) {
+            return;
+        }
+
+        foreach (scandir($dir) ?: [] as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+            $path = $dir.'/'.$item;
+            if (is_dir($path)) {
+                $this->rmIndexDir($path);
+            } else {
+                @unlink($path);
+            }
+        }
+        @rmdir($dir);
+    }
+
     /**
      * @param  list<string>  $paths
      * @return array<string, mixed>

@@ -47,6 +47,8 @@ interface DownloadedTrackRepository
 
     public function setReleaseYear(int $id, int $releaseYear): void;
 
+    public function replaceFilePath(string $from, string $to): void;
+
     /**
      * @param  list<string>  $paths
      */

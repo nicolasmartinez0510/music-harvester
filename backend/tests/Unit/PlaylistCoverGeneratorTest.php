@@ -47,7 +47,7 @@ class PlaylistCoverGeneratorTest extends TestCase
 
         $this->assertSame(['mosaic', 'title'], $renderer->modes);
         $this->assertFileExists($folder.'/7-country.jpg');
-        $this->assertFileDoesNotExist($folder.'/cover.jpg');
+        $this->assertFileExists($folder.'/cover.jpg');
         $this->assertFileExists($folder.'/nested/cover.jpg');
     }
 

@@ -16,6 +16,7 @@ use App\Domain\Music\ValueObjects\DownloadOptions;
 use App\Domain\Music\ValueObjects\MetadataEnrichContext;
 use App\Domain\Music\ValueObjects\PlaylistSyncStatus;
 use App\Domain\Music\ValueObjects\PlaylistTrackStatus;
+use App\Domain\Music\Models\Album;
 use App\Domain\Music\ValueObjects\ResolvedItem;
 use App\Domain\Music\ValueObjects\ResolvedKind;
 use App\Infrastructure\Providers\MusicProviderRegistry;
@@ -39,6 +40,9 @@ class ProcessPlaylistSyncJob implements ShouldQueue
     public int $timeout = 7200;
 
     private const TRACK_DELAY_SECONDS = 2;
+
+    /** @var list<string> */
+    private const AUDIO_EXTENSIONS = ['mp3', 'flac', 'm4a', 'mp4', 'aac', 'ogg', 'wav'];
 
     public function __construct(
         public int $savedPlaylistId,
@@ -133,8 +137,22 @@ class ProcessPlaylistSyncJob implements ShouldQueue
             $storage->ensureDirectory($playlistDir);
             $this->relabelReusedTracks($playlists, $playlistDir);
 
-            $pending = $playlists->listPendingTracks($this->savedPlaylistId);
             $options = $this->buildOptions($playlist, $provider->name(), $settings, $playlistDir, $userId);
+            $this->relocateFlatTracks(
+                $playlists,
+                $downloadedTracks,
+                $storage,
+                $metadata,
+                $playlistDir,
+                $resolved->items,
+                $lookup,
+                $provider->name(),
+                $options->deezerArl,
+                $resolved->kind,
+                count($resolved->items),
+            );
+
+            $pending = $playlists->listPendingTracks($this->savedPlaylistId);
             $downloadedCount = 0;
 
             foreach ($pending as $pendingTrack) {
@@ -177,12 +195,7 @@ class ProcessPlaylistSyncJob implements ShouldQueue
                     return;
                 }
 
-                $downloadItem = $this->withPlaylistPosition(
-                    $resolvedItem,
-                    (int) ($pendingTrack['position'] ?? $resolvedItem->position),
-                );
-
-                $result = $provider->download($downloadItem, $options);
+                $result = $provider->download($resolvedItem, $options);
 
                 if (! $result->success) {
                     $playlists->updateTrackStatus(
@@ -196,14 +209,14 @@ class ProcessPlaylistSyncJob implements ShouldQueue
 
                 if (
                     $provider->name() === 'deezer'
-                    && $downloadItem->item instanceof Track
+                    && $resolvedItem->item instanceof Track
                     && is_string($result->destinationPath)
                     && $result->destinationPath !== ''
                 ) {
                     try {
                         $metadata->handle(
                             $result->destinationPath,
-                            $downloadItem->item,
+                            $resolvedItem->item,
                             'deezer',
                             new MetadataEnrichContext(
                                 arl: $options->deezerArl,
@@ -220,7 +233,7 @@ class ProcessPlaylistSyncJob implements ShouldQueue
                 }
 
                 if (is_string($result->destinationPath) && $result->destinationPath !== '') {
-                    $track = $downloadItem->item instanceof Track ? $downloadItem->item : null;
+                    $track = $resolvedItem->item instanceof Track ? $resolvedItem->item : null;
                     $downloadedTracks->upsert(
                         userId: $userId,
                         provider: $provider->name(),
@@ -279,7 +292,7 @@ class ProcessPlaylistSyncJob implements ShouldQueue
         array $playlist,
         string $provider,
         ProviderSettingsResolver $settings,
-        string $targetDirectory,
+        string $playlistDirectory,
         ?int $userId = null,
     ): DownloadOptions {
         $formatValue = $playlist['default_format'] ?? $settings->defaultFormat()->value;
@@ -287,12 +300,11 @@ class ProcessPlaylistSyncJob implements ShouldQueue
 
         return new DownloadOptions(
             format: $format,
-            musicPath: $settings->musicPath(),
+            musicPath: $playlistDirectory,
             provider: $provider,
             cookiesPath: $settings->youtubeMusicCookiesPath($userId),
             deezerArl: $settings->deezerArl($userId),
             deezerMode: $settings->deezerMode(),
-            targetDirectory: $targetDirectory,
         );
     }
 
@@ -343,27 +355,117 @@ class ProcessPlaylistSyncJob implements ShouldQueue
         return $dir !== '' && ($normalized === $dir || str_starts_with($normalized, $dir.'/'));
     }
 
-    private function withPlaylistPosition(ResolvedItem $item, int $position): ResolvedItem
-    {
-        if (! $item->item instanceof Track) {
-            return $item;
+    /**
+     * @param  list<ResolvedItem>  $items
+     */
+    private function relocateFlatTracks(
+        SavedPlaylistRepository $playlists,
+        DownloadedTrackRepository $downloadedTracks,
+        LocalMusicStorage $storage,
+        TrackMetadataApplicator $metadata,
+        string $playlistDir,
+        array $items,
+        DownloadedTrackLookup $lookup,
+        string $providerName,
+        ?string $arl,
+        ResolvedKind $kind,
+        int $trackTotal,
+    ): void {
+        foreach ($playlists->listTracks($this->savedPlaylistId) as $row) {
+            $filePath = $row['file_path'] ?? null;
+            if (! is_string($filePath) || $filePath === '' || ! is_file($filePath)) {
+                continue;
+            }
+
+            if (! $this->isDirectChild($filePath, $playlistDir)) {
+                continue;
+            }
+
+            $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+            if (! in_array($extension, self::AUDIO_EXTENSIONS, true)) {
+                continue;
+            }
+
+            $resolvedItem = $this->findResolvedItem($items, (string) ($row['external_id'] ?? ''), $lookup);
+            if ($resolvedItem === null || ! $resolvedItem->item instanceof Track) {
+                continue;
+            }
+
+            $track = $resolvedItem->item;
+            if ($track->album === null) {
+                $track = new Track(
+                    title: $track->title,
+                    artist: $track->artist,
+                    album: new Album('Unknown Album', $track->artist),
+                    index: $track->index,
+                    id: $track->id,
+                    duration: $track->duration,
+                    releaseYear: $track->releaseYear,
+                );
+            }
+
+            $destinationDir = $storage->trackDirectory($track, $playlistDir);
+            $storage->ensureDirectory($destinationDir);
+            $destination = $destinationDir.'/'.$storage->trackFilename($track, $extension);
+
+            if (is_file($destination) && realpath($destination) !== realpath($filePath)) {
+                Log::warning('playlist flat track relocate skipped', [
+                    'from' => $filePath,
+                    'to' => $destination,
+                    'reason' => 'destination exists',
+                ]);
+
+                continue;
+            }
+
+            if (! is_file($destination) && ! @rename($filePath, $destination)) {
+                Log::warning('playlist flat track relocate failed', [
+                    'from' => $filePath,
+                    'to' => $destination,
+                ]);
+
+                continue;
+            }
+
+            $status = PlaylistTrackStatus::tryFrom((string) ($row['status'] ?? ''));
+            if ($status !== null) {
+                $playlists->updateTrackStatus((int) $row['id'], $status, filePath: $destination);
+            }
+
+            $downloadedTracks->replaceFilePath($filePath, $destination);
+
+            $cover = $destinationDir.'/cover.jpg';
+            if (
+                $providerName === 'deezer'
+                && (! is_file($cover) || filesize($cover) === 0)
+            ) {
+                try {
+                    $metadata->handle(
+                        $destination,
+                        $track,
+                        'deezer',
+                        new MetadataEnrichContext(
+                            arl: $arl,
+                            kind: $kind,
+                            trackTotal: $trackTotal,
+                        ),
+                    );
+                } catch (Throwable $exception) {
+                    Log::warning('playlist album cover write failed', [
+                        'path' => $destination,
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
+            }
         }
+    }
 
-        $track = $item->item;
+    private function isDirectChild(string $path, string $directory): bool
+    {
+        $parent = rtrim(str_replace('\\', '/', dirname($path)), '/');
+        $dir = rtrim(str_replace('\\', '/', $directory), '/');
 
-        return new ResolvedItem(
-            kind: ResolvedKind::Track,
-            item: new Track(
-                title: $track->title,
-                artist: $track->artist,
-                album: $track->album,
-                index: max(1, $position),
-                id: $track->id,
-                duration: $track->duration,
-                releaseYear: $track->releaseYear,
-            ),
-            position: max(1, $position),
-        );
+        return $parent === $dir;
     }
 
     /**

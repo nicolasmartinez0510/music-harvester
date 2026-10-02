@@ -151,6 +151,18 @@ final class EloquentDownloadedTrackRepository implements DownloadedTrackReposito
         ]);
     }
 
+    public function replaceFilePath(string $from, string $to): void
+    {
+        if ($from === '' || $to === '' || $from === $to) {
+            return;
+        }
+
+        DB::table('downloaded_tracks')->where('file_path', $from)->update([
+            'file_path' => $to,
+            'updated_at' => now(),
+        ]);
+    }
+
     public function deleteByPaths(array $paths): void
     {
         $paths = array_values(array_filter($paths, fn ($path) => is_string($path) && $path !== ''));
