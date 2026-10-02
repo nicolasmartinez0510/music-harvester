@@ -10,6 +10,7 @@ use App\Application\GetSavedPlaylist\GetSavedPlaylistHandler;
 use App\Application\GetSavedPlaylist\GetSavedPlaylistQuery;
 use App\Application\ListSavedPlaylists\ListSavedPlaylistsHandler;
 use App\Application\ListSavedPlaylists\ListSavedPlaylistsQuery;
+use App\Application\PlaylistCover\PlaylistCoverGenerator;
 use App\Application\SavePlaylist\SavePlaylistCommand;
 use App\Application\SavePlaylist\SavePlaylistHandler;
 use App\Application\SyncSavedPlaylist\SyncSavedPlaylistCommand;
@@ -19,6 +20,7 @@ use App\Application\UpdateSavedPlaylist\UpdateSavedPlaylistHandler;
 use App\Domain\Music\Contracts\SavedPlaylistRepository;
 use App\Domain\Music\Exceptions\UnsupportedMusicUrlException;
 use App\Domain\Music\ValueObjects\MusicUrl;
+use App\Http\Requests\StorePlaylistCoverRequest;
 use App\Http\Requests\StorePlaylistRequest;
 use App\Http\Requests\UpdatePlaylistRequest;
 use App\Http\Resources\SavedPlaylistResource;
@@ -28,6 +30,8 @@ use App\Support\OwnedResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Throwable;
 
 final class PlaylistController extends Controller
 {
@@ -107,7 +111,7 @@ final class PlaylistController extends Controller
                 id: $id,
                 attributes: $request->validated(),
             ));
-        } catch (\ValueError $exception) {
+        } catch (\InvalidArgumentException|\ValueError $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
         }
 
@@ -159,6 +163,54 @@ final class PlaylistController extends Controller
         ])))
             ->response()
             ->setStatusCode(202);
+    }
+
+    public function showCover(
+        int $id,
+        PlaylistCoverGenerator $covers,
+        SavedPlaylistRepository $playlists,
+    ): BinaryFileResponse|JsonResponse {
+        if ($this->visiblePlaylist($id, $playlists) === null) {
+            return response()->json(['message' => 'Playlist not found.'], 404);
+        }
+
+        $path = $covers->readablePath($id);
+        if ($path === null) {
+            return response()->json(['message' => 'Cover not found.'], 404);
+        }
+
+        return response()->file($path, [
+            'Content-Type' => 'image/jpeg',
+            'Cache-Control' => 'private, max-age=60',
+        ]);
+    }
+
+    public function storeCover(
+        int $id,
+        StorePlaylistCoverRequest $request,
+        PlaylistCoverGenerator $covers,
+        SavedPlaylistRepository $playlists,
+    ): SavedPlaylistResource|JsonResponse {
+        if ($this->visiblePlaylist($id, $playlists) === null) {
+            return response()->json(['message' => 'Playlist not found.'], 404);
+        }
+
+        $file = $request->file('cover');
+        if ($file === null) {
+            return response()->json(['message' => 'Elegí una imagen.'], 422);
+        }
+
+        try {
+            $playlist = $covers->storeCustom($id, $file->getPathname());
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return response()->json(['message' => 'No se pudo guardar la portada.'], 422);
+        }
+
+        return new SavedPlaylistResource(array_merge($playlist, [
+            'counts' => $playlists->trackCounts($id),
+        ]));
     }
 
     /**

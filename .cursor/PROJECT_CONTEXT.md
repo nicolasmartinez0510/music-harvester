@@ -52,7 +52,7 @@ Plan: [`.cursor/plans/user_auth_admin_1389c0c0.plan.md`](plans/user_auth_admin_1
 - Deezer catalog: API pública `api.deezer.com`; hits de álbum incluyen `record_type` (`album` | `ep` | `single`); hits de track incluyen `preview_url` (snip ~30s de Deezer, o null). El tracklist de un álbum no trae `cover_*`: la miniatura sale de `md5_image` (`e-cdns-images.dzcdn.net`, 250×250)
 - Portada de artista: `picture_xl` (fallback `picture_big` / `picture_medium`) en `cover_url`
 - Bio de artista: Wikipedia (es → en). User-Agent con URL del repo; un 403/429 no se cachea como “sin bio”
-- Deezer download nativo: streamrip + ARL → FLAC / MP3 320
+- Deezer download nativo: streamrip + ARL → FLAC / MP3 320. `embed = true` siempre. `save_artwork` (el `cover.jpg` suelto) solo en tema suelto o álbum; en playlist queda apagado para no pisar la portada de la carpeta
 - Deezer híbrido: match YouTube → yt-dlp (no lossless)
 - Metadata post-descarga Deezer: enricher + mutagen (tags, cover, lyrics) — plan `deezer_audio_metadata` ✅
 - Mi Colección: `UserLibrarySource` + `GET /api/library/{provider}/{artists|albums|tracks|playlists}` (Deezer); YTM cookies **no** listan library
@@ -62,6 +62,7 @@ Plan: [`.cursor/plans/user_auth_admin_1389c0c0.plan.md`](plans/user_auth_admin_1
 
 - `saved_playlists` + sync job/scheduler; intervalo en **minutos** (default 5)
 - Disco: `playlists/{id}-{slug}/` + M3U regenerado en cada sync (paths relativos a la carpeta de la playlist, así un tema reutilizado apunta a `{artist}/{album}/` sin copiar audio)
+- Portada: `{id}-{slug}.jpg` junto al M3U (`cover_mode`: `auto` | `mosaic` | `title` | `artist` | `custom`). Automático y mosaico arman hasta 4 carátulas embebidas distintas (1/2/3/4); si no hay ninguna, arte con el título. Retrato usa Deezer `search/artist` (`picture_xl`, sin ARL) si hay un artista claro (≥3 temas y más que el segundo, o el único); si no, grilla de hasta 4 fotos. Upload propio en `storage/app/private/playlist-covers/{id}.jpg` (el sync solo copia). Un fallo de render no falla el sync. Al publicar se borran `cover.jpg` / `folder.jpg` / `front.jpg` / `album.jpg` de esa carpeta para que Navidrome no repita un solo álbum. Plan: [playlist_cover_modes](plans/playlist_cover_modes_3733c473.plan.md)
 - Dedup: tabla `downloaded_tracks` (`user_id` + `provider` + `external_id` → `file_path`, más `release_year`). Sync de playlist y descargas de tema o álbum usan el mismo filtro: id del proveedor si existe; si no hay id o no coincide, artista + título; el año solo cuando ese par devuelve más de un archivo. Un tema de otro álbum ya bajado se omite. No crea una segunda fila de índice con el id de la otra edición. Si el proveedor no manda id, la clave de índice es `identity:` + hash de artista, título y año. Años viejos: `php artisan downloads:backfill-release-year` lee el tag `date`. Un one-shot que reutiliza todo el material queda en estado `existing` (**Ya existe**) y guarda la ruta ya indexada; no crea otra copia en `{artist}/{album}/`. Borrar ese job no borra un archivo cuyo índice pertenece a otro dueño (playlist con `download_job_id` null). Jobs `done` viejos, de un solo track y sin ruta, se muestran como **Ya existe** si el índice todavía tiene el archivo. Backfill de descargas viejas: `php artisan downloads:backfill-index` (en el NAS, dentro de `app`; `--dry-run` primero). Resuelve cada job `done`, matchea el archivo por nombre y registra el id del tema. Álbumes primero, así la playlist reutiliza ese path
 - El `.m3u` se reescribe en cada sync. Si el archivo viejo es de root y `www-data` no puede pisarlo, se borra y se crea de nuevo
 - One-shot de un tema que no está en el índice sigue en artista/álbum
@@ -93,6 +94,7 @@ Plan: [`.cursor/plans/user_auth_admin_1389c0c0.plan.md`](plans/user_auth_admin_1
 - Miniaturas de tracks en la ficha de álbum: Deezer manda `md5_image` en vez de `cover_medium`; `cover_url` se arma con esa hash para que el listado no quede en el placeholder
 - Descargas que ya están en el índice (por ejemplo dentro de una playlist) muestran **Ya existe** en vez de Completado / Archivos ausentes. El sync de playlist puede reescribir un `.m3u` que había quedado de root
 - UI responsive (tablas y hits en ≤640px, safe-area, acciones como iconos) + PWA instalable (shell cacheado; sin offline de catálogo ni descargas). Nueva versión avisa con toast “Recargar”. Plan: [responsive_pwa](plans/responsive_pwa_38f12cec.plan.md)
+- Portadas de playlist en el modal de configuración (preview arriba, selector Portada). Pillow + DejaVu en la imagen; script `docker/scripts/render-playlist-cover.py`. `GET`/`POST /api/playlists/{id}/cover`
 
 ## Próximos / pendientes
 

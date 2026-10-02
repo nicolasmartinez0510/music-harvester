@@ -27,7 +27,13 @@ use App\Application\Settings\ProviderSettingsResolver;
 use App\Application\SyncSavedPlaylist\SyncSavedPlaylistHandler;
 use App\Application\UpdateSavedPlaylist\UpdateSavedPlaylistHandler;
 use App\Application\UpdateSettings\UpdateSettingsHandler;
+use App\Application\PlaylistCover\PlaylistArtistRanker;
+use App\Application\PlaylistCover\PlaylistCoverGenerator;
 use App\Domain\Music\Contracts\ArtistBiographyLookup;
+use App\Domain\Music\Contracts\ArtistPortraitLookup;
+use App\Domain\Music\Contracts\PlaylistCoverRenderer;
+use App\Infrastructure\PlaylistCover\PythonPlaylistCoverRenderer;
+use App\Infrastructure\Providers\Deezer\DeezerArtistPortraitLookup;
 use App\Domain\Music\Contracts\AudioCoverProbe;
 use App\Domain\Music\Contracts\AudioReleaseYearProbe;
 use App\Domain\Music\Contracts\AudioTagWriter;
@@ -72,6 +78,10 @@ class MusicHarvesterServiceProvider extends ServiceProvider
         $this->app->singleton(SavedPlaylistRepository::class, EloquentSavedPlaylistRepository::class);
         $this->app->singleton(SettingsRepository::class, EloquentSettingsRepository::class);
         $this->app->singleton(ArtistBiographyLookup::class, WikipediaArtistBiographyLookup::class);
+        $this->app->singleton(ArtistPortraitLookup::class, DeezerArtistPortraitLookup::class);
+        $this->app->singleton(PlaylistCoverRenderer::class, PythonPlaylistCoverRenderer::class);
+        $this->app->singleton(PlaylistArtistRanker::class);
+        $this->app->singleton(PlaylistCoverGenerator::class);
         $this->app->singleton(ProviderSettingsResolver::class);
 
         $this->app->singleton(LocalMusicStorage::class, function ($app) {

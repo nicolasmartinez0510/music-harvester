@@ -19,7 +19,13 @@ final class StreamripDeezerDownloader
         private string $ripBinary = 'rip',
     ) {}
 
-    public function download(string $deezerUrl, string $arl, AudioFormat $format, string $outputDirectory): string
+    public function download(
+        string $deezerUrl,
+        string $arl,
+        AudioFormat $format,
+        string $outputDirectory,
+        bool $saveArtwork = true,
+    ): string
     {
         if (! is_dir($outputDirectory) && ! mkdir($outputDirectory, 0755, true) && ! is_dir($outputDirectory)) {
             throw new RuntimeException('Cannot create output directory: '.$outputDirectory);
@@ -33,7 +39,7 @@ final class StreamripDeezerDownloader
 
         try {
             $configPath = $configDir.'/config.toml';
-            file_put_contents($configPath, $this->buildConfig($arl, $format, $outputDirectory));
+            file_put_contents($configPath, $this->buildConfig($arl, $format, $outputDirectory, $saveArtwork));
 
             $before = $this->listFiles($outputDirectory);
 
@@ -73,7 +79,7 @@ final class StreamripDeezerDownloader
         }
     }
 
-    private function buildConfig(string $arl, AudioFormat $format, string $outputDirectory): string
+    private function buildConfig(string $arl, AudioFormat $format, string $outputDirectory, bool $saveArtwork = true): string
     {
         $quality = match ($format) {
             AudioFormat::Flac => 2,
@@ -82,6 +88,7 @@ final class StreamripDeezerDownloader
 
         $downloads = addslashes($outputDirectory);
         $arlEscaped = addslashes($arl);
+        $saveArtworkToml = $saveArtwork ? 'true' : 'false';
 
         return <<<TOML
 [downloads]
@@ -93,6 +100,10 @@ arl = "{$arlEscaped}"
 quality = {$quality}
 lower_quality_if_not_available = true
 use_deezloader = false
+
+[artwork]
+embed = true
+save_artwork = {$saveArtworkToml}
 
 [cli]
 text_output = true

@@ -143,6 +143,31 @@
           </div>
 
           <form class="modal-body form" [formGroup]="form" (ngSubmit)="saveSettings()">
+            <div class="cover-block">
+              @if (coverPreviewUrl) {
+                <img class="cover-preview" [src]="coverPreviewUrl" alt="Portada de la playlist" (error)="coverMissing = true" />
+              }
+
+              <label class="field">
+                <span>Portada</span>
+                <select formControlName="cover_mode">
+                  @for (mode of coverModes; track mode.value) {
+                    <option [value]="mode.value">{{ mode.label }}</option>
+                  }
+                </select>
+              </label>
+
+              @if (form.controls.cover_mode.value === 'custom') {
+                <label class="field">
+                  <span>Imagen</span>
+                  <input type="file" accept="image/jpeg,image/png,image/webp" (change)="onCoverSelected($event)" />
+                </label>
+                <button type="button" class="btn btn-secondary" (click)="useAutomaticCover()">
+                  Volver a automático
+                </button>
+              }
+            </div>
+
             <label class="field">
               <span>URL de playlist</span>
               <input type="url" [value]="detail.url" readonly />

@@ -56,6 +56,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/playlists', [PlaylistController::class, 'index']);
     Route::post('/playlists', [PlaylistController::class, 'store']);
     Route::get('/playlists/{id}', [PlaylistController::class, 'show'])->whereNumber('id');
+    Route::get('/playlists/{id}/cover', [PlaylistController::class, 'showCover'])->whereNumber('id');
+    Route::post('/playlists/{id}/cover', [PlaylistController::class, 'storeCover'])->whereNumber('id');
     Route::put('/playlists/{id}', [PlaylistController::class, 'update'])->whereNumber('id');
     Route::delete('/playlists/{id}', [PlaylistController::class, 'destroy'])->whereNumber('id');
     Route::post('/playlists/{id}/sync', [PlaylistController::class, 'sync'])->whereNumber('id');

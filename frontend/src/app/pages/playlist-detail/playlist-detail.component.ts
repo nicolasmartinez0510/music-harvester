@@ -12,6 +12,7 @@ import {
   AudioFormat,
   PLAYLIST_SYNC_LABELS,
   PLAYLIST_TRACK_LABELS,
+  PlaylistCoverMode,
   PROVIDER_LABELS,
   SavedPlaylistDetail,
   SavedPlaylistTrack,
@@ -39,6 +40,13 @@ export class PlaylistDetailComponent implements OnInit {
   readonly trackLabels = PLAYLIST_TRACK_LABELS;
   readonly providerLabels = PROVIDER_LABELS;
   readonly formats = AUDIO_FORMATS;
+  readonly coverModes: { value: PlaylistCoverMode; label: string }[] = [
+    { value: 'auto', label: 'Automático (mosaico de temas)' },
+    { value: 'mosaic', label: 'Mosaico de temas' },
+    { value: 'title', label: 'Arte con el nombre' },
+    { value: 'artist', label: 'Retrato del artista' },
+    { value: 'custom', label: 'Imagen propia' },
+  ];
 
   playlistId = 0;
   detail: SavedPlaylistDetail | null = null;
@@ -49,6 +57,9 @@ export class PlaylistDetailComponent implements OnInit {
   showDeleteConfirm = false;
   deleting = false;
   errorMessage: string | null = null;
+  coverFile: File | null = null;
+  coverMissing = false;
+  coverVersion = 0;
 
   page = 1;
   pageSize = 10;
@@ -57,6 +68,7 @@ export class PlaylistDetailComponent implements OnInit {
     sync_enabled: [true],
     sync_interval_minutes: [5, [Validators.required, Validators.min(1), Validators.max(10080)]],
     default_format: ['' as string],
+    cover_mode: ['auto' as PlaylistCoverMode],
   });
 
   ngOnInit(): void {
@@ -83,6 +95,7 @@ export class PlaylistDetailComponent implements OnInit {
               sync_enabled: detail.sync_enabled,
               sync_interval_minutes: detail.sync_interval_minutes,
               default_format: detail.default_format ?? '',
+              cover_mode: detail.cover_mode ?? 'auto',
             });
             this.form.markAsPristine();
           }
@@ -129,7 +142,10 @@ export class PlaylistDetailComponent implements OnInit {
       sync_enabled: this.detail.sync_enabled,
       sync_interval_minutes: this.detail.sync_interval_minutes,
       default_format: this.detail.default_format ?? '',
+      cover_mode: this.detail.cover_mode ?? 'auto',
     });
+    this.coverFile = null;
+    this.coverMissing = false;
     this.form.markAsPristine();
     this.showConfigModal = true;
   }
@@ -146,32 +162,84 @@ export class PlaylistDetailComponent implements OnInit {
       return;
     }
 
-    const { sync_enabled, sync_interval_minutes, default_format } = this.form.getRawValue();
-    this.saving = true;
+    const { sync_enabled, sync_interval_minutes, default_format, cover_mode } = this.form.getRawValue();
+    if (cover_mode === 'custom' && !this.coverFile && this.detail?.cover_mode !== 'custom') {
+      this.toast.error('Elegí una imagen para la portada.');
+      return;
+    }
 
-    this.api
-      .updatePlaylist(this.playlistId, {
-        sync_enabled,
-        sync_interval_minutes,
-        default_format: default_format === '' ? null : (default_format as AudioFormat),
-      })
-      .subscribe({
-        next: (updated) => {
-          this.saving = false;
-          this.form.markAsPristine();
-          if (this.detail) {
-            this.detail = { ...this.detail, ...updated };
-          }
-          this.showConfigModal = false;
-          this.toast.success('Configuración guardada.');
+    this.saving = true;
+    const payload = {
+      sync_enabled,
+      sync_interval_minutes,
+      default_format: default_format === '' ? null : (default_format as AudioFormat),
+      cover_mode,
+    };
+
+    if (cover_mode === 'custom' && this.coverFile) {
+      this.api.uploadPlaylistCover(this.playlistId, this.coverFile).subscribe({
+        next: () => {
+          this.coverFile = null;
+          this.persistSettings(payload);
         },
         error: (error: { error?: ApiValidationError }) => {
           this.saving = false;
-          const message = error.error?.message ?? 'No se pudo guardar.';
+          const message = error.error?.message ?? 'No se pudo guardar la portada.';
           this.errorMessage = message;
           this.toast.error(message);
         },
       });
+      return;
+    }
+
+    this.persistSettings(payload);
+  }
+
+  private persistSettings(payload: {
+    sync_enabled: boolean;
+    sync_interval_minutes: number;
+    default_format: AudioFormat | null;
+    cover_mode: PlaylistCoverMode;
+  }): void {
+    this.api.updatePlaylist(this.playlistId, payload).subscribe({
+      next: (updated) => {
+        this.saving = false;
+        this.coverVersion = Date.now();
+        this.coverMissing = false;
+        this.form.markAsPristine();
+        if (this.detail) {
+          this.detail = { ...this.detail, ...updated };
+        }
+        this.toast.success('Configuración guardada.');
+      },
+      error: (error: { error?: ApiValidationError }) => {
+        this.saving = false;
+        const message = error.error?.message ?? 'No se pudo guardar.';
+        this.errorMessage = message;
+        this.toast.error(message);
+      },
+    });
+  }
+
+  onCoverSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.coverFile = input.files?.[0] ?? null;
+    this.coverMissing = false;
+  }
+
+  useAutomaticCover(): void {
+    this.coverFile = null;
+    this.form.controls.cover_mode.setValue('auto');
+    this.form.markAsDirty();
+  }
+
+  get coverPreviewUrl(): string | null {
+    if (!this.detail?.cover_url || this.coverMissing) {
+      return null;
+    }
+
+    const version = this.coverVersion || this.detail.updated_at;
+    return `${this.detail.cover_url}?v=${encodeURIComponent(version)}`;
   }
 
   syncNow(): void {

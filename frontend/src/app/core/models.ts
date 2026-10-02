@@ -4,6 +4,7 @@ export type DeezerMode = 'native' | 'hybrid';
 export type ProviderName = 'youtube_music' | 'deezer' | 'auto';
 export type PlaylistSyncStatus = 'idle' | 'running' | 'done' | 'failed';
 export type PlaylistTrackStatus = 'pending' | 'downloaded' | 'existing' | 'failed' | 'skipped';
+export type PlaylistCoverMode = 'auto' | 'mosaic' | 'title' | 'artist' | 'custom';
 
 export interface DownloadJob {
   id: number;
@@ -41,6 +42,8 @@ export interface SavedPlaylist {
   sync_enabled: boolean;
   sync_interval_minutes: number;
   default_format: AudioFormat | null;
+  cover_mode: PlaylistCoverMode;
+  cover_url: string;
   last_synced_at: string | null;
   last_sync_status: PlaylistSyncStatus;
   last_sync_error: string | null;

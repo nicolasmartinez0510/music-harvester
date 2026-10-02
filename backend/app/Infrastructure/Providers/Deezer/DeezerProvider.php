@@ -517,6 +517,7 @@ final class DeezerProvider implements MusicProvider, CatalogSource, UserLibraryS
                 $arl,
                 $format === AudioFormat::Flac ? AudioFormat::Flac : AudioFormat::Mp3_320,
                 $directory,
+                saveArtwork: ! $playlistLayout,
             );
         } catch (RuntimeException $exception) {
             return DownloadResult::failed($exception->getMessage());

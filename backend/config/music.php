@@ -25,4 +25,12 @@ return [
 
         return dirname(__DIR__, 2).'/docker/scripts/apply-audio-metadata.py';
     })()),
+    'playlist_cover_script_path' => env('PLAYLIST_COVER_SCRIPT_PATH', (static function (): string {
+        $installed = '/usr/local/bin/render-playlist-cover.py';
+        if (is_file($installed)) {
+            return $installed;
+        }
+
+        return dirname(__DIR__, 2).'/docker/scripts/render-playlist-cover.py';
+    })()),
 ];

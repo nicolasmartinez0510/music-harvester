@@ -13,6 +13,7 @@ import {
   CatalogType,
   DeezerMode,
   DownloadJob,
+  PlaylistCoverMode,
   ProviderInfo,
   ProviderName,
   SavedPlaylist,
@@ -52,6 +53,7 @@ export interface UpdatePlaylistPayload {
   sync_enabled?: boolean;
   sync_interval_minutes?: number;
   default_format?: AudioFormat | null;
+  cover_mode?: PlaylistCoverMode;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -108,6 +110,14 @@ export class ApiService {
   updatePlaylist(id: number, payload: UpdatePlaylistPayload): Observable<SavedPlaylist> {
     return this.http
       .put<ApiResource<SavedPlaylist>>(`${this.baseUrl}/playlists/${id}`, payload)
+      .pipe(map((response) => response.data));
+  }
+
+  uploadPlaylistCover(id: number, file: File): Observable<SavedPlaylist> {
+    const body = new FormData();
+    body.append('cover', file);
+    return this.http
+      .post<ApiResource<SavedPlaylist>>(`${this.baseUrl}/playlists/${id}/cover`, body)
       .pipe(map((response) => response.data));
   }
 

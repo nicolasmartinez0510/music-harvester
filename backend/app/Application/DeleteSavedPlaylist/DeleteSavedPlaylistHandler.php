@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\DeleteSavedPlaylist;
 
 use App\Application\Auth\LibraryPathResolver;
+use App\Application\PlaylistCover\PlaylistCoverGenerator;
 use App\Domain\Music\Contracts\DownloadedTrackRepository;
 use App\Domain\Music\Contracts\SavedPlaylistRepository;
 use App\Infrastructure\Queue\PlaylistSyncQueueCanceller;
@@ -28,6 +29,7 @@ final readonly class DeleteSavedPlaylistHandler
         private DownloadedFilesCleanup $filesCleanup,
         private LibraryPathResolver $paths,
         private DownloadedTrackRepository $downloadedTracks,
+        private PlaylistCoverGenerator $covers,
     ) {}
 
     public function handle(DeleteSavedPlaylistCommand $command): bool
@@ -78,6 +80,7 @@ final readonly class DeleteSavedPlaylistHandler
         }
 
         $this->filesCleanup->deletePaths([...$ownedPaths, ...$directories]);
+        $this->covers->deleteCustom($command->id);
         $this->downloadedTracks->deleteByPaths($ownedPaths);
 
         return true;

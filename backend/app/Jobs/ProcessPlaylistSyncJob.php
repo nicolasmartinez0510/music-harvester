@@ -21,6 +21,7 @@ use App\Domain\Music\ValueObjects\ResolvedKind;
 use App\Infrastructure\Providers\MusicProviderRegistry;
 use App\Infrastructure\Providers\YoutubeMusic\YoutubeMusicProvider;
 use App\Infrastructure\Storage\LocalMusicStorage;
+use App\Application\PlaylistCover\PlaylistCoverGenerator;
 use App\Infrastructure\Storage\PlaylistM3uWriter;
 use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -244,6 +245,15 @@ class ProcessPlaylistSyncJob implements ShouldQueue
             }
 
             $this->regenerateM3u($playlists, $m3uWriter, $playlist, $libraryRoot);
+
+            try {
+                app(PlaylistCoverGenerator::class)->generate($this->savedPlaylistId);
+            } catch (Throwable $exception) {
+                Log::warning('playlist cover generation failed', [
+                    'playlist_id' => $this->savedPlaylistId,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
 
             $playlists->updateSyncStatus(
                 $this->savedPlaylistId,

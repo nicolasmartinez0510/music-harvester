@@ -101,6 +101,10 @@ final class EloquentSavedPlaylistRepository implements SavedPlaylistRepository
             $allowed['default_format'] = $attributes['default_format'];
         }
 
+        if (array_key_exists('cover_mode', $attributes)) {
+            $allowed['cover_mode'] = (string) $attributes['cover_mode'];
+        }
+
         if (array_key_exists('title', $attributes)) {
             $allowed['title'] = $attributes['title'];
         }
@@ -347,6 +351,7 @@ final class EloquentSavedPlaylistRepository implements SavedPlaylistRepository
             'sync_enabled' => (bool) $row['sync_enabled'],
             'sync_interval_minutes' => (int) $row['sync_interval_minutes'],
             'default_format' => $row['default_format'],
+            'cover_mode' => (string) ($row['cover_mode'] ?? 'auto'),
             'last_synced_at' => $row['last_synced_at'],
             'last_sync_status' => (string) $row['last_sync_status'],
             'last_sync_error' => $row['last_sync_error'],

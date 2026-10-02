@@ -28,6 +28,8 @@ final class SavedPlaylistResource extends JsonResource
             'sync_enabled' => (bool) $playlist['sync_enabled'],
             'sync_interval_minutes' => (int) $playlist['sync_interval_minutes'],
             'default_format' => $playlist['default_format'],
+            'cover_mode' => (string) ($playlist['cover_mode'] ?? 'auto'),
+            'cover_url' => '/api/playlists/'.(int) $playlist['id'].'/cover',
             'last_synced_at' => $playlist['last_synced_at'],
             'last_sync_status' => (string) $playlist['last_sync_status'],
             'last_sync_error' => $playlist['last_sync_error'],

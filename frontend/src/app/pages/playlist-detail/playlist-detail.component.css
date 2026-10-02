@@ -189,3 +189,21 @@ th {
     padding-top: 0.15rem;
   }
 }
+
+.cover-block {
+  display: grid;
+  justify-items: center;
+  gap: 0.85rem;
+}
+
+.cover-block .field {
+  width: 100%;
+}
+
+.cover-preview {
+  width: 8rem;
+  height: 8rem;
+  object-fit: cover;
+  border-radius: var(--radius);
+  background: var(--border);
+}
